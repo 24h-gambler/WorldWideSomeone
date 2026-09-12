@@ -121,7 +121,17 @@ await step('27', '배달원 대여(SC)로 잠긴 여객기 1회 사용', async (
   await go('/compose'); await page.getByPlaceholder('지금 이 편지를 읽는 당신에게…').fill('여객기 대여 테스트'); await tap('다음', { exact: true }); await tap('다음', { exact: true }); await tap('항공', { exact: true }); await page.getByTestId('vehicle:airliner').click(); await see('대여 ·'); await shot('27-compose-rental'); await page.getByText(/보내기 · 대여/).first().click(); await page.waitForTimeout(2600);
   const s = await state(); const r = s.letters.find((l) => l.rented); if (!r) throw new Error('not rented'); return `vehicle=${r.vehicle}, coins=${s.me.coins}`;
 });
-await step('28', '플러스 · 엿보기 → 끌어오기(내 위치로)', async () => { await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('엿보기', { exact: true }); await see('엿봤어요'); await page.waitForTimeout(1500); await tap('끌어오기', { exact: true }); await see('끌어왔어요'); await page.waitForTimeout(1600); await see('내게 오는 편지'); await shot('28-home-pulled'); });
+await step('28', '플러스 · 엿보기 → 끌어오기(내 위치로)', async () => {
+  // 방어권·면역·초고속(지나가자마자 착륙) 편지는 건너뛰고 끌어올 수 있는 편지를 고른다 (끌어오기는 하루 1회라 한 번에 성공해야 함)
+  const skip = new Set(['rocket', 'satellite', 'ufo', 'fighter', 'concorde', 'dragon', 'submarine', 'carpet', 'maglev', 'ktx', 'airliner', 'heli', 'prop', 'sports', 'truck', 'cruise', 'train']);
+  for (let i = 0; i < 5; i++) {
+    await spawnPassby(); const s = await state(); const pb = s.passbys.find((p) => !p.resolved && p.expiresAt > Date.now()); const l = pb && s.letters.find((x) => x.id === pb.letterId);
+    if (!l || l.shield || skip.has(l.vehicle)) { console.log(`  (skip ${l?.vehicle} shield=${l?.shield})`); await page.waitForTimeout(1500); continue; }
+    await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('엿보기', { exact: true }); await see('엿봤어요'); await page.waitForTimeout(1500); await shot('28-catch-peeked-plus');
+    await tap('끌어오기', { exact: true }); await see('끌어왔어요'); await page.waitForTimeout(1600); await see('내게 오는 편지'); await shot('28-home-pulled'); return `pulled ${l.vehicle}`;
+  }
+  throw new Error('no pullable letter in 5 spawns');
+});
 await step('29', '침수 → 몇 시간 정지 → 지구 표시', async () => {
   let outcome = '';
   for (let i = 0; i < 3 && outcome !== 'sunk'; i++) { await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('침수', { exact: true }); const t = await page.getByText(/침수!|튕겨나갔어요|건드릴 수 없어요|이미 착륙했어요/).first().textContent({ timeout: 8000 }); outcome = t.includes('침수!') ? 'sunk' : t.includes('튕겨') ? 'defended' : t.includes('착륙') ? 'gone' : 'immune'; await shot(outcome === 'sunk' ? '29-catch-sunk' : `29-catch-${outcome}-${i}`); await page.waitForTimeout(1800); }
