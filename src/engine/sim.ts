@@ -166,6 +166,14 @@ export function pathSamples(l: Letter, n = 72): LatLng[] {
   return out;
 }
 
+/** 경로 위에서 특정 지점에 가장 가까운 진행률 (0..1) — 통과 지점 계산용 */
+export function closestProgress(l: Letter, point: LatLng, samples = 240): number {
+  const r = routeOf(l);
+  let best = Infinity, bp = 0;
+  for (let i = 0; i <= samples; i++) { const p = i / samples; const d = distanceKm(r.at(p), point); if (d < best) { best = d; bp = p; } }
+  return bp;
+}
+
 export function minDistanceBetween(l: Letter, t0: number, t1: number, point: LatLng): number {
   const r = routeOf(l);
   const p0 = progressOf(l, t0);

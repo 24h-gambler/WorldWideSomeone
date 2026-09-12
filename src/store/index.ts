@@ -12,7 +12,7 @@ import { SNAIL, VEHICLES, VEHICLE_MAP, bestVehicle, fastestOwned } from '@/data/
 import { COIN_REWARDS, OCEAN_RESCUE_COINS, OCEAN_SINK_MS, PLAN_MAP, PRODUCTS, SHIELD_PER_FRIENDS, type ProductId } from '@/data/plans';
 import { bearingDeg, describePlace, destinationPoint, distanceKm, fuzzToGrid, randomLandPoint } from '@/engine/geo';
 import { pushLocal } from '@/engine/notify';
-import { LANDED_RADIUS_KM, LANDED_WINDOW_MS, PASSBY_RADIUS_KM, aimRouteAt, appendTrail, applySnail, catchWindowMs, minDistanceBetween, planFlight, positionOf, progressOf, pullTo, rerouteThrough, resurface, seedTrail } from '@/engine/sim';
+import { LANDED_RADIUS_KM, LANDED_WINDOW_MS, PASSBY_RADIUS_KM, aimRouteAt, appendTrail, applySnail, catchWindowMs, minDistanceBetween, planFlight, positionOf, progressOf, pullTo, rerouteThrough, resurface, seedTrail, closestProgress } from '@/engine/sim';
 
 export const BOTS: User[] = makeBots();
 const BOT_BY_ID: Record<string, User> = Object.fromEntries(BOTS.map((b) => [b.id, b]));
@@ -127,7 +127,7 @@ export const useStore = create<State>()(
           const aim = i < 3;
           let letter = makeBotLetter(bot, aim ? me.location : null, ts, aim ? 0 : rand(0.05, 0.7));
           if (aim) {
-            const pAtUser = Math.min(0.95, distanceKm(bot.location, me.location) / letter.distanceKm);
+            const pAtUser = Math.min(0.98, closestProgress(letter, me.location));
             const dur = letter.arrivesAt - letter.departedAt;
             const departedAt = Date.now() + rand(45_000, 120_000) + i * 50_000 - pAtUser * dur;
             letter = { ...letter, departedAt, arrivesAt: departedAt + dur, trail: seedTrail(bot.location, letter.destination, [], letter.vehicle, Math.max(0, (Date.now() - departedAt) / dur)) };
@@ -679,9 +679,9 @@ export const useStore = create<State>()(
         const s = get();
         const bot = pick(BOTS);
         const l = makeBotLetter(bot, s.me.location, s.settings.timeScale);
-        const pAtUser = Math.min(0.95, distanceKm(bot.location, s.me.location) / l.distanceKm);
-        // 4초 뒤 내 머리 위를 지나고, 지나간 뒤에도 최소 60초는 더 날도록(개발용 소환만) 비행 시간을 늘린다
-        const dur = Math.max(l.arrivesAt - l.departedAt, 60_000 / (1 - pAtUser));
+        // 경로에서 실제로 내게 가장 가까운 지점을 4초 뒤에 지나고, 지나간 뒤에도 최소 60초는 더 날도록(개발용 소환만) 비행 시간을 늘린다
+        const pAtUser = Math.min(0.98, closestProgress(l, s.me.location));
+        const dur = Math.min(30 * 60_000, Math.max(l.arrivesAt - l.departedAt, 60_000 / (1 - pAtUser)));
         const departedAt = Date.now() + 4_000 - pAtUser * dur;
         set({ letters: [{ ...l, departedAt, arrivesAt: departedAt + dur, trail: seedTrail(bot.location, l.destination, [], l.vehicle, Math.max(0, (Date.now() - departedAt) / dur)) }, ...s.letters] });
       },
