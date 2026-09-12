@@ -69,7 +69,7 @@ await step('17', '개발자 모드 · 편지 소환 → 홈 통과 배너', asyn
 await step('18', '잡기 화면 · 타이머 · 엿보기/끌어오기/경로/달팽이/되돌리기/바다/우주', async () => { await tap('보기', { exact: true }); await page.waitForTimeout(900); await see('엿보기', 8000, true); await see('끌어오기', 8000, true); await see('경로 바꾸기', 8000, true); await shot('18-catch'); });
 await step('18b', '무료 · 첫 엿보기 렌즈 1개로 미리보기 → 끌어오기는 한도 없음 → 상점 안내', async () => {
   await tap('엿보기', { exact: true }); await see('엿봤어요'); await page.waitForTimeout(1500); await see('엿본 내용'); await shot('18b-catch-peeked-free');
-  await tap('끌어오기', { exact: true }); await see('한도를 다 썼어요'); await shot('18c-catch-pull-quota'); await page.waitForTimeout(1600); await see('플러스');
+  await tap('끌어오기', { exact: true }); await see('한도를 다 썼어요'); await shot('18c-catch-pull-quota'); await page.waitForTimeout(1600); await see('플랜', 8000, true);
 });
 await step('19', '경로 바꾸기 · 경유지 1개 찍고 적용(무료 플랜 한도 1)', async () => {
   await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800);
@@ -133,7 +133,7 @@ await step('31', '⚡ 즉시 친구(결제) · 코인으로 즉시 친구권 구
   await go('/store'); await tap('🪙 300', { exact: true }); await see('코인 구매 완료'); await shot('31-store-instant-bought');
   await go('/community'); await tap('사람', { exact: true }); await page.getByText('⚡', { exact: true }).first().click(); await page.waitForTimeout(700); await see('⚡ 즉시 친구', 8000, true); await shot('31b-user-instant');
   await tap('₩3,900', { exact: true }); await see('즉시 친구를 요청했어요'); await shot('31c-user-instant-requested');
-  await go('/friends'); await see('즉시 친구'); await shot('31d-friends-instant-pending');
+  await go('/friends'); await shot('31d-friends-after-instant'); // 봇이 8~30초 안에 응답 → 대기 중이거나 이미 친구
   await go('/notifications'); await page.getByText(/친구가 됐어요|환불/).first().waitFor({ state: 'visible', timeout: 45000 }); await shot('31e-instant-answered');
   const s = await state(); const r = s.instantRequests[0]; return r ? `${r.status}` : 'no-request';
 });
@@ -151,8 +151,15 @@ await step('33', '플러스 · 엿보기(내용 미리보기) → 마음에 들�
   const s = await state(); const pulled = s.letters.find((l) => l.pulledBy === 'me'); return pulled ? `pulls=${pulled.pulls}, dest=${pulled.destination.city}` : 'not-pulled';
 });
 await step('34', '바다에 빠뜨리기 → 몇 시간 정지(주인은 건져내기 가능) → 지구에 가라앉은 표시', async () => {
-  await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('바다에', { exact: true }); await see('풍덩'); await shot('34-catch-sunk'); await page.waitForTimeout(1800);
-  const s = await state(); const sunk = s.letters.find((l) => l.status === 'sunk'); if (!sunk) throw new Error('no sunk letter'); await shot('34b-home-sunk'); return `sunkUntil in ${Math.round((sunk.sunkUntil - Date.now()) / 1000)}s`;
+  // 방어권·면역(돌고래/잠수함)에 막히면 다른 편지로 최대 3회 재시도
+  let outcome = '';
+  for (let i = 0; i < 3 && outcome !== 'sunk'; i++) {
+    await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('바다에', { exact: true });
+    const t = await page.getByText(/풍덩|튕겨나갔어요|건드릴 수 없어요/).first().textContent({ timeout: 8000 });
+    outcome = t.includes('풍덩') ? 'sunk' : t.includes('튕겨') ? 'defended' : 'immune';
+    await shot(outcome === 'sunk' ? '34-catch-sunk' : `34-catch-${outcome}-${i}`); await page.waitForTimeout(1800);
+  }
+  const s = await state(); const sunk = s.letters.find((l) => l.status === 'sunk'); if (!sunk) throw new Error(`no sunk letter (last outcome ${outcome})`); await shot('34b-home-sunk'); return `sunkUntil in ${Math.round((sunk.sunkUntil - Date.now()) / 1000)}s`;
 });
 
 // ── 8. 다크 모드 ─────────────────────────────────────────

@@ -37,7 +37,7 @@ export default function Store() {
         </View>
         <View style={[styles.quota, { backgroundColor: c.blueSoft }]}>
           <T t="smallStrong">오늘 남은 한도 · {plan.name}</T>
-          <Row style={{ flexWrap: 'wrap' }} gap={6}><Pill label={`🔍 엿보기 ${Math.max(0, plan.dailyPeeks - q.peeks)}/${plan.dailyPeeks} + 렌즈 ${me.inventory.peek}`} color={c.bg} /><Pill label={`🧲 끌어오기 ${Math.max(0, plan.dailyPulls - q.pulls)}/${plan.dailyPulls} + ${me.inventory.pull}`} color={c.bg} /><Pill label={`⚡ 즉시 친구 ${me.inventory.instant}`} color={c.bg} /><Pill label={`🛡️ 방어권 ${me.inventory.shield}`} color={c.bg} /></Row>
+          <Row style={{ flexWrap: 'wrap' }} gap={6}><Pill icon={<ItemIcon id="lens" size={12} />} label={`엿보기 ${Math.max(0, plan.dailyPeeks - q.peeks)}/${plan.dailyPeeks} + 렌즈 ${me.inventory.peek}`} color={c.bg} /><Pill icon={<ItemIcon id="magnet" size={12} />} label={`끌어오기 ${Math.max(0, plan.dailyPulls - q.pulls)}/${plan.dailyPulls} + ${me.inventory.pull}`} color={c.bg} /><Pill icon={<ItemIcon id="bolt" size={12} />} label={`즉시 친구 ${me.inventory.instant}`} color={c.bg} /><Pill icon={<ItemIcon id="shield" size={12} />} label={`방어권 ${me.inventory.shield}`} color={c.bg} /></Row>
           <T t="caption" color={c.text2}>한도 계산 근거: docs/ECONOMY.md — 끌어오기는 편지당 1회, 전체 편지의 15% 이하만 끌리도록 설계</T>
         </View>
 
