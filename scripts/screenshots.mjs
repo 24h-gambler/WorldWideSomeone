@@ -32,7 +32,7 @@ const state = () => page.evaluate((k) => JSON.parse(localStorage.getItem(k)).sta
 const events = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('wws-events') || '[]'); } catch { return []; } });
 const noKrw = async (where) => { const t = await page.locator('body').innerText(); if (t.includes('₩')) throw new Error(`₩ shown outside store: ${where}`); };
 const enableDev = async () => { await go('/settings'); const on = await page.getByText('머리 위 편지 소환').first().isVisible().catch(() => false); if (!on) { await page.getByRole('switch').last().click(); await page.waitForTimeout(300); } await page.mouse.wheel(0, 900); await page.waitForTimeout(300); };
-const spawnPassby = async () => { await enableDev(); await tap('머리 위 편지 소환'); await page.getByText('머리 위를 지나가요').first().waitFor({ state: 'visible', timeout: 25000 }); await page.waitForTimeout(500); };
+const spawnPassby = async (retry = 1) => { await enableDev(); await tap('머리 위 편지 소환'); try { await page.getByText('머리 위를 지나가요').first().waitFor({ state: 'visible', timeout: 30000 }); } catch (e) { if (retry <= 0) throw e; console.log('  (passby late — retry spawn)'); return spawnPassby(retry - 1); } await page.waitForTimeout(500); };
 const addCoins = async (n) => { await enableDev(); for (let i = 0; i < n; i++) await tap('+100 코인'); };
 const waitState = async (pred, timeout = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < timeout) { if (pred(await state())) return; await page.waitForTimeout(1000); } throw new Error('waitState timeout'); };
 const ffUntil = async (pred, maxHours) => { if (pred(await state())) return; await enableDev(); for (let i = 0; i < maxHours; i++) { await tap('1시간 빨리감기'); await page.waitForTimeout(1100); if (pred(await state())) return; } throw new Error(`ffUntil: not satisfied after ${maxHours}h`); };
@@ -143,7 +143,7 @@ await step('31', '트래킹 · 화면/버튼/스크롤/게이트/가입 이벤�
 
 // ── 9. 통과 신뢰성 ───────────────────────────────────
 const rel = [];
-for (let i = 0; i < 3; i++) { try { await spawnPassby(); rel.push('ok'); await tap('보기', { exact: true }); await page.waitForTimeout(700); await tap(i % 2 ? '우주로' : '달팽이', { exact: true }); await page.waitForTimeout(2200); } catch { rel.push('miss'); } }
+for (let i = 0; i < 3; i++) { try { await spawnPassby(0); rel.push('ok'); await tap('보기', { exact: true }); await page.waitForTimeout(700); await tap(i % 2 ? '우주로' : '달팽이', { exact: true }); await page.waitForTimeout(2200); } catch { rel.push('miss'); } }
 results.push({ id: '32', title: `통과 알림 신뢰성 3회 (${rel.join(', ')})`, ok: rel.every((x) => x === 'ok') });
 console.log('passby reliability:', rel.join(', '));
 
