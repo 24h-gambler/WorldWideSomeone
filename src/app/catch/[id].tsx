@@ -30,6 +30,7 @@ export default function Catch() {
   const me = useStore((s) => s.me);
   const letter = useStore((s) => s.letters.find((l) => l.id === id));
   const passby = useStore((s) => s.passbys.find((p) => p.letterId === id));
+  const dismiss = useStore((s) => s.dismissPassby);
   const catchLetter = useStore((s) => s.catchLetter);
   const peek = useStore((s) => s.peekLetter);
   const pull = useStore((s) => s.pullLetter);
@@ -117,7 +118,7 @@ export default function Catch() {
                 </Pressable>
               ))}
             </View>
-            <Button title="그냥 보내주기" variant="ghost" onPress={() => router.back()} />
+            <Button title="그냥 보내주기" variant="ghost" track="catch:letgo" onPress={() => { if (passby && !passby.resolved) dismiss(passby.id); router.back(); }} />
           </>) : (
             <View style={{ gap: spacing.md }}>
               <Row style={{ justifyContent: 'space-between' }}><T t="h2">경로 바꾸기 · 경유지 {wps.length}/{plan.maxWaypoints}</T><Pressable onPress={() => { setMode('actions'); setWps([]); }}><Icon name="x" size={20} /></Pressable></Row>

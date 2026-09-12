@@ -32,9 +32,10 @@ const state = () => page.evaluate((k) => JSON.parse(localStorage.getItem(k)).sta
 const events = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('wws-events') || '[]'); } catch { return []; } });
 const noKrw = async (where) => { const t = await page.locator('body').innerText(); if (t.includes('₩')) throw new Error(`₩ shown outside store: ${where}`); };
 const enableDev = async () => { await go('/settings'); const on = await page.getByText('머리 위 편지 소환').first().isVisible().catch(() => false); if (!on) { await page.getByRole('switch').last().click(); await page.waitForTimeout(300); } await page.mouse.wheel(0, 900); await page.waitForTimeout(300); };
-const spawnPassby = async (retry = 1) => { await enableDev(); await tap('머리 위 편지 소환'); try { await page.getByText('머리 위를 지나가요').first().waitFor({ state: 'visible', timeout: 30000 }); } catch (e) { if (retry <= 0) throw e; console.log('  (passby late — retry spawn)'); return spawnPassby(retry - 1); } await page.waitForTimeout(500); };
-const addCoins = async (n) => { await enableDev(); for (let i = 0; i < n; i++) await tap('+100 코인'); };
 const waitState = async (pred, timeout = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < timeout) { if (pred(await state())) return; await page.waitForTimeout(1000); } throw new Error('waitState timeout'); };
+const activePassbys = (s) => s.passbys.filter((p) => !p.resolved && p.expiresAt > Date.now()).length;
+const spawnPassby = async (retry = 1) => { await enableDev(); const before = activePassbys(await state()); await tap('머리 위 편지 소환'); try { await waitState((s) => activePassbys(s) > before, 30000); await page.getByText('머리 위를 지나가요').first().waitFor({ state: 'visible', timeout: 5000 }); } catch (e) { if (retry <= 0) throw e; console.log('  (passby late — retry spawn)'); return spawnPassby(retry - 1); } await page.waitForTimeout(500); };
+const addCoins = async (n) => { await enableDev(); for (let i = 0; i < n; i++) await tap('+100 코인'); };
 const ffUntil = async (pred, maxHours) => { if (pred(await state())) return; await enableDev(); for (let i = 0; i < maxHours; i++) { await tap('1시간 빨리감기'); await page.waitForTimeout(1100); if (pred(await state())) return; } throw new Error(`ffUntil: not satisfied after ${maxHours}h`); };
 const signup = async (nick = 'dan') => { await tap('Google로 계속'); await page.getByPlaceholder('닉네임 (친구에게만 보여요)').last().fill(nick); await page.getByPlaceholder('한 줄 소개').last().fill('밤에 더 살아있는 사람'); await page.getByText('디자인', { exact: true }).last().click(); await page.getByText('러닝', { exact: true }).last().click(); await shot('signup-profile'); await page.getByText('시작하기', { exact: true }).last().click(); await page.waitForTimeout(800); };
 
@@ -126,7 +127,7 @@ await step('28', '플러스 · 엿보기 → 끌어오기(내 위치로)', async
   const skip = new Set(['rocket', 'satellite', 'ufo', 'fighter', 'concorde', 'dragon', 'submarine', 'carpet', 'maglev', 'ktx', 'airliner', 'heli', 'prop', 'sports', 'truck', 'cruise', 'train']);
   for (let i = 0; i < 5; i++) {
     await spawnPassby(); const s = await state(); const pb = s.passbys.find((p) => !p.resolved && p.expiresAt > Date.now()); const l = pb && s.letters.find((x) => x.id === pb.letterId);
-    if (!l || l.shield || skip.has(l.vehicle)) { console.log(`  (skip ${l?.vehicle} shield=${l?.shield})`); await page.waitForTimeout(1500); continue; }
+    if (!l || l.shield || skip.has(l.vehicle)) { console.log(`  (skip ${l?.vehicle} shield=${l?.shield})`); await tap('보기', { exact: true }); await page.waitForTimeout(600); await tap('그냥 보내주기'); await page.waitForTimeout(800); continue; }
     await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('엿보기', { exact: true }); await see('엿봤어요'); await page.waitForTimeout(1500); await shot('28-catch-peeked-plus');
     await tap('끌어오기', { exact: true }); await see('끌어왔어요'); await page.waitForTimeout(1600); await see('내게 오는 편지'); await shot('28-home-pulled'); return `pulled ${l.vehicle}`;
   }
