@@ -55,6 +55,11 @@ export const currentScreenName = () => currentScreen;
 
 export async function flush(): Promise<void> {
   if (!queue.length) return;
+  if (!sink) { // 로컬 모드: 서버가 없으니 버리지 않고 최근 500건을 보관한다
+    queue = queue.slice(-500);
+    await AsyncStorage.setItem(KEY, JSON.stringify(queue.slice(-200))).catch(() => {});
+    return;
+  }
   const batch = queue.splice(0, 100);
   try {
     if (sink) { const ok = await sink(batch); if (!ok) queue = [...batch, ...queue].slice(-500); }
