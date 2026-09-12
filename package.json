@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/grand-hotel": "^0.4.1",
     "@expo/ui": "~57.0.18",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -26,7 +27,10 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-task-manager": "~57.0.17",
     "expo-web-browser": "~57.0.3",
+    "firebase": "^12.19.0",
+    "geofire-common": "^6.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -59,7 +63,9 @@
     "typecheck": "tsc --noEmit",
     "export:web": "expo export --platform web",
     "shots": "node scripts/screenshots.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "report": "node scripts/verification-report.mjs",
+    "functions:build": "npm --prefix functions run build"
   },
   "private": true
 }

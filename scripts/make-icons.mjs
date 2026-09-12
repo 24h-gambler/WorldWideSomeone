@@ -9,12 +9,12 @@ const globe = (size, { bg = true, mono = false, pad = 0 } = {}) => `
 <html><body style="margin:0;background:transparent">
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1A1147"/><stop offset="1" stop-color="#070B1A"/></linearGradient>
-    <radialGradient id="ocean" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#2B55C0"/><stop offset="0.6" stop-color="#0C1F4F"/><stop offset="1" stop-color="#061238"/></radialGradient>
-    <radialGradient id="atmo" cx="50%" cy="50%" r="50%"><stop offset="0.78" stop-color="#5A8CFF" stop-opacity="0"/><stop offset="0.88" stop-color="#5A8CFF" stop-opacity="0.55"/><stop offset="1" stop-color="#5A8CFF" stop-opacity="0"/></radialGradient>
-    <linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4FE3C1"/><stop offset="1" stop-color="#137763"/></linearGradient>
-    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FF5C8A"/><stop offset="0.5" stop-color="#FF9A5C"/><stop offset="1" stop-color="#7C5CFF"/></linearGradient>
-    <radialGradient id="rim" cx="40%" cy="35%" r="70%"><stop offset="0.7" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.5"/></radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DDEEFF"/></linearGradient>
+    <radialGradient id="ocean" cx="40%" cy="34%" r="72%"><stop offset="0" stop-color="#E3F4FF"/><stop offset="0.6" stop-color="#BFE3FF"/><stop offset="1" stop-color="#86C6FF"/></radialGradient>
+    <radialGradient id="atmo" cx="50%" cy="50%" r="50%"><stop offset="0.8" stop-color="#7DBBFF" stop-opacity="0"/><stop offset="0.9" stop-color="#7DBBFF" stop-opacity="0.5"/><stop offset="1" stop-color="#7DBBFF" stop-opacity="0"/></radialGradient>
+    <linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D2F5C4"/><stop offset="1" stop-color="#8ADB97"/></linearGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset="0.35" stop-color="#FA7E1E"/><stop offset="0.7" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient>
+    <radialGradient id="rim" cx="42%" cy="36%" r="68%"><stop offset="0.75" stop-color="#1B5FBF" stop-opacity="0"/><stop offset="1" stop-color="#1B5FBF" stop-opacity="0.3"/></radialGradient>
   </defs>
   ${bg ? `<rect width="1024" height="1024" rx="224" fill="url(#bg)"/>` : ''}
   <g transform="translate(${pad} ${pad}) scale(${(1024 - 2 * pad) / 1024})">
@@ -33,10 +33,10 @@ const globe = (size, { bg = true, mono = false, pad = 0 } = {}) => `
       <path d="M420 760 c30 -15 70 -5 80 25 c10 30 -15 60 -45 65 c-35 5 -65 -20 -60 -50 c3 -20 10 -32 25 -40z"/>
     </g>
     <circle cx="512" cy="540" r="330" fill="url(#rim)"/>
-    <circle cx="512" cy="540" r="330" fill="none" stroke="rgba(160,190,255,0.5)" stroke-width="4"/>
+    <circle cx="512" cy="540" r="330" fill="none" stroke="#fff" stroke-width="10"/>
     <path d="M150 470 C 300 250, 700 250, 900 430" stroke="url(#arc)" stroke-width="34" fill="none" stroke-linecap="round"/>
-    <circle cx="150" cy="470" r="22" fill="#FF5C8A"/>
-    <g transform="translate(900 430) rotate(30)"><path d="M0 -60 L38 30 L0 12 L-38 30 Z" fill="#fff"/><path d="M0 -60 L0 12 L-38 30 Z" fill="#DDE3FF"/></g>
+    <circle cx="150" cy="470" r="26" fill="#fff"/><circle cx="150" cy="470" r="16" fill="#0095F6"/>
+    <circle cx="900" cy="430" r="58" fill="#fff"/><circle cx="900" cy="430" r="50" fill="#fff" stroke="#D62976" stroke-width="8"/><text x="900" y="452" font-size="60" text-anchor="middle">🚶</text>
   `}
   </g>
 </svg></body></html>`;
@@ -53,7 +53,7 @@ await render('icon.png', globe(1024), 1024);
 await render('android-icon-foreground.png', globe(1024, { bg: false, pad: 160 }), 1024, true);
 await render('android-icon-monochrome.png', globe(1024, { bg: false, mono: true, pad: 160 }), 1024, true);
 await page.setViewportSize({ width: 1024, height: 1024 });
-await page.setContent('<html><body style="margin:0;background:#0F0A2E"></body></html>');
+await page.setContent('<html><body style="margin:0;background:#DDEEFF"></body></html>');
 await page.screenshot({ path: `${OUT}/android-icon-background.png` });
 await render('splash-icon.png', globe(512, { bg: false, pad: 40 }), 512, true);
 await render('favicon.png', globe(96), 96);

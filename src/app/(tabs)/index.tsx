@@ -1,172 +1,127 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Globe } from '@/components/globe/Globe';
-import { Coin, IconButton, ProgressBar, Row, T } from '@/components/ui';
-import { VEHICLE_MAP } from '@/data/vehicles';
+import { Avatar, Button, Coin, HScroll, Header, Icon, IconButton, Pill, ProgressBar, Row, Screen, StoryItem, T } from '@/components/ui';
+import { VehicleIcon } from '@/components/vehicle-icon';
+import { VEHICLE_MAP, bestVehicle } from '@/data/vehicles';
 import { formatDuration, formatKm, fuzz50km } from '@/engine/geo';
 import { useNow } from '@/hooks/use-now';
 import { ME_ID, displayName, getUser, progressOf, selectUnread, useStore } from '@/store';
-import { colors, radius, spacing, TAB_BAR_HEIGHT } from '@/theme';
+import { colors, radius, shadow, spacing } from '@/theme';
 import { tap } from '@/engine/haptics';
-import { VehicleIcon } from '@/components/vehicle-icon';
 
 export default function Home() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const now = useNow(2);
-
   const me = useStore((s) => s.me);
   const letters = useStore((s) => s.letters);
   const friendIds = useStore((s) => s.friendIds);
   const focusLetterId = useStore((s) => s.focusLetterId);
+  const focusPoint = useStore((s) => s.focusPoint);
   const setFocus = useStore((s) => s.setFocusLetter);
+  const setFocusPoint = useStore((s) => s.setFocusPoint);
   const unread = useStore(selectUnread);
   const allPassbys = useStore((s) => s.passbys);
   const passbys = useMemo(() => allPassbys.filter((p) => !p.resolved && p.expiresAt > now), [allPassbys, now]);
 
-  const flying = useMemo(() => letters.filter((l) => l.status === 'flying' || l.status === 'landed'), [letters]);
-  const flyingCount = flying.filter((l) => l.status === 'flying').length;
-  const friends = useMemo(
-    () => friendIds.map((id) => getUser({ me }, id)).filter(Boolean).map((u) => ({ id: u!.id, avatar: u!.avatar, location: fuzz50km(u!.location) })),
-    [friendIds, me],
-  );
-  const focus = flying.find((l) => l.id === focusLetterId) ?? null;
+  const shown = useMemo(() => letters.filter((l) => l.status === 'flying' || l.status === 'landed'), [letters]);
+  const flyingCount = shown.filter((l) => l.status === 'flying').length;
+  const friends = useMemo(() => friendIds.map((id) => getUser({ me }, id)).filter(Boolean).map((u) => ({ id: u!.id, avatar: u!.avatar, location: fuzz50km(u!.location), nickname: u!.nickname })), [friendIds, me]);
+  const focus = shown.find((l) => l.id === focusLetterId) ?? null;
   const passby = passbys[0];
   const passbyLetter = passby ? letters.find((l) => l.id === passby.letterId) : null;
-
-  const globeSize = Math.min(width * 1.02, height - 360);
+  const best = bestVehicle(friendIds.length, me.inventory, me.plan);
+  const globeSize = Math.min(width, height - 400);
 
   return (
-    <View style={styles.root}>
-      {/* 지구 */}
-      <View style={[styles.globeWrap, { top: insets.top + 64, bottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, 10) + 140 }]}>
-        <Globe
-          size={globeSize}
-          letters={flying}
-          me={me.location}
-          friends={friends}
-          focusLetterId={focusLetterId}
-          onSelectLetter={(id) => setFocus(id)}
-          fps={30}
-        />
-      </View>
+    <Screen>
+      <Header back={false} wordmark divider={false} right={<><Coin amount={me.coins} onPress={() => router.push('/store')} /><IconButton name="heart" badge={unread} onPress={() => router.push('/notifications')} /></>} />
 
-      {/* 상단 바 */}
-      <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
-        <View>
-          <T t="h2">안녕, {me.nickname} {me.avatar}</T>
-          <T t="small" color={colors.textDim}>지금 하늘에 {flyingCount}개의 편지 · 내 위치 {me.location.city}</T>
-        </View>
-        <Row>
-          <Coin amount={me.coins} />
-          <IconButton icon="🔔" badge={unread} onPress={() => router.push('/notifications')} />
-        </Row>
-      </View>
-
-      {/* 머리 위 통과 배너 */}
-      {passby && passbyLetter ? (
-        <Pressable onPress={() => { tap(); router.push(`/catch/${passbyLetter.id}`); }} style={[styles.banner, { top: insets.top + 70 }]}>
-          <LinearGradient colors={['#FF5C8A', '#FF9A5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bannerInner}>
-            <VehicleIcon id={passbyLetter.vehicle} size={30} />
-            <View style={{ flex: 1 }}>
-              <T t="bodyStrong" color="#fff">{VEHICLE_MAP[passbyLetter.vehicle].name}가 머리 위를 지나가요!</T>
-              <T t="small" color="rgba(255,255,255,0.9)">{passbyLetter.origin.city}에서 출발 · {formatDuration(passby.expiresAt - now)} 남음</T>
-            </View>
-            <View style={styles.bannerBtn}><T t="small" style={{ fontWeight: '800', color: '#FF5C8A' }}>잡기</T></View>
-          </LinearGradient>
-        </Pressable>
-      ) : null}
-
-      {/* 하단 */}
-      <View style={[styles.bottom, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, 10) + 12 }]}>
-        {focus ? <FocusCard letter={focus} now={now} onClose={() => setFocus(null)} onOpen={() => router.push(`/letter/${focus.id}`)} /> : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 8 }} style={{ marginTop: spacing.sm }}>
-          {flying
-            .slice()
-            .sort((a, b) => (a.senderId === ME_ID ? -1 : 1) - (b.senderId === ME_ID ? -1 : 1))
-            .slice(0, 12)
-            .map((l) => {
-              const v = VEHICLE_MAP[l.vehicle];
-              const on = l.id === focusLetterId;
-              const mine = l.senderId === ME_ID;
-              return (
-                <Pressable key={l.id} onPress={() => { tap(); setFocus(on ? null : l.id); }} style={[styles.flightChip, on && { borderColor: mine ? colors.accent : v.color, backgroundColor: 'rgba(255,255,255,0.12)' }]}>
-                  <VehicleIcon id={l.vehicle} size={18} />
-                  <T t="caption" color={on ? colors.text : colors.textDim}>{mine ? '내 편지' : '???'} · {l.destination.city}</T>
-                </Pressable>
-              );
-            })}
-        </ScrollView>
-        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md }}>
-          <Pressable onPress={() => { tap(); router.push('/compose'); }} style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}>
-            <LinearGradient colors={['#FF5C8A', '#FF9A5C', '#7C5CFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fab}>
-              <T style={{ fontSize: 20 }}>✍️</T>
-              <T t="bodyStrong" color="#fff">편지 쓰기</T>
-              <T t="small" color="rgba(255,255,255,0.85)">·</T>
-              <VehicleIcon id={bestVehicle(friendIds.length, me.inventory)} size={20} />
-            </LinearGradient>
-          </Pressable>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function bestVehicle(friends: number, inv: { ufo: number; orbit: number }) {
-  if (inv.orbit > 0) return 'satellite' as const;
-  if (inv.ufo > 0) return 'ufo' as const;
-  if (friends >= 60) return 'dragon' as const;
-  if (friends >= 35) return 'rocket' as const;
-  if (friends >= 20) return 'jet' as const;
-  if (friends >= 10) return 'prop' as const;
-  if (friends >= 5) return 'balloon' as const;
-  if (friends >= 2) return 'pigeon' as const;
-  return 'paper' as const;
-}
-
-function FocusCard({ letter, now, onClose, onOpen }: { letter: any; now: number; onClose: () => void; onOpen: () => void }) {
-  const me = useStore((s) => s.me);
-  const friendIds = useStore((s) => s.friendIds);
-  const v = VEHICLE_MAP[letter.vehicle as keyof typeof VEHICLE_MAP];
-  const p = progressOf(letter, now);
-  const mine = letter.senderId === ME_ID;
-  return (
-    <View style={styles.focusCard}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Row>
-          <VehicleIcon id={letter.vehicle} size={30} />
+      {/* 스토리 행: 내 편지 + 친구(젠리 버블) + 하늘 위 편지 */}
+      <HScroll style={{ paddingVertical: 6 }}>
+        <StoryItem label="편지 쓰기" onPress={() => router.push('/compose')}>
           <View>
-            <T t="bodyStrong">{letter.origin.city} → {letter.destination.city}</T>
-            <T t="small" color={colors.textDim}>{mine ? '내 편지' : displayName({ me, friendIds }, letter.senderId)} · {v.name} · {formatKm(letter.distanceKm)}{letter.shield ? ' · 🛡️' : ''}</T>
+            <Avatar emoji={me.avatar} size={56} ring="gray" />
+            <View style={styles.plus}><Icon name="plus" size={12} color="#fff" /></View>
           </View>
-        </Row>
-        <Pressable hitSlop={10} onPress={() => { tap(); onClose(); }}><T color={colors.textDim}>✕</T></Pressable>
-      </Row>
-      <View style={{ marginTop: spacing.md, gap: 6 }}>
-        <ProgressBar value={p} color={mine ? colors.accent : v.color} />
-        <Row style={{ justifyContent: 'space-between' }}>
-          <T t="caption" color={colors.textFaint}>{letter.status === 'landed' ? '착륙 · 누군가 집어가길 기다려요' : `${Math.round(p * 100)}% · ${formatDuration(letter.arrivesAt - now)} 후 도착`}</T>
-          <Pressable onPress={() => { tap(); onOpen(); }}><T t="caption" color={colors.sky}>상세 보기 ›</T></Pressable>
-        </Row>
+        </StoryItem>
+        {friends.map((f) => (
+          <StoryItem key={f.id} label={f.nickname} onPress={() => setFocusPoint(f.location)}>
+            <Avatar emoji={f.avatar} size={56} ring="ig" />
+          </StoryItem>
+        ))}
+        {shown.filter((l) => l.status === 'flying').slice(0, 10).map((l) => {
+          const mine = l.senderId === ME_ID || l.recipientId === ME_ID;
+          return (
+            <StoryItem key={l.id} label={mine ? '내 편지' : '???'} sub={l.destination.city} onPress={() => setFocus(focusLetterId === l.id ? null : l.id)}>
+              <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
+                <VehicleIcon id={l.vehicle} size={52} bubble snail={!!l.penalty && now < l.penalty.until} ring={focusLetterId === l.id ? colors.blue : mine ? colors.pink : '#fff'} />
+              </View>
+            </StoryItem>
+          );
+        })}
+      </HScroll>
+
+      {/* 지구 (젠리) */}
+      <View style={{ flex: 1 }}>
+        <LinearGradient colors={['#F4FAFF', '#DDEEFF']} style={styles.sky}>
+          <Globe size={globeSize} letters={shown} me={me.location} meAvatar={me.avatar} friends={friends} focusLetterId={focusLetterId} focusPoint={focusPoint} onSelectLetter={(id) => setFocus(id)} fps={30} />
+          <View style={styles.skyTopLeft}><Pill label={`하늘 위 ${flyingCount}`} icon="✈️" color="rgba(255,255,255,0.9)" /><Pill label={me.location.city} icon="📍" color="rgba(255,255,255,0.9)" /></View>
+        </LinearGradient>
+
+        {/* 머리 위 통과 배너 */}
+        {passby && passbyLetter ? (
+          <Pressable onPress={() => { tap(); router.push(`/catch/${passbyLetter.id}`); }} style={[styles.banner, shadow.float]}>
+            <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: colors.pink, borderRadius: 2 }} />
+            <VehicleIcon id={passbyLetter.vehicle} size={40} bubble />
+            <View style={{ flex: 1 }}>
+              <T t="bodyStrong">{VEHICLE_MAP[passbyLetter.vehicle].name}이(가) 머리 위를 지나가요!</T>
+              <T t="small" color={colors.text2}>{passbyLetter.origin.city}에서 출발 · {formatDuration(passby.expiresAt - now)} 남음</T>
+            </View>
+            <Button title="잡기" size="sm" onPress={() => router.push(`/catch/${passbyLetter.id}`)} />
+          </Pressable>
+        ) : null}
+
+        {/* 선택한 편지 카드 */}
+        {focus ? (
+          <View style={[styles.focusCard, shadow.float]}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Row gap={10}>
+                <VehicleIcon id={focus.vehicle} size={40} bubble snail={!!focus.penalty && now < focus.penalty.until} />
+                <View>
+                  <T t="bodyStrong">{focus.origin.city} <Icon name="arrow-right" size={12} color={colors.text3} /> {focus.destination.city}</T>
+                  <T t="small" color={colors.text2}>{focus.senderId === ME_ID ? '내 편지' : focus.recipientId === ME_ID ? '내게 오는 답장' : displayName({ me, friendIds }, focus.senderId)} · {VEHICLE_MAP[focus.vehicle].name} · {formatKm(focus.distanceKm)}{focus.shield ? ' · 🛡️' : ''}</T>
+                </View>
+              </Row>
+              <IconButton name="x" size={18} color={colors.text2} onPress={() => setFocus(null)} />
+            </Row>
+            <View style={{ marginTop: 10, gap: 4 }}>
+              <ProgressBar value={progressOf(focus, now)} color={focus.senderId === ME_ID || focus.recipientId === ME_ID ? colors.pink : VEHICLE_MAP[focus.vehicle].color} />
+              <Row style={{ justifyContent: 'space-between' }}>
+                <T t="caption" color={colors.text3}>{focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${Math.round(progressOf(focus, now) * 100)}% · ${formatDuration(focus.arrivesAt - now)} 후 도착`}</T>
+                <Pressable onPress={() => { tap(); router.push(`/letter/${focus.id}`); }}><T t="smallStrong" color={colors.blue}>자세히</T></Pressable>
+              </Row>
+            </View>
+          </View>
+        ) : null}
       </View>
-    </View>
+
+      <View style={styles.cta}>
+        <Button title="편지 쓰기" size="lg" full icon={VEHICLE_MAP[best].emoji} onPress={() => router.push('/compose')} />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  globeWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
-  top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  banner: { position: 'absolute', left: spacing.lg, right: spacing.lg },
-  bannerInner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radius.lg },
-  bannerBtn: { backgroundColor: '#fff', paddingHorizontal: 14, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  flightChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: 'rgba(13,19,48,0.85)', borderWidth: 1, borderColor: colors.border },
-  fab: { height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  focusCard: { marginHorizontal: spacing.lg, backgroundColor: 'rgba(13,19,48,0.92)', borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  plus: { position: 'absolute', right: 0, bottom: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.blue, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  sky: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  skyTopLeft: { position: 'absolute', top: 10, left: 12, flexDirection: 'row', gap: 6 },
+  banner: { position: 'absolute', top: 10, left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: radius.lg, backgroundColor: '#fff' },
+  focusCard: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: 10, backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.md },
+  cta: { paddingHorizontal: spacing.lg, paddingVertical: 10, backgroundColor: colors.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
 });

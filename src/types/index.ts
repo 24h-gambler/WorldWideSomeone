@@ -1,34 +1,18 @@
 export type LatLng = { lat: number; lng: number };
-
-export type Place = LatLng & {
-  city: string; // 가장 가까운 도시명 (또는 '바다 위')
-  country: string;
-};
-
+export type Place = LatLng & { city: string; country: string };
 export type Gender = 'female' | 'male' | 'other' | 'private';
+export type PlanId = 'free' | 'plus' | 'pro';
 
 export type VehicleId =
-  | 'paper'
-  | 'pigeon'
-  | 'balloon'
-  | 'prop'
-  | 'jet'
-  | 'rocket'
-  | 'dragon'
-  | 'ufo'
-  | 'satellite';
+  | 'walk' | 'jog' | 'sprint' | 'bike' | 'horse' | 'scooter' | 'car' | 'train' | 'plane' | 'rocket'
+  | 'dragon' | 'ufo' | 'satellite';
 
-export type Inventory = {
-  shield: number;
-  ufo: number;
-  route: number;
-  orbit: number;
-};
+export type Inventory = { shield: number; ufo: number; orbit: number };
 
 export type User = {
   id: string;
   nickname: string;
-  avatar: string; // emoji
+  avatar: string;
   bio: string;
   field: string;
   gender: Gender;
@@ -37,50 +21,40 @@ export type User = {
   location: Place;
   isBot: boolean;
   lastActiveAt: number;
-  // 통계
-  stats: { sent: number; caught: number; distanceKm: number };
-  stamps: string[]; // 잡은 편지 출발 도시
+  stats: { sent: number; caught: number; distanceKm: number; likes: number };
+  stamps: string[];
   coins: number;
   inventory: Inventory;
-  premium: boolean;
+  plan: PlanId;
+  planExpiresAt?: number;
+  shieldMilestone: number; // 친구 5명 단위 방어권 지급 카운트
+  pushToken?: string;
+  createdAt: number;
 };
 
-export type TargetFilter = {
-  field?: string;
-  gender?: Gender;
-  job?: string;
-  hobby?: string;
-};
+export type TargetFilter = { field?: string; gender?: Gender; job?: string; hobby?: string };
 
 export type LetterStatus =
-  | 'flying'
-  | 'landed'
-  | 'caught'
-  | 'returned'
-  | 'ocean'
-  | 'space'
-  | 'expired';
+  | 'flying'     // 비행 중
+  | 'landed'     // 목적지 착륙(집어갈 사람 대기)
+  | 'delivered'  // 답장 편지가 수신자에게 도착(우편함)
+  | 'caught'     // 누군가 잡음
+  | 'approved'   // 답장 승인 → 채팅 시작
+  | 'declined'
+  | 'returned' | 'ocean' | 'space' | 'expired';
 
-export type LetterEvent = {
-  type:
-    | 'departed'
-    | 'passby'
-    | 'landed'
-    | 'caught'
-    | 'defended'
-    | 'returned'
-    | 'ocean'
-    | 'space'
-    | 'expired'
-    | 'friend_request';
-  at: number;
-  by?: string; // userId
-  place?: string;
-};
+export type LetterEventType =
+  | 'departed' | 'passby' | 'landed' | 'delivered' | 'caught' | 'approved' | 'declined'
+  | 'defended' | 'rerouted' | 'snail' | 'returned' | 'ocean' | 'space' | 'expired';
+
+export type LetterEvent = { type: LetterEventType; at: number; by?: string; place?: string };
 
 export type Letter = {
   id: string;
   senderId: string;
+  recipientId?: string; // 답장(회수) 편지: 원 발신자에게 직행
+  replyToId?: string;   // 어떤 편지에 대한 답장인지
+  friendRequest?: boolean; // 답장에 친구 요청 포함
   text: string;
   imageUri?: string;
   origin: Place;
@@ -90,87 +64,53 @@ export type Letter = {
   vehicle: VehicleId;
   shield: boolean;
   target: TargetFilter;
+  isPublic: boolean; // 커뮤니티 엽서 공개
   status: LetterStatus;
-  departedAt: number; // 실제 epoch ms
-  arrivesAt: number; // 실제 epoch ms
+  departedAt: number;
+  arrivesAt: number;
   distanceKm: number;
+  penalty?: { from: number; until: number }; // 달팽이 벌칙 구간
+  redirects: number; // 지나가던 사람이 경로를 바꾼 횟수
   landedAt?: number;
   caughtBy?: string;
   caughtAt?: number;
   catchPlace?: string;
   events: LetterEvent[];
-  stamp: string; // 출발 도시 스탬프
+  stamp: string;
 };
 
-export type Passby = {
-  id: string;
-  letterId: string;
-  at: number;
-  expiresAt: number;
-  canCatch: boolean; // 조건 일치 여부
-  resolved?: 'caught' | 'returned' | 'ocean' | 'space' | 'missed' | 'defended';
-};
+export type PassbyResolution = 'caught' | 'rerouted' | 'snail' | 'returned' | 'ocean' | 'space' | 'missed' | 'defended';
+export type Passby = { id: string; letterId: string; at: number; expiresAt: number; canCatch: boolean; resolved?: PassbyResolution };
 
-export type FriendRequest = {
+export type ChatMessage = { id: string; senderId: string; text: string; at: number };
+export type Chat = { id: string; otherId: string; messages: ChatMessage[]; lastReadAt: number; since: number };
+
+export type Post = {
   id: string;
-  fromId: string;
-  toId: string;
   letterId?: string;
-  status: 'pending' | 'accepted' | 'declined';
-  createdAt: number;
-};
-
-export type ChatMessage = {
-  id: string;
-  senderId: string;
+  authorId: string;
   text: string;
+  imageUri?: string;
+  city: string;
+  country: string;
+  stamp: string;
+  vehicle: VehicleId;
   at: number;
+  likes: number;
+  likedByMe: boolean;
+  distanceKm: number;
 };
 
-export type Chat = {
-  id: string; // otherUserId 기준
-  otherId: string;
-  messages: ChatMessage[];
-  lastReadAt: number;
-};
-
-export type NotificationType =
-  | 'passby'
-  | 'caught'
-  | 'friend_request'
-  | 'friend_accepted'
-  | 'chat'
-  | 'mischief'
-  | 'defended'
-  | 'landed'
-  | 'reward';
-
-export type AppNotification = {
-  id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  at: number;
-  read: boolean;
-  route?: string; // expo-router href
-};
+export type NotificationType = 'passby' | 'caught' | 'reply' | 'approved' | 'chat' | 'mischief' | 'defended' | 'landed' | 'reward' | 'like' | 'system';
+export type AppNotification = { id: string; type: NotificationType; title: string; body: string; at: number; read: boolean; route?: string };
 
 export type ScheduledEvent = {
   id: string;
   at: number;
-  type:
-    | 'bot_send'
-    | 'bot_catch'
-    | 'bot_friend_request'
-    | 'bot_accept'
-    | 'bot_chat'
-    | 'bot_mischief';
+  type: 'bot_send' | 'bot_catch' | 'bot_reply' | 'bot_approve' | 'bot_chat' | 'bot_mischief' | 'bot_like' | 'bot_post';
   payload: Record<string, any>;
 };
 
-export type Settings = {
-  timeScale: number;
-  notifications: boolean;
-  devMode: boolean;
-  haptics: boolean;
-};
+export type Settings = { timeScale: number; notifications: boolean; haptics: boolean; devMode: boolean; backgroundLocation: boolean };
+
+export type PermissionState = 'granted' | 'denied' | 'undetermined' | 'unavailable';

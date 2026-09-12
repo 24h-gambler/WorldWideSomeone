@@ -1,0 +1,9 @@
+{
+  "indexes": [
+    { "collectionGroup": "letters", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "participants", "arrayConfig": "CONTAINS" }, { "fieldPath": "departedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "letters", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "departedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "letters", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "arrivesAt", "order": "ASCENDING" }] },
+    { "collectionGroup": "posts", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "at", "order": "DESCENDING" }] }
+  ],
+  "fieldOverrides": []
+}

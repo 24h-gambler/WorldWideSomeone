@@ -1,123 +1,60 @@
 import React from 'react';
-import { Platform, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AVATARS, FIELDS, GENDERS, HOBBIES, JOBS } from '@/data/profile';
 import type { Gender } from '@/types';
 import { colors, fontFamily, radius, spacing } from '@/theme';
 import { Chip, T } from '@/components/ui';
 import { tap } from '@/engine/haptics';
-import { Pressable } from 'react-native';
 
-export type ProfileDraft = {
-  nickname: string;
-  avatar: string;
-  bio: string;
-  field: string;
-  gender: Gender;
-  job: string;
-  hobbies: string[];
-};
+export type ProfileDraft = { nickname: string; avatar: string; bio: string; field: string; gender: Gender; job: string; hobbies: string[] };
+const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {};
 
 export function ProfileForm({ value, onChange }: { value: ProfileDraft; onChange: (v: ProfileDraft) => void }) {
   const set = (patch: Partial<ProfileDraft>) => onChange({ ...value, ...patch });
   return (
     <View style={{ gap: spacing.xl }}>
       <View>
-        <T t="small" color={colors.textDim} style={styles.label}>아바타</T>
+        <T t="smallStrong" color={colors.text2} style={styles.label}>아바타</T>
         <View style={styles.grid}>
           {AVATARS.map((a) => (
-            <Pressable
-              key={a}
-              onPress={() => {
-                tap();
-                set({ avatar: a });
-              }}
-              style={[styles.avatarCell, value.avatar === a && styles.avatarSelected]}>
-              <T style={{ fontSize: 24 }}>{a}</T>
+            <Pressable key={a} onPress={() => { tap(); set({ avatar: a }); }} style={[styles.avatarCell, value.avatar === a && styles.avatarSelected]}>
+              <T style={{ fontSize: 22 }}>{a}</T>
             </Pressable>
           ))}
         </View>
       </View>
-
-      <View>
-        <T t="small" color={colors.textDim} style={styles.label}>닉네임 (친구에게만 보여요)</T>
-        <TextInput
-          value={value.nickname}
-          onChangeText={(t) => set({ nickname: t.slice(0, 16) })}
-          placeholder="예: moonwalker"
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-        />
+      <View style={{ gap: spacing.md }}>
+        <TextInput value={value.nickname} onChangeText={(t) => set({ nickname: t.slice(0, 16) })} placeholder="닉네임 (친구에게만 보여요)" placeholderTextColor={colors.text3} style={[styles.input, noOutline]} />
+        <TextInput value={value.bio} onChangeText={(t) => set({ bio: t.slice(0, 60) })} placeholder="한 줄 소개" placeholderTextColor={colors.text3} style={[styles.input, noOutline]} />
       </View>
+      <Group label="분야">{FIELDS.map((f) => <Chip key={f} label={f} small selected={value.field === f} onPress={() => set({ field: f })} />)}</Group>
+      <Group label="성별">{GENDERS.map((g) => <Chip key={g.id} label={g.label} small selected={value.gender === g.id} onPress={() => set({ gender: g.id })} />)}</Group>
+      <Group label="직무">{JOBS.map((j) => <Chip key={j} label={j} small selected={value.job === j} onPress={() => set({ job: j })} />)}</Group>
+      <Group label={`취미 (${value.hobbies.length}/5)`}>
+        {HOBBIES.map((h) => {
+          const on = value.hobbies.includes(h);
+          return <Chip key={h} label={h} small selected={on} color={colors.blue} onPress={() => (on ? set({ hobbies: value.hobbies.filter((x) => x !== h) }) : value.hobbies.length < 5 && set({ hobbies: [...value.hobbies, h] }))} />;
+        })}
+      </Group>
+    </View>
+  );
+}
 
-      <View>
-        <T t="small" color={colors.textDim} style={styles.label}>한 줄 소개</T>
-        <TextInput
-          value={value.bio}
-          onChangeText={(t) => set({ bio: t.slice(0, 60) })}
-          placeholder="오늘도 하늘을 봅니다"
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-        />
-      </View>
-
-      <View>
-        <T t="small" color={colors.textDim} style={styles.label}>분야</T>
-        <View style={styles.wrap}>
-          {FIELDS.map((f) => (
-            <Chip key={f} label={f} selected={value.field === f} onPress={() => set({ field: f })} small />
-          ))}
-        </View>
-      </View>
-
-      <View>
-        <T t="small" color={colors.textDim} style={styles.label}>성별</T>
-        <View style={styles.wrap}>
-          {GENDERS.map((g) => (
-            <Chip key={g.id} label={g.label} selected={value.gender === g.id} onPress={() => set({ gender: g.id })} small color={colors.accent} />
-          ))}
-        </View>
-      </View>
-
-      <View>
-        <T t="small" color={colors.textDim} style={styles.label}>직무</T>
-        <View style={styles.wrap}>
-          {JOBS.map((j) => (
-            <Chip key={j} label={j} selected={value.job === j} onPress={() => set({ job: j })} small color={colors.sky} />
-          ))}
-        </View>
-      </View>
-
-      <View>
-        <T t="small" color={colors.textDim} style={styles.label}>취미 (최대 5개)</T>
-        <View style={styles.wrap}>
-          {HOBBIES.map((h) => {
-            const on = value.hobbies.includes(h);
-            return (
-              <Chip
-                key={h}
-                label={h}
-                selected={on}
-                color={colors.mint}
-                small
-                onPress={() => {
-                  if (on) set({ hobbies: value.hobbies.filter((x) => x !== h) });
-                  else if (value.hobbies.length < 5) set({ hobbies: [...value.hobbies, h] });
-                }}
-              />
-            );
-          })}
-        </View>
-      </View>
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View>
+      <T t="smallStrong" color={colors.text2} style={styles.label}>{label}</T>
+      <View style={styles.wrap}>{children}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { marginBottom: spacing.sm, fontWeight: '700' },
+  label: { marginBottom: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  avatarCell: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-  avatarSelected: { borderColor: colors.accent, backgroundColor: 'rgba(255,92,138,0.18)' },
-  input: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 14, height: 48, fontSize: 15, fontFamily, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  avatarCell: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+  avatarSelected: { borderColor: colors.blue, backgroundColor: colors.blueSoft },
+  input: { backgroundColor: colors.bg2, borderRadius: radius.xs, borderWidth: 1, borderColor: colors.line, color: colors.text, paddingHorizontal: 12, height: 44, fontSize: 14, fontFamily },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 });

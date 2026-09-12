@@ -5,42 +5,54 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Globe } from '@/components/globe/Globe';
 import { ProfileDraft, ProfileForm } from '@/components/profile-form';
 import { LocationPicker } from '@/components/location-picker';
-import { Button, Screen, T } from '@/components/ui';
-import { requestNotificationPermission } from '@/engine/notify';
+import { Button, Header, Icon, Row, Screen, T, Wordmark, type FeatherName } from '@/components/ui';
+import { requestNotificationPermission } from '@/services/push';
 import { useStore } from '@/store';
 import type { Place } from '@/types';
-import { colors, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 import { success } from '@/engine/haptics';
 
 const STEPS = ['welcome', 'profile', 'location'] as const;
+const FEATURES: { icon: FeatherName; title: string; body: string }[] = [
+  { icon: 'send', title: '편지를 날려요', body: '걷는 배달원부터 시작. 친구가 늘면 자전거, 비행기, 로켓으로 빨라져요.' },
+  { icon: 'bell', title: '머리 위를 지나면 알림', body: '잡거나, 경로를 바꾸거나, 바다에 빠뜨리거나. 방어권으로 내 편지를 지켜요.' },
+  { icon: 'message-circle', title: '답장을 승인하면 실시간 채팅', body: '편지로 시작해 지구 반대편 누군가와 지연 없는 대화로.' },
+];
 
 export default function Onboarding() {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const complete = useStore((s) => s.completeOnboarding);
   const [step, setStep] = useState<(typeof STEPS)[number]>('welcome');
   const [draft, setDraft] = useState<ProfileDraft>({ nickname: '', avatar: '🦊', bio: '', field: 'IT/개발', gender: 'private', job: '학생', hobbies: [] });
   const [place, setPlace] = useState<Place | null>(null);
 
   if (step === 'welcome') {
-    const size = Math.min(width * 1.1, height * 0.55);
     return (
-      <Screen padded={false} style={{ alignItems: 'center' }}>
-        <View style={{ marginTop: -size * 0.12, opacity: 0.95 }}>
-          <Globe size={size} letters={[]} me={null} autoRotate fps={24} dim />
-        </View>
-        <View style={styles.welcomeBody}>
-          <T t="caption" color={colors.accent} style={{ letterSpacing: 2 }}>WORLDWIDESOMEONE</T>
-          <T t="hero" style={{ textAlign: 'center' }}>전 세계 누군가에게{'\n'}편지를 날려요</T>
-          <T t="body" color={colors.textDim} style={{ textAlign: 'center' }}>
-            종이비행기에 마음을 접어 하늘로. 누군가의 머리 위를 지나면 알림이 가고, 잡은 사람과 친구가 돼요.
-          </T>
-          <View style={styles.pillRow}>
-            {['✈️ 날리기', '🔔 머리 위 알림', '🫳 잡기', '🤝 친구'].map((x) => (
-              <View key={x} style={styles.pill}><T t="small">{x}</T></View>
+      <Screen>
+        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <LinearGradient colors={['#F7FBFF', '#E3F1FF']} style={styles.hero}>
+            <Globe size={Math.min(width - 32, 300)} letters={[]} me={null} autoRotate fps={24} interactive={false} />
+          </LinearGradient>
+          <View style={{ paddingHorizontal: spacing.xl, alignItems: 'center', marginTop: spacing.xl }}>
+            <Wordmark size={44} />
+            <T t="body" color={colors.text2} style={{ textAlign: 'center', marginTop: 4 }}>전 세계 누군가에게 편지를 날리고, 잡고, 친구가 되는 곳</T>
+          </View>
+          <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xl, gap: spacing.lg }}>
+            {FEATURES.map((f) => (
+              <Row key={f.title} gap={14} style={{ alignItems: 'flex-start' }}>
+                <View style={styles.featureIcon}><Icon name={f.icon} size={20} color={colors.blue} /></View>
+                <View style={{ flex: 1 }}>
+                  <T t="bodyStrong">{f.title}</T>
+                  <T t="small" color={colors.text2}>{f.body}</T>
+                </View>
+              </Row>
             ))}
           </View>
-          <Button title="시작하기" size="lg" full onPress={() => setStep('profile')} />
-        </View>
+          <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xxl }}>
+            <Button title="시작하기" size="lg" full onPress={() => setStep('profile')} />
+            <T t="caption" color={colors.text3} style={{ textAlign: 'center', marginTop: spacing.md }}>계속하면 이용약관과 개인정보 처리방침에 동의하게 됩니다</T>
+          </View>
+        </ScrollView>
       </Screen>
     );
   }
@@ -49,16 +61,12 @@ export default function Onboarding() {
     const ok = draft.nickname.trim().length >= 2;
     return (
       <Screen>
+        <Header title="프로필 만들기" subtitle="1/2 · 커뮤니티에는 ???로, 태그만 공개돼요" onBack={() => setStep('welcome')} right={<Button title="다음" size="sm" variant="ghost" disabled={!ok} onPress={() => setStep('location')} />} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-            <StepDots index={1} />
-            <T t="title" style={{ marginTop: spacing.lg }}>당신은 어떤 사람인가요?</T>
-            <T t="body" color={colors.textDim} style={{ marginBottom: spacing.xl }}>커뮤니티에는 <T t="bodyStrong">???</T>로 표시되고, 태그만 공개돼요. 친구가 되면 닉네임이 보여요.</T>
+          <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <ProfileForm value={draft} onChange={setDraft} />
           </ScrollView>
-          <View style={styles.footer}>
-            <Button title="다음" size="lg" full disabled={!ok} onPress={() => setStep('location')} />
-          </View>
+          <View style={styles.footer}><Button title="다음" size="lg" full disabled={!ok} onPress={() => setStep('location')} /></View>
         </KeyboardAvoidingView>
       </Screen>
     );
@@ -66,15 +74,13 @@ export default function Onboarding() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <StepDots index={2} />
-        <T t="title" style={{ marginTop: spacing.lg }}>어디에서 날릴 건가요?</T>
-        <T t="body" color={colors.textDim} style={{ marginBottom: spacing.lg }}>편지는 여기서 출발하고, 이 하늘 위를 지나는 편지를 잡을 수 있어요. 친구에게는 50km 반경으로만 공유돼요.</T>
+      <Header title="어디에서 날릴까요?" subtitle="2/2 · 친구에게는 50km 반경으로만 보여요" onBack={() => setStep('profile')} />
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <LocationPicker value={place} onChange={setPlace} compact />
       </ScrollView>
       <View style={styles.footer}>
         <Button
-          title="지구로 들어가기 🌍"
+          title="지구로 들어가기"
           size="lg"
           full
           disabled={!place}
@@ -90,21 +96,8 @@ export default function Onboarding() {
   );
 }
 
-function StepDots({ index }: { index: number }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.md }}>
-      {[0, 1, 2].map((i) => (
-        <View key={i} style={{ width: i === index ? 22 : 8, height: 8, borderRadius: 4, backgroundColor: i <= index ? colors.accent : colors.card }} />
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  welcomeBody: { flex: 1, width: '100%', paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.lg, justifyContent: 'flex-end', paddingBottom: spacing.xxl },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, backgroundColor: colors.bg },
+  hero: { alignItems: 'center', paddingVertical: 16, marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl },
+  featureIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, backgroundColor: colors.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
 });
-
-export const _unused = LinearGradient;

@@ -1,92 +1,108 @@
-import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Linking, Platform, ScrollView, Switch, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 
 import { LocationPicker } from '@/components/location-picker';
-import { Button, Card, Chip, Header, Row, Screen, Section, T } from '@/components/ui';
+import { Button, Chip, Header, Icon, ListRow, Pill, Row, Screen, Section, T } from '@/components/ui';
 import { useStore } from '@/store';
 import { colors, spacing } from '@/theme';
+import { getLocationPermission, requestBackgroundLocation, requestForegroundLocation, startBackgroundLocation, stopBackgroundLocation } from '@/services/location';
+import { getNotificationPermission, getPushToken, requestNotificationPermission } from '@/services/push';
+import { pushProfile, registerPushToken } from '@/services/sync';
+import { firebaseEnabled } from '@/services/firebase';
+import { purchases } from '@/services/purchases';
+import type { PermissionState } from '@/types';
+
+const PERM_LABEL: Record<PermissionState, { label: string; color: string; bg: string }> = {
+  granted: { label: '허용됨', color: colors.green, bg: colors.greenSoft },
+  denied: { label: '거부됨', color: colors.red, bg: colors.redSoft },
+  undetermined: { label: '요청 전', color: '#8A6D00', bg: colors.yellowSoft },
+  unavailable: { label: '이 환경 미지원', color: colors.text2, bg: colors.bg3 },
+};
 
 export default function Settings() {
   const router = useRouter();
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
   const me = useStore((s) => s.me);
+  const perms = useStore((s) => s.permissions);
+  const setPermissions = useStore((s) => s.setPermissions);
+  const backend = useStore((s) => s.backend);
   const setLocation = useStore((s) => s.setLocation);
   const ff = useStore((s) => s.devFastForward);
   const spawn = useStore((s) => s.devSpawnPassby);
+  const spawnReply = useStore((s) => s.devSpawnReply);
   const update = useStore((s) => s.updateProfile);
   const reset = useStore((s) => s.resetAll);
   const [showLoc, setShowLoc] = useState(false);
 
-  const confirmReset = () => {
-    if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
-      if (typeof window !== 'undefined' && window.confirm('모든 데이터를 지우고 처음부터 시작할까요?')) reset();
-      return;
-    }
-    Alert.alert('초기화', '모든 데이터를 지우고 처음부터 시작할까요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '초기화', style: 'destructive', onPress: () => reset() },
-    ]);
+  const refresh = async () => {
+    const loc = await getLocationPermission();
+    const noti = await getNotificationPermission();
+    setPermissions({ location: loc.foreground, backgroundLocation: loc.background, notifications: noti });
   };
+  useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openSettings = () => Linking.openSettings().catch(() => {});
+  const confirmReset = () => {
+    if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm('모든 데이터를 지우고 처음부터 시작할까요?')) reset(); return; }
+    Alert.alert('초기화', '모든 데이터를 지우고 처음부터 시작할까요?', [{ text: '취소', style: 'cancel' }, { text: '초기화', style: 'destructive', onPress: () => reset() }]);
+  };
+  const PermRow = ({ title, sub, state, onRequest }: { title: string; sub: string; state: PermissionState; onRequest: () => void }) => (
+    <ListRow title={title} subtitle={sub} right={<Row><Pill label={PERM_LABEL[state].label} color={PERM_LABEL[state].bg} textColor={PERM_LABEL[state].color} />{state === 'undetermined' ? <Button title="허용" size="sm" onPress={onRequest} /> : state === 'denied' ? <Button title="설정 열기" size="sm" variant="secondary" onPress={openSettings} /> : null}</Row>} />
+  );
 
   return (
     <Screen>
-      <Header title="설정" />
+      <Header title="설정" right={<Pill label={backend === 'firebase' ? 'Firebase 연결' : '로컬 시뮬'} color={backend === 'firebase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'firebase' ? colors.green : '#8A6D00'} />} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-        <Card>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View><T t="bodyStrong">알림</T><T t="small" color={colors.textDim}>머리 위 통과 · 잡힘 · 친구 요청</T></View>
-            <Switch value={settings.notifications} onValueChange={(v) => setSettings({ notifications: v })} trackColor={{ true: colors.accent }} />
-          </Row>
-          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing.md }} />
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View><T t="bodyStrong">햅틱</T><T t="small" color={colors.textDim}>버튼·잡기 진동</T></View>
-            <Switch value={settings.haptics} onValueChange={(v) => setSettings({ haptics: v })} trackColor={{ true: colors.accent }} />
-          </Row>
-        </Card>
-
-        <Section title="내 위치" right={<Button title={showLoc ? '닫기' : '변경'} size="sm" variant="secondary" onPress={() => setShowLoc((v) => !v)} />}>
-          <Card>
-            <T t="body">📍 {me.location.city}, {me.location.country}</T>
-            <T t="small" color={colors.textDim}>친구에게는 50km 반경으로만 보여요 (고정)</T>
-          </Card>
-          {showLoc ? (
-            <View style={{ marginTop: spacing.md }}>
-              <LocationPicker value={me.location} onChange={(p) => setLocation(p)} compact />
-            </View>
-          ) : null}
+        <Section title="기기 권한 (실제 상태)" action={{ label: '새로고침', onPress: refresh }}>
+          <PermRow title="위치 (앱 사용 중)" sub="편지 출발지 · 머리 위 통과 판정" state={perms.location} onRequest={async () => { const r = await requestForegroundLocation(); setPermissions({ location: r }); }} />
+          <PermRow title="위치 (항상 · 백그라운드)" sub="앱을 닫아도 통과 알림을 받으려면 필요 · Expo Go 미지원(dev build)" state={perms.backgroundLocation} onRequest={async () => { const r = await requestBackgroundLocation(); setPermissions({ backgroundLocation: r }); }} />
+          <PermRow title="알림" sub={perms.pushToken ? `푸시 토큰 등록됨 · ${perms.pushToken.slice(0, 22)}…` : '머리 위 통과 · 답장 도착 · 채팅 (Expo Go Android는 로컬 알림만)'} state={perms.notifications} onRequest={async () => { const r = await requestNotificationPermission(); setPermissions({ notifications: r }); const t = await getPushToken(); if (t) { setPermissions({ pushToken: t }); registerPushToken(t).catch(() => {}); } }} />
+          <ListRow title="백그라운드 위치 업데이트" subtitle="2km 이동마다 서버에 10km 격자 위치 전송" right={<Switch value={settings.backgroundLocation} onValueChange={async (v) => { if (v) { const ok = await startBackgroundLocation(); setSettings({ backgroundLocation: ok }); if (!ok) refresh(); } else { await stopBackgroundLocation(); setSettings({ backgroundLocation: false }); } }} trackColor={{ true: colors.blue }} />} />
         </Section>
 
-        <Section title="개발자 모드" right={<Switch value={settings.devMode} onValueChange={(v) => setSettings({ devMode: v })} trackColor={{ true: colors.primary }} />}>
+        <Section title="알림 · 햅틱">
+          <ListRow title="앱 내 알림" subtitle="머리 위 통과 · 잡힘 · 답장 · 채팅" right={<Switch value={settings.notifications} onValueChange={(v) => setSettings({ notifications: v })} trackColor={{ true: colors.blue }} />} />
+          <ListRow title="햅틱" subtitle="버튼 · 잡기 진동" right={<Switch value={settings.haptics} onValueChange={(v) => setSettings({ haptics: v })} trackColor={{ true: colors.blue }} />} />
+        </Section>
+
+        <Section title="내 위치" action={{ label: showLoc ? '닫기' : '변경', onPress: () => setShowLoc((v) => !v) }}>
+          <ListRow title={`${me.location.city}, ${me.location.country}`} subtitle="친구에게는 50km 반경 · 서버에는 10km 격자로만 저장" left={<Icon name="map-pin" size={20} color={colors.red} />} />
+          {showLoc ? <View style={{ padding: spacing.lg }}><LocationPicker value={me.location} onChange={(p) => { setLocation(p); pushProfile().catch(() => {}); }} compact /></View> : null}
+        </Section>
+
+        <Section title="계정 · 결제">
+          <ListRow title={`플랜: ${me.plan.toUpperCase()}`} subtitle={me.planExpiresAt ? `갱신 ${new Date(me.planExpiresAt).toLocaleDateString('ko-KR')}` : '무료'} right={<Button title="상점" size="sm" variant="secondary" onPress={() => router.push('/store')} />} />
+          <ListRow title="결제 제공자" subtitle={purchases.name === 'revenuecat' ? 'RevenueCat (스토어 결제)' : 'Mock (테스트) · dev build + RevenueCat 키 설정 시 실결제'} />
+          <ListRow title="백엔드" subtitle={firebaseEnabled ? 'Firebase (Auth · Firestore · Functions)' : 'EXPO_PUBLIC_FIREBASE_* 미설정 → 로컬 봇 시뮬레이션'} />
+        </Section>
+
+        <Section title="개발자 모드" right={<Switch value={settings.devMode} onValueChange={(v) => setSettings({ devMode: v })} trackColor={{ true: colors.blue }} />}>
           {settings.devMode ? (
-            <Card style={{ gap: spacing.md }}>
-              <View>
-                <T t="small" color={colors.textDim} style={{ marginBottom: 6 }}>시뮬 시간 배속 (새 편지부터 적용)</T>
-                <Row>
-                  {[60, 120, 240, 600].map((x) => <Chip key={x} label={`${x}x`} small selected={settings.timeScale === x} onPress={() => setSettings({ timeScale: x })} />)}
-                </Row>
-              </View>
+            <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
+              <T t="small" color={colors.text2}>시뮬 배속 (새 편지부터) · 걷기 5km/h × 배속 = 실제 체감</T>
+              <Row>{[60, 120, 240, 600, 1200].map((x) => <Chip key={x} label={`${x}x`} small selected={settings.timeScale === x} onPress={() => setSettings({ timeScale: x })} />)}</Row>
               <Row style={{ flexWrap: 'wrap' }}>
                 <Button title="1분 빨리감기" size="sm" variant="secondary" onPress={() => ff(60_000)} />
-                <Button title="5분 빨리감기" size="sm" variant="secondary" onPress={() => ff(300_000)} />
+                <Button title="10분 빨리감기" size="sm" variant="secondary" onPress={() => ff(600_000)} />
+                <Button title="1시간 빨리감기" size="sm" variant="secondary" onPress={() => ff(3_600_000)} />
               </Row>
               <Row style={{ flexWrap: 'wrap' }}>
-                <Button title="머리 위 편지 소환" size="sm" variant="mint" icon="✈️" onPress={() => { spawn(); router.replace('/'); }} />
-                <Button title="+100 코인" size="sm" variant="gold" onPress={() => update({ coins: me.coins + 100 })} />
+                <Button title="머리 위 편지 소환" size="sm" icon="navigation" onPress={() => { spawn(); router.replace('/'); }} />
+                <Button title="답장 편지 소환" size="sm" icon="inbox" onPress={() => { spawnReply(); router.replace('/letters'); }} />
+                <Button title="+100 코인" size="sm" variant="secondary" onPress={() => update({ coins: me.coins + 100 })} />
               </Row>
-              <T t="caption" color={colors.textFaint}>MVP는 서버 없이 봇 60명이 편지를 보내는 시뮬레이션이에요. 배속은 편지 비행 시간에만 영향을 줘요.</T>
-            </Card>
-          ) : (
-            <T t="small" color={colors.textDim}>시뮬 배속, 빨리감기, 편지 소환 등 테스트 도구</T>
-          )}
+            </View>
+          ) : <T t="small" color={colors.text2} style={{ paddingHorizontal: spacing.lg }}>배속, 빨리감기, 편지 소환 등 테스트 도구</T>}
         </Section>
 
-        <Section title="계정">
-          <Button title="모든 데이터 초기화" variant="danger" onPress={confirmReset} />
+        <Section title="데이터">
+          <View style={{ paddingHorizontal: spacing.lg }}><Button title="모든 데이터 초기화" variant="danger" onPress={confirmReset} /></View>
         </Section>
-        <T t="caption" color={colors.textFaint} style={{ marginTop: spacing.xl, textAlign: 'center' }}>WorldWideSomeone · MVP 0.1 · 서버 연동 전 클라이언트 시뮬</T>
+        <T t="caption" color={colors.text3} style={{ textAlign: 'center', marginTop: spacing.xl }}>WorldWideSomeone {Constants.expoConfig?.version ?? ''} · {Platform.OS} · {Constants.appOwnership ?? 'standalone'}</T>
       </ScrollView>
     </Screen>
   );

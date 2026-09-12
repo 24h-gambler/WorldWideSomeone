@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar, Button, Header, IconButton, Row, Screen, T } from '@/components/ui';
-import { distanceKm, formatKm } from '@/engine/geo';
+import { Avatar, Button, Header, Icon, IconButton, Row, Screen, T } from '@/components/ui';
+import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
 import { ME_ID, displayName, getUser, useStore } from '@/store';
 import { colors, fontFamily, radius, spacing } from '@/theme';
+import { remote } from '@/services/sync';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -16,124 +17,86 @@ export default function ChatScreen() {
   const me = useStore((s) => s.me);
   const friendIds = useStore((s) => s.friendIds);
   const chat = useStore((s) => s.chats.find((c) => c.otherId === id));
-  const requests = useStore((s) => s.requests);
+  const letters = useStore((s) => s.letters);
   const send = useStore((s) => s.sendMessage);
   const markRead = useStore((s) => s.markChatRead);
-  const sendFriendRequest = useStore((s) => s.sendFriendRequest);
-  const acceptRequest = useStore((s) => s.acceptRequest);
   const [text, setText] = useState('');
   const scroll = useRef<ScrollView>(null);
-
   const other = id ? getUser({ me }, id) : undefined;
   const isFriend = !!id && friendIds.includes(id);
-  const pending = requests.find((r) => r.status === 'pending' && ((r.fromId === ME_ID && r.toId === id) || (r.toId === ME_ID && r.fromId === id)));
-  const mineCount = chat?.messages.filter((m) => m.senderId === ME_ID).length ?? 0;
-  const limitLeft = isFriend ? Infinity : Math.max(0, 3 - mineCount);
   const messages = chat?.messages ?? [];
+  const pendingReply = letters.find((l) => l.recipientId === ME_ID && l.senderId === id && l.status === 'delivered');
+  const myPendingReply = letters.find((l) => l.senderId === ME_ID && l.recipientId === id && (l.status === 'flying' || l.status === 'delivered'));
+  const caughtTheirs = letters.find((l) => l.senderId === id && l.caughtBy === ME_ID);
 
-  useEffect(() => {
-    if (id) markRead(id);
-  }, [id, markRead, messages.length]);
-  useEffect(() => {
-    const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
-    return () => clearTimeout(t);
-  }, [messages.length]);
+  useEffect(() => { if (id) markRead(id); }, [id, markRead, messages.length]);
+  useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50); return () => clearTimeout(t); }, [messages.length]);
 
-  if (!other) {
-    return (
-      <Screen>
-        <Header title="채팅" />
-        <T color={colors.textDim}>사용자를 찾을 수 없어요</T>
-      </Screen>
-    );
-  }
+  if (!other) return <Screen><Header title="채팅" /><T style={{ padding: spacing.lg }}>사용자를 찾을 수 없어요</T></Screen>;
 
   const onSend = () => {
     const t = text.trim();
     if (!t) return;
-    if (send(other.id, t)) setText('');
+    if (send(other.id, t)) { setText(''); if (remote.enabled()) remote.sendMessage(other.id, t).catch(() => {}); }
   };
 
   return (
-    <Screen padded={false}>
-      <View style={{ paddingHorizontal: spacing.lg }}>
-        <Header
-          title={displayName({ me, friendIds }, other.id)}
-          subtitle={`${other.location.city} · ${formatKm(distanceKm(me.location, other.location))} · ${isFriend ? '친구 · 50km 반경 공유' : pending ? '친구 요청 대기 중' : '아직 친구가 아니에요'}`}
-          right={
-            <Row>
-              <Avatar anonymous={!isFriend} emoji={other.avatar} size={40} />
-              <IconButton icon="✈️" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} />
-            </Row>
-          }
-        />
-      </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView ref={scroll} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, gap: 8 }} showsVerticalScrollIndicator={false}>
-          <View style={styles.sys}>
-            <T t="caption" color={colors.textDim} style={{ textAlign: 'center' }}>
-              {isFriend ? `${other.nickname} 님과 친구예요. 위치는 50km 반경으로만 공유돼요.` : '친구가 되기 전에는 3통까지 보낼 수 있어요. 상대는 ???로 표시돼요.'}
-            </T>
-          </View>
-          {messages.map((m) => {
-            const mine = m.senderId === ME_ID;
-            return (
-              <View key={m.id} style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
-                {mine ? (
-                  <LinearGradient colors={['#7C5CFF', '#FF5C8A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, { borderBottomRightRadius: 4 }]}>
-                    <T color="#fff">{m.text}</T>
-                  </LinearGradient>
-                ) : (
-                  <View style={[styles.bubble, { backgroundColor: colors.cardStrong, borderBottomLeftRadius: 4 }]}>
-                    <T>{m.text}</T>
-                  </View>
-                )}
-                <T t="caption" color={colors.textFaint} style={{ marginTop: 2 }}>{new Date(m.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</T>
-              </View>
-            );
-          })}
-        </ScrollView>
-
-        {!isFriend ? (
-          <View style={styles.friendBar}>
-            {pending?.toId === ME_ID ? (
-              <>
-                <T t="small" style={{ flex: 1 }}>??? 님이 친구가 되고 싶어해요</T>
-                <Button title="수락" size="sm" onPress={() => acceptRequest(pending.id)} />
-              </>
-            ) : pending ? (
-              <T t="small" color={colors.textDim} style={{ flex: 1 }}>친구 요청을 보냈어요. 수락하면 무제한 대화 + 위치 공유</T>
-            ) : (
-              <>
-                <T t="small" style={{ flex: 1 }}>남은 메시지 {limitLeft}통 · 친구가 되면 무제한</T>
-                <Button title="친구 요청" size="sm" icon="🤝" onPress={() => sendFriendRequest(other.id)} />
-              </>
-            )}
-          </View>
-        ) : null}
-
-        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder={limitLeft === 0 ? '친구가 되면 계속 대화할 수 있어요' : '메시지 보내기'}
-            placeholderTextColor={colors.textFaint}
-            style={styles.input}
-            editable={limitLeft > 0}
-            onSubmitEditing={onSend}
-            returnKeyType="send"
-          />
-          <Button title="전송" size="sm" disabled={!text.trim() || limitLeft === 0} onPress={onSend} />
+    <Screen>
+      <Header
+        left={<Row gap={8}><Pressable hitSlop={10} onPress={() => (router.canGoBack() ? router.back() : router.replace('/friends'))}><Icon name="chevron-left" size={28} /></Pressable><Avatar anonymous={!isFriend} emoji={other.avatar} size={36} /></Row>}
+        title={displayName({ me, friendIds }, other.id)}
+        subtitle={`${other.location.city} · ${formatKm(distanceKm(me.location, other.location))} · ${isFriend ? '친구 · 실시간' : '아직 친구가 아니에요'}`}
+        right={<><IconButton name="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /><IconButton name="info" onPress={() => router.push(`/user/${other.id}`)} /></>}
+      />
+      {!isFriend ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: 12 }}>
+          <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}><Icon name="lock" size={32} /></View>
+          <T t="title" style={{ textAlign: 'center' }}>편지로만 대화할 수 있어요</T>
+          <T t="body" color={colors.text2} style={{ textAlign: 'center' }}>실시간 채팅은 답장 편지를 회수하고 승인한 뒤에 열려요. 그 전까지는 편지가 날아가는 시간만큼 기다려요.</T>
+          {pendingReply ? <Button title="도착한 답장 승인하기" icon="check" onPress={() => router.push(`/letter/${pendingReply.id}`)} /> : null}
+          {myPendingReply ? <T t="small" color={colors.text2}>{myPendingReply.status === 'flying' ? '내 답장이 가는 중 · 도착하면 상대가 승인해요' : '내 답장 도착 · 상대 승인 대기 중'}</T> : caughtTheirs && !pendingReply ? <Button title="답장 편지 쓰기" icon="edit-3" onPress={() => router.push({ pathname: '/compose', params: { replyTo: caughtTheirs.id } } as any)} /> : !pendingReply ? <Button title="편지 보내기" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /> : null}
         </View>
-      </KeyboardAvoidingView>
+      ) : (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView ref={scroll} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: 6 }} showsVerticalScrollIndicator={false}>
+            <View style={{ alignItems: 'center', gap: 6, paddingVertical: 16 }}>
+              <Avatar emoji={other.avatar} size={80} ring="ig" />
+              <T t="h2">{other.nickname}</T>
+              <T t="small" color={colors.text2}>{other.location.city}, {other.location.country} · {other.field} · {other.job}</T>
+              <T t="caption" color={colors.text3}>{chat ? `${timeAgo(chat.since)} 친구가 됨 · 편지에서 시작된 대화` : ''}</T>
+              <Button title="프로필 보기" size="sm" variant="secondary" onPress={() => router.push(`/user/${other.id}`)} />
+            </View>
+            {messages.map((m, i) => {
+              const mine = m.senderId === ME_ID;
+              const prevSame = i > 0 && messages[i - 1].senderId === m.senderId;
+              return (
+                <View key={m.id} style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: mine ? 'flex-end' : 'flex-start', gap: 6, marginTop: prevSame ? 0 : 6 }}>
+                  {!mine ? <View style={{ width: 26 }}>{!prevSame ? <Avatar emoji={other.avatar} size={26} /> : null}</View> : null}
+                  {mine ? (
+                    <LinearGradient colors={['#5851DB', '#833AB4', '#E1306C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, { borderBottomRightRadius: 4 }]}><T color="#fff">{m.text}</T></LinearGradient>
+                  ) : (
+                    <View style={[styles.bubble, { backgroundColor: colors.bg3, borderBottomLeftRadius: 4 }]}><T>{m.text}</T></View>
+                  )}
+                </View>
+              );
+            })}
+            {messages.length ? <T t="caption" color={colors.text3} style={{ alignSelf: 'flex-end', marginTop: 2 }}>{new Date(messages[messages.length - 1].at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</T> : null}
+          </ScrollView>
+          <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <View style={styles.inputWrap}>
+              <TextInput value={text} onChangeText={setText} placeholder="메시지 보내기…" placeholderTextColor={colors.text3} style={[styles.input, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} onSubmitEditing={onSend} returnKeyType="send" />
+              {text.trim() ? <Pressable onPress={onSend} hitSlop={8}><T t="bodyStrong" color={colors.blue}>보내기</T></Pressable> : <Row gap={12}><Icon name="mic" size={20} /><Icon name="image" size={20} /></Row>}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  sys: { alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.card, marginBottom: 8, maxWidth: '90%' },
-  bubble: { maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.lg },
-  friendBar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: spacing.lg, padding: 12, borderRadius: radius.md, backgroundColor: 'rgba(124,92,255,0.18)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.4)' },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: spacing.lg, paddingTop: 10 },
-  input: { flex: 1, backgroundColor: colors.card, borderRadius: 999, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 16, height: 44, fontSize: 15, fontFamily, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) },
+  bubble: { maxWidth: '75%', paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.xl },
+  inputRow: { paddingHorizontal: spacing.lg, paddingTop: 8 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.line, borderRadius: 999, paddingLeft: 16, paddingRight: 14, height: 44 },
+  input: { flex: 1, color: colors.text, fontSize: 14, fontFamily, height: 44 },
 });

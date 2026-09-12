@@ -121,15 +121,13 @@ export function randomLandPoint(rnd: () => number = Math.random): LatLng {
   return { lat: c.lat, lng: c.lng };
 }
 
-/** 정확 위치를 50km 격자로 흐림 처리 (친구에게 보여줄 때) */
-export function fuzz50km(p: LatLng): LatLng {
-  const stepLat = 50 / 111; // 위도 1도 ≈ 111km
-  const stepLng = 50 / (111 * Math.max(0.2, Math.cos(toRad(p.lat))));
-  return {
-    lat: Math.round(p.lat / stepLat) * stepLat,
-    lng: Math.round(p.lng / stepLng) * stepLng,
-  };
+/** 정확 위치를 km 격자로 스냅 (친구에게는 50km, 서버 통과 판정용은 10km) */
+export function fuzzToGrid(p: LatLng, km: number): LatLng {
+  const stepLat = km / 111;
+  const stepLng = km / (111 * Math.max(0.2, Math.cos(toRad(p.lat))));
+  return { lat: Math.round(p.lat / stepLat) * stepLat, lng: Math.round(p.lng / stepLng) * stepLng };
 }
+export const fuzz50km = (p: LatLng) => fuzzToGrid(p, 50);
 
 export function formatKm(km: number): string {
   if (km >= 10000) return `${(km / 1000).toFixed(1)}만 km`.replace('만 km', '천 km');

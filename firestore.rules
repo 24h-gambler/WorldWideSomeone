@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isMe(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // 공개 프로필 (닉네임은 친구에게만 — 클라이언트는 friendIds 로 판단, 서버 응답은 users_public 뷰를 쓰는 것이 이상적)
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isMe(uid)
+        && !("coins" in request.resource.data.diff(resource.data).affectedKeys())
+        && !("inventory" in request.resource.data.diff(resource.data).affectedKeys())
+        && !("plan" in request.resource.data.diff(resource.data).affectedKeys())
+        && !("friendIds" in request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if false;
+      match /passbys/{id} { allow read: if isMe(uid); allow write: if false; }
+      match /notifications/{id} { allow read, update: if isMe(uid); allow create, delete: if false; }
+    }
+    // 정확 위치 · 푸시 토큰: 본인만 쓰고, 아무도 읽지 못함 (서버만)
+    match /users_private/{uid} { allow read: if false; allow write: if isMe(uid); }
+
+    // 편지: 참여자(발신·수신·잡은 사람)만 본문 읽기. 하늘 위 편지는 letters_public 요약으로.
+    match /letters/{id} {
+      allow read: if signedIn() && (request.auth.uid in resource.data.participants);
+      allow write: if false; // callable functions 만
+    }
+    match /letters_public/{id} { allow read: if signedIn(); allow write: if false; }
+
+    match /chats/{chatId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow write: if false;
+      match /messages/{mid} {
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
+        allow create: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members
+          && request.resource.data.senderId == request.auth.uid && request.resource.data.text is string && request.resource.data.text.size() <= 1000;
+        allow update, delete: if false;
+      }
+    }
+    match /posts/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid && request.resource.data.text.size() <= 500;
+      allow update: if false; // likes 는 callable
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+    }
+    match /reports/{id} { allow create: if signedIn(); allow read, update, delete: if false; }
+  }
+}
