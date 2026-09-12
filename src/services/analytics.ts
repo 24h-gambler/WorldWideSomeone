@@ -39,7 +39,7 @@ export function track(name: string, props?: Record<string, unknown>) {
   for (const l of listeners) l(e);
   if (__DEV__ && Platform.OS === 'web' && typeof console !== 'undefined') console.debug('[track]', name, props ?? '');
   if (queue.length >= FLUSH_AT) void flush();
-  else void AsyncStorage.setItem(KEY, JSON.stringify(queue.slice(-200))).catch(() => {});
+  else void AsyncStorage.setItem(KEY, JSON.stringify(queue.slice(-1000))).catch(() => {});
 }
 
 /** 화면 진입: 이전 화면의 체류 시간을 함께 남긴다 */
@@ -56,8 +56,8 @@ export const currentScreenName = () => currentScreen;
 export async function flush(): Promise<void> {
   if (!queue.length) return;
   if (!sink) { // 로컬 모드: 서버가 없으니 버리지 않고 최근 500건을 보관한다
-    queue = queue.slice(-500);
-    await AsyncStorage.setItem(KEY, JSON.stringify(queue.slice(-200))).catch(() => {});
+    queue = queue.slice(-1500);
+    await AsyncStorage.setItem(KEY, JSON.stringify(queue.slice(-1000))).catch(() => {});
     return;
   }
   const batch = queue.splice(0, 100);
