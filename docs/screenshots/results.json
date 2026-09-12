@@ -1,66 +1,66 @@
 {
-  "at": "2026-09-12T15:54:22.012Z",
+  "at": "2026-09-12T15:59:29.031Z",
   "results": [
     {
       "id": "01",
       "title": "첫 진입 · 환영(가입 얘기 없음) → 둘러보기",
       "ok": true,
-      "ms": 3628
+      "ms": 3644
     },
     {
       "id": "02",
       "title": "위치 잡기(GPS 미허용 시 도시 선택) → 비회원으로 지구 입장",
       "ok": true,
-      "ms": 3639
+      "ms": 3606
     },
     {
       "id": "03",
       "title": "투어 · 한 군데씩 안내(짧은 CTA · 애니메이션) → 마지막 CTA \"편지 쓰기\"",
       "ok": true,
-      "ms": 4382
+      "ms": 4615
     },
     {
       "id": "04",
       "title": "홈(비회원) · 국가 스토리 · 지구(경로 숨김 · 착륙 편지 비공개) · 배달원 이동",
       "ok": true,
-      "ms": 6215,
+      "ms": 6203,
       "note": "landed(others) hidden, letters=12"
     },
     {
       "id": "05",
       "title": "편지 탭 · 빈 상태",
       "ok": true,
-      "ms": 1789
+      "ms": 1769
     },
     {
       "id": "06",
       "title": "친구 탭 · 해금 진행(대여 안내)",
       "ok": true,
-      "ms": 1748
+      "ms": 1750
     },
     {
       "id": "07",
       "title": "커뮤니티 · 피드(거리만 · 댓글) · 원화 표기 없음",
       "ok": true,
-      "ms": 1996
+      "ms": 1947
     },
     {
       "id": "08",
       "title": "커뮤니티 · 사람(받은 편지 수 · ⚡직행)",
       "ok": true,
-      "ms": 788
+      "ms": 791
     },
     {
       "id": "09",
       "title": "프로필(비회원) · \"가입하고 편지 보내기\"",
       "ok": true,
-      "ms": 1887
+      "ms": 1872
     },
     {
       "id": "10",
       "title": "상점 · 코인 팩(원화는 여기만) · 아이템은 SC · 플랜",
       "ok": true,
-      "ms": 2723
+      "ms": 2720
     },
     {
       "id": "11",
@@ -72,133 +72,134 @@
       "id": "12",
       "title": "편지 쓰기 3단계(비회원 가능) · 배달원 카드에 대여 SC · 원화 없음",
       "ok": true,
-      "ms": 3238
+      "ms": 3254
     },
     {
       "id": "13",
       "title": "보내기 → 가입 게이트(SNS) → \"나중에\" → 다시 보내기 → Google → 프로필 → 발송",
       "ok": true,
-      "ms": 7100
+      "ms": 7035
     },
     {
       "id": "14",
       "title": "소환 → 통과 배너 → 잡기 화면: 되돌리기 없음 · 침수 · SC 표기",
       "ok": true,
-      "ms": 4902
+      "ms": 17971
     },
     {
       "id": "15",
       "title": "첫 엿보기 렌즈로 미리보기 → 끌어오기 한도 → 상점",
       "ok": true,
-      "ms": 3989
+      "ms": 4014
     },
     {
       "id": "16",
       "title": "경로 바꾸기(경유지 1)",
       "ok": true,
-      "ms": 6977
+      "ms": 7087
     },
     {
       "id": "17",
       "title": "잡기 → 봉투 → 보낸 사람 실제 프로필 · 공유",
       "ok": true,
-      "ms": 5876
+      "ms": 5924
     },
     {
       "id": "18",
       "title": "답장 편지 쓰기(직행 · 친구 요청) → 발송 → \"왕복 진행 중\"",
       "ok": true,
-      "ms": 5183
+      "ms": 5228
     },
     {
       "id": "19",
       "title": "답장 소환 → 우편함 \"오는 중\": 속도·거리만(도착 시간 없음) + 가속 버튼",
       "ok": true,
-      "ms": 3999
+      "ms": 4033
     },
     {
       "id": "20",
       "title": "코인 부족 → 상점 안내 · +코인 → \"1분 안에\" 가속 → 도착 → 수락하고 채팅 시작",
       "ok": true,
-      "ms": 65804,
+      "ms": 65849,
       "note": "friends=1, coins=243"
     },
     {
       "id": "21",
       "title": "실시간 채팅 · 보내기 → 봇 응답",
       "ok": true,
-      "ms": 9913
+      "ms": 9917
     },
     {
       "id": "22",
       "title": "내 답장 도착 → 상대 수락(봇) → 친구 2명 · 홈 친구 50km 원",
       "ok": true,
-      "ms": 50404,
+      "ms": 36461,
       "note": "friends=2"
     },
     {
       "id": "23",
       "title": "내 편지 엽서 공개 → 피드 거리만 → 홈 스토리 \"내 나라\" → 스토리 순서(최신순)",
       "ok": true,
-      "ms": 7224
+      "ms": 7210
     },
     {
       "id": "24",
       "title": "스토리 탭 → 엽서 상세에서 국가 공개 · 댓글",
       "ok": true,
-      "ms": 1974
+      "ms": 2033
     },
     {
       "id": "25",
       "title": "⚡ 직행 편지(300 SC · 환불 없음) → 작성 → \"직행 보내기\" → 친구 탭 진행 중",
       "ok": true,
-      "ms": 10902,
+      "ms": 10943,
       "note": "coins=260, direct=true"
     },
     {
       "id": "26",
       "title": "플랜(플러스) 테스트 결제 → 매월 SC 지급 · 한도 표시",
       "ok": true,
-      "ms": 2833,
+      "ms": 2847,
       "note": "coins=560"
     },
     {
       "id": "27",
       "title": "배달원 대여(SC)로 잠긴 여객기 1회 사용",
       "ok": true,
-      "ms": 4806,
+      "ms": 4865,
       "note": "vehicle=airliner, coins=440"
     },
     {
       "id": "28",
       "title": "플러스 · 엿보기 → 끌어오기(내 위치로)",
-      "ok": true,
-      "ms": 7230
+      "ok": false,
+      "error": "locator.waitFor: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('끌어왔어요').first() to be visible\u001b[22m\n",
+      "ms": 13047
     },
     {
       "id": "29",
       "title": "침수 → 몇 시간 정지 → 지구 표시",
       "ok": true,
-      "ms": 6540,
-      "note": "sunkUntil in 2697s"
+      "ms": 6537,
+      "note": "sunkUntil in 897s"
     },
     {
       "id": "30",
       "title": "다크 모드 · 홈/커뮤니티/편지/상점/잡기",
       "ok": true,
-      "ms": 17761
+      "ms": 17702
     },
     {
       "id": "31",
       "title": "트래킹 · 화면/버튼/스크롤/게이트/가입 이벤트가 비회원 시점부터 기록됨",
       "ok": false,
-      "error": "missing events: scroll,gate_show,sign_up,guest_enter,tour_step,letter_send,coin_spend",
-      "ms": 4
+      "error": "missing events: guest_enter,tour_step",
+      "ms": 27
     },
     {
       "id": "32",
-      "title": "통과 알림 신뢰성 3회 (ok, ok, ok)",
-      "ok": true
+      "title": "통과 알림 신뢰성 3회 (ok, ok, miss)",
+      "ok": false
     }
   ],
   "errors": []
