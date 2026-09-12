@@ -111,7 +111,7 @@ await step('23', '내 편지 엽서 공개 → 피드 거리만 → 홈 스토�
 await step('24', '스토리 탭 → 엽서 상세에서 국가 공개 · 댓글', async () => { await tap('어딘가', { exact: true }); await page.waitForTimeout(800); await see('댓글'); await page.getByPlaceholder('댓글 달기…').fill('사진 너무 좋아요. 그곳의 밤은 어때요?'); await tap('게시', { exact: true }); await page.waitForTimeout(500); await see('사진 너무 좋아요'); await shot('24-post-comment'); });
 await step('25', '⚡ 직행 편지(300 SC · 환불 없음) → 작성 → "직행 보내기" → 친구 탭 진행 중', async () => {
   await addCoins(3); await go('/community'); await tap('사람', { exact: true }); await page.getByText('⚡', { exact: true }).first().click(); await page.waitForTimeout(700); await see('직행 편지', 8000, true); await noKrw('user'); await shot('25-user-direct');
-  await tap('300 SC'); await page.waitForTimeout(800); await see('직행 편지 · ???'); await page.getByPlaceholder('지금 이 편지를 읽는 당신에게…').fill('직행으로 보냅니다. 답장은 마음대로!'); await tap('다음', { exact: true }); await see('받는 사람: ???'); await tap('다음', { exact: true }); await see('도착 보장'); await shot('25b-compose-direct'); await tap('직행 보내기'); await page.waitForTimeout(2600);
+  await page.getByTestId('btn:user:direct').click(); await page.waitForTimeout(800); await see('직행 편지 · ???'); await page.getByPlaceholder('지금 이 편지를 읽는 당신에게…').fill('직행으로 보냅니다. 답장은 마음대로!'); await tap('다음', { exact: true }); await see('받는 사람: ???'); await tap('다음', { exact: true }); await see('도착 보장'); await shot('25b-compose-direct'); await tap('직행 보내기'); await page.waitForTimeout(2600);
   await go('/friends'); await see('⚡ 직행 편지'); await shot('25c-friends-direct'); const s = await state(); const d = s.letters.find((l) => l.direct); return `coins=${s.me.coins}, direct=${!!d}`;
 });
 
