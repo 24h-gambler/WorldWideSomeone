@@ -1,102 +1,96 @@
 # 검증 리포트 (사용자 관점 · 단계별)
 
-- 실행: 2026-09-12T03:04:29.401Z · 웹 빌드를 390×844(iPhone 14) 뷰포트에서 Playwright 로 자동 주행 · 로컬 시뮬 모드(봇 60명)
-- 결과: **38/38 통과** · 콘솔 오류 0건
+- 실행: 2026-09-12T16:12:29.574Z · 웹 빌드를 390×844(iPhone 14) 뷰포트에서 Playwright 로 자동 주행 · 로컬 시뮬 모드(봇 60명)
+- 결과: **31/32 통과** · 콘솔 오류 0건
 - 재실행: `npm run export:web && npx serve dist -l 8081 -s` → `BASE=http://localhost:8081 CHROMIUM_PATH=... npm run shots && npm run report`
 
-## 1. 첫 진입 · 온보딩
+## 1. 첫 진입 · 비회원 · 투어
 
-> 사용자 입장: 처음 연 사용자가 앱이 무엇인지 10초 안에 이해하고, 프로필과 위치를 2단계로 마친 뒤 살아있는 지구를 본다. 지구 위 배달원(커스텀 아이콘)이 실시간으로 움직이고, 경로는 보이지 않는다.
-
-| # | 검증 항목 | 결과 | 증거 |
-|---|---|---|---|
-| 01 | 온보딩 · 첫 화면(워드마크·지구·기능 3줄) | ✅ | [01-onboarding-welcome](screenshots/01-onboarding-welcome.png) |
-| 02 | 온보딩 · 프로필(아바타·닉네임·태그) | ✅ | [02-onboarding-profile](screenshots/02-onboarding-profile.png) |
-| 03 | 온보딩 · 위치 선택(지구 탭/도시 칩/내 위치 버튼) | ✅ | [03-onboarding-location](screenshots/03-onboarding-location.png) · [03b-onboarding-location-picked](screenshots/03b-onboarding-location-picked.png) |
-| 04 | 홈 · 국가 스토리 + 젠리 지구(경로 숨김·배달원 이동) + CTA | ✅ | [04-home](screenshots/04-home.png) · [04b-home-moving](screenshots/04b-home-moving.png) |
-
-## 2. 둘러보기 · 5탭
-
-> 사용자 입장: 편지·친구·커뮤니티·프로필·상점·설정이 인스타그램 문법으로 읽힌다. 커뮤니티는 국가 없이 km 거리만, 댓글이 붙고, 사람 탭에는 ⚡즉시 친구가 있다. 상점에는 엿보기/끌어오기/즉시 친구 한도가 플랜별로 적혀 있다.
+> 사용자 입장: 가입 없이 환영 화면에서 바로 지구로 들어간다. 투어가 한 군데씩 짧은 CTA 로 안내하고 마지막에 편지 쓰기로 이어진다. 착륙한 편지는 남에게 보이지 않는다.
 
 | # | 검증 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 05 | 편지 탭 · 빈 상태(걷는 배달원 안내) | ✅ | [05-letters-empty](screenshots/05-letters-empty.png) |
-| 06 | 친구 탭 · 해금 진행 + 즉시 친구 안내 | ✅ | [06-friends-empty](screenshots/06-friends-empty.png) |
-| 07 | 커뮤니티 · 엽서 피드(국가 없이 거리만 · 댓글) | ✅ | [07-community-feed](screenshots/07-community-feed.png) |
-| 08 | 커뮤니티 · 사람(??? 카드·컨택%·⚡즉시 친구) | ✅ | [08-community-people](screenshots/08-community-people.png) |
-| 09 | 커뮤니티 · 랭킹 | ✅ | [09-community-rank](screenshots/09-community-rank.png) |
-| 10 | 프로필 · 인스타 레이아웃 + 배달원 격납고(43종·가족별) | ✅ | [10-profile](screenshots/10-profile.png) · [10b-profile-hangar](screenshots/10b-profile-hangar.png) |
-| 11 | 상점 · 플랜 3종(엿보기/끌어오기/즉시 한도) + 아이템 8종 | ✅ | [11-store](screenshots/11-store.png) · [11b-store-items](screenshots/11b-store-items.png) |
-| 12 | 설정 · 실제 권한 상태 + 테마(시스템/라이트/다크) + 백엔드 모드 | ✅ | [12-settings](screenshots/12-settings.png) |
+| 01 | 첫 진입 · 환영(가입 얘기 없음) → 둘러보기 | ✅ | [01-welcome](screenshots/01-welcome.png) |
+| 02 | 위치 잡기(GPS 미허용 시 도시 선택) → 비회원으로 지구 입장 | ✅ | [02-location](screenshots/02-location.png) |
+| 03 | 투어 · 한 군데씩 안내(짧은 CTA · 애니메이션) → 마지막 CTA "편지 쓰기" | ✅ | [03-tour-1](screenshots/03-tour-1.png) · [03b-tour-2](screenshots/03b-tour-2.png) · [03c-tour-3](screenshots/03c-tour-3.png) · [03d-tour-5](screenshots/03d-tour-5.png) · [03e-compose-from-tour](screenshots/03e-compose-from-tour.png) |
+| 04 | 홈(비회원) · 국가 스토리 · 지구(경로 숨김 · 착륙 편지 비공개) · 배달원 이동 | ✅ | [04-home-guest](screenshots/04-home-guest.png) · [04b-home-moving](screenshots/04b-home-moving.png) |
 
-## 3. 첫 편지 보내기
+## 2. 비회원 둘러보기 · 5탭
 
-> 사용자 입장: 편지지에 쓰고(스토리 공유 옵션) → 목적지 → 배달원 가족(사람·새·동물·차·기차·배·비행·우주·전설) 중 해금된 것을 고른다. 보내면 내 편지만 경로가 보이고, 포커스를 풀면 다시 숨겨진다.
+> 사용자 입장: 편지·친구·커뮤니티·프로필·상점·설정을 비회원으로 본다. 원화는 상점의 코인 팩에서만 보이고 나머지는 전부 SC. 커뮤니티는 받은 편지 수와 거리만.
 
 | # | 검증 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 13 | 편지 쓰기 1 · 편지지 + 스토리 공유 옵션 | ✅ | [13-compose-text](screenshots/13-compose-text.png) |
-| 14 | 편지 쓰기 2 · 목적지(랜덤/직접/경유지) | ✅ | [14-compose-dest-random](screenshots/14-compose-dest-random.png) · [14b-compose-dest-pick](screenshots/14b-compose-dest-pick.png) |
-| 15 | 편지 쓰기 3 · 배달원 가족 칩 + 카드(커스텀 아이콘) · 방어권 · 조건 | ✅ | [15-compose-vehicle](screenshots/15-compose-vehicle.png) · [15b-compose-conditions](screenshots/15b-compose-conditions.png) |
-| 16 | 발송 → 출발 → 홈 포커스(내 편지만 경로 표시) → 새로고침 시 경로 숨김 | ✅ | [16-launch](screenshots/16-launch.png) · [16b-home-focus-route](screenshots/16b-home-focus-route.png) · [16c-home-routes-hidden](screenshots/16c-home-routes-hidden.png) |
+| 05 | 편지 탭 · 빈 상태 | ✅ | [05-letters-empty](screenshots/05-letters-empty.png) |
+| 06 | 친구 탭 · 해금 진행(대여 안내) | ✅ | [06-friends-empty](screenshots/06-friends-empty.png) |
+| 07 | 커뮤니티 · 피드(거리만 · 댓글) · 원화 표기 없음 | ✅ | [07-community-feed](screenshots/07-community-feed.png) |
+| 08 | 커뮤니티 · 사람(받은 편지 수 · ⚡직행) | ✅ | [08-community-people](screenshots/08-community-people.png) |
+| 09 | 프로필(비회원) · "가입하고 편지 보내기" | ✅ | [09-profile-guest](screenshots/09-profile-guest.png) |
+| 10 | 상점 · 코인 팩(원화는 여기만) · 아이템은 SC · 플랜 | ✅ | [10-store](screenshots/10-store.png) · [10b-store-items](screenshots/10b-store-items.png) |
+| 11 | 설정 · 권한 · 테마 · 백엔드(Supabase 미설정 → 로컬) | ✅ | [11-settings](screenshots/11-settings.png) |
 
-## 4. 머리 위 통과 → 엿보기 · 끌어오기 · 경로 · 잡기
+## 3. 가입 게이트 → 첫 편지
 
-> 사용자 입장: 배너를 탭하면 타이머와 7가지 행동. 무료는 엿보기 한도가 없어 상점으로 안내된다. 잡으면 봉투가 열리고 보낸 사람의 실제 프로필(소개·태그·엽서)과 공유 버튼이 보인다.
-
-| # | 검증 항목 | 결과 | 증거 |
-|---|---|---|---|
-| 17 | 개발자 모드 · 편지 소환 → 홈 통과 배너 | ✅ | [17-settings-dev](screenshots/17-settings-dev.png) · [17b-home-passby](screenshots/17b-home-passby.png) |
-| 18 | 잡기 화면 · 타이머 · 엿보기/끌어오기/경로/달팽이/되돌리기/바다/우주 | ✅ | [18-catch](screenshots/18-catch.png) · [18c-catch-pull-quota](screenshots/18c-catch-pull-quota.png) |
-| 18b | 무료 · 첫 엿보기 렌즈 1개로 미리보기 → 끌어오기는 한도 없음 → 상점 안내 | ✅ | [18b-catch-peeked-free](screenshots/18b-catch-peeked-free.png) |
-| 19 | 경로 바꾸기 · 경유지 1개 찍고 적용(무료 플랜 한도 1) | ✅ | [19-catch-reroute](screenshots/19-catch-reroute.png) · [19b-reroute-result](screenshots/19b-reroute-result.png) |
-| 20 | 소환 → 잡기 → 편지 공개(봉투) + 보낸 사람 실제 프로필 + 공유 버튼 | ✅ | [20-catch-result](screenshots/20-catch-result.png) · [20b-letter-revealed](screenshots/20b-letter-revealed.png) · [20c-letter-sender-profile](screenshots/20c-letter-sender-profile.png) |
-| 20d | 보낸 사람 프로필 열기(소개·태그·엽서) — ??? 아님 | ✅ | [20d-sender-profile](screenshots/20d-sender-profile.png) |
-| 36 | 통과 알림 신뢰성 3회 (ok, ok, ok) | ✅ |  |
-
-## 5. 왕복(답장 → 수락 편지 → 확정) → 실시간 채팅
-
-> 사용자 입장: 답장을 보내면 "왕복 진행 중". 상대 답장이 오면 프로필을 보고 수락 → 수락 편지가 출발 → 상대가 확정하면 친구(왕복 A). 반대로 내 답장을 상대가 수락하면 수락 편지가 내게 오고 내가 확정한다(왕복 B). 그 뒤에만 지연 없는 채팅.
+> 사용자 입장: 편지를 다 쓰고 보내기를 누르는 순간에만 SNS 가입 시트가 뜬다(나중에 가능). 가입하면 바로 발송되고 홈에는 속도·거리만(도착 시간 없음).
 
 | # | 검증 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 21 | 답장 편지 쓰기(친구 요청 포함) | ✅ | [21-reply-compose](screenshots/21-reply-compose.png) · [21b-reply-confirm](screenshots/21b-reply-confirm.png) |
-| 22 | 친구 탭 "왕복 진행 중" + 채팅 잠김(확정 전엔 편지로만) | ✅ | [22-friends-pending](screenshots/22-friends-pending.png) · [22b-chat-locked](screenshots/22b-chat-locked.png) |
-| 23 | 봇 답장 소환 → 우편함 "답장" 도착 → 수락(수락 편지 출발) | ✅ | [23-letters-reply-inbox](screenshots/23-letters-reply-inbox.png) · [23b-home-accept-letter](screenshots/23b-home-accept-letter.png) |
-| 24 | 빨리감기 → 수락 편지 도착 → 상대 확정 → 친구 1명 (왕복 A) | ✅ | [24-friends-first](screenshots/24-friends-first.png) |
-| 25 | 내 답장이 도착 → 상대 수락 편지가 내게 옴 → "확정하고 채팅 시작" (왕복 B) | ✅ | [25-letters-accept-inbox](screenshots/25-letters-accept-inbox.png) · [25b-chat-open](screenshots/25b-chat-open.png) |
-| 26 | 실시간 채팅 · 보내기 → 봇 응답 | ✅ | [26-chat-sent](screenshots/26-chat-sent.png) · [26b-chat-reply](screenshots/26b-chat-reply.png) |
-| 27 | 친구 탭 · 친구 2명(닉네임 공개) + 홈 친구 버블 | ✅ | [27-friends-list](screenshots/27-friends-list.png) · [27b-home-with-friends](screenshots/27b-home-with-friends.png) |
-| 28 | 활동(알림) 목록 | ✅ | [28-activity](screenshots/28-activity.png) |
+| 12 | 편지 쓰기 3단계(비회원 가능) · 배달원 카드에 대여 SC · 원화 없음 | ✅ | [12-compose-text](screenshots/12-compose-text.png) · [12b-compose-vehicle](screenshots/12b-compose-vehicle.png) |
+| 13 | 보내기 → 가입 게이트(SNS) → "나중에" → 다시 보내기 → Google → 프로필 → 발송 | ✅ | [13-gate](screenshots/13-gate.png) · [13b-launch](screenshots/13b-launch.png) · [13c-home-after-send](screenshots/13c-home-after-send.png) |
 
-## 6. 커뮤니티 · 국가 스토리 · 엽서 · 댓글 · ⚡즉시 친구
+## 4. 머리 위 통과 → 엿보기 · 끌어오기 · 경로 · 침수 · 잡기
 
-> 사용자 입장: 내 편지를 엽서로 공개하면 피드에는 거리만, 홈 상단 스토리에 국가 대표 사진으로 뜬다. 다른 나라 스토리를 탭해야 엽서 상세에서 국가가 공개된다. 왕복을 건너뛰는 ⚡즉시 친구는 결제(또는 코인)로 요청하고, 거절되면 환불된다.
+> 사용자 입장: 되돌리기는 없다. 침수·우주·달팽이·경로·엿보기·끌어오기. 잡으면 보낸 사람의 실제 프로필과 공유 버튼.
 
 | # | 검증 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 29 | 내 편지를 엽서로 공개(+스토리) → 피드에 거리만 → 홈 스토리 "내 나라" | ✅ | [29-letter-published](screenshots/29-letter-published.png) · [29b-community-my-post](screenshots/29b-community-my-post.png) · [29c-home-story-mine](screenshots/29c-home-story-mine.png) |
-| 30 | 홈 스토리 "어딘가" 탭 → 엽서 상세에서만 국가 공개 + 댓글 달기 | ✅ | [30-post-detail](screenshots/30-post-detail.png) · [30b-post-comment](screenshots/30b-post-comment.png) |
-| 31 | ⚡ 즉시 친구(결제) · 코인으로 즉시 친구권 구매 → 요청 → 봇 응답(수락/거절 환불) | ✅ | [31-store-instant-bought](screenshots/31-store-instant-bought.png) · [31b-user-instant](screenshots/31b-user-instant.png) · [31c-user-instant-requested](screenshots/31c-user-instant-requested.png) · [31d-friends-after-instant](screenshots/31d-friends-after-instant.png) · [31e-instant-answered](screenshots/31e-instant-answered.png) |
+| 14 | 소환 → 통과 배너 → 잡기 화면: 되돌리기 없음 · 침수 · SC 표기 | ✅ | [14-home-passby](screenshots/14-home-passby.png) · [14b-catch](screenshots/14b-catch.png) |
+| 15 | 첫 엿보기 렌즈로 미리보기 → 끌어오기 한도 → 상점 | ✅ | [15-catch-peeked](screenshots/15-catch-peeked.png) |
+| 16 | 경로 바꾸기(경유지 1) | ✅ | [16-reroute](screenshots/16-reroute.png) |
+| 17 | 잡기 → 봉투 → 보낸 사람 실제 프로필 · 공유 | ✅ | [17-letter-revealed](screenshots/17-letter-revealed.png) |
+| 18 | 답장 편지 쓰기(직행 · 친구 요청) → 발송 → "왕복 진행 중" | ✅ | [18-reply-confirm](screenshots/18-reply-confirm.png) · [18b-friends-roundtrip](screenshots/18b-friends-roundtrip.png) |
+| 32 | 통과 알림 신뢰성 3회 (miss, ok, miss) | ❌  |  |
 
-## 7. 유료 플랜 · 엿보기/끌어오기 · 바다
+## 5. 왕복(내 편지 → 상대 답장) · 코인 가속 → 수락 → 채팅
 
-> 사용자 입장: 플러스가 되면 경유지 2개, 엿보기 3회/일, 끌어오기 1회/일. 지나가는 편지를 엿보고 마음에 들면 내 위치로 끌어온다(편지당 1회, 방어권에 막힘). 바다에 빠뜨리면 몇 시간 멈추고 주인은 코인으로 건져낼 수 있다.
-
-| # | 검증 항목 | 결과 | 증거 |
-|---|---|---|---|
-| 32 | 상점 · 테스트 결제(플러스) → 엿보기 3/일 · 끌어오기 1/일 · 경유지 2 | ✅ | [32-store-plus](screenshots/32-store-plus.png) · [32b-compose-plus-waypoints](screenshots/32b-compose-plus-waypoints.png) |
-| 33 | 플러스 · 엿보기(내용 미리보기) → 마음에 들면 끌어오기(1회) → 내 위치로 방향 전환 | ✅ | [33-catch-peeked](screenshots/33-catch-peeked.png) · [33b-catch-pulled](screenshots/33b-catch-pulled.png) · [33c-home-pulled-incoming](screenshots/33c-home-pulled-incoming.png) |
-| 34 | 바다에 빠뜨리기 → 몇 시간 정지(주인은 건져내기 가능) → 지구에 가라앉은 표시 | ✅ | [34-catch-gone-0](screenshots/34-catch-gone-0.png) · [34-catch-sunk](screenshots/34-catch-sunk.png) · [34b-home-sunk](screenshots/34b-home-sunk.png) |
-
-## 8. 다크 모드
-
-> 사용자 입장: 설정에서 시스템/라이트/다크를 고르면 인스타그램 다크 팔레트로 모든 화면과 지구(밤 바다)가 바뀐다.
+> 사용자 입장: 오는 답장은 속도와 나와의 거리만 보인다. 느리면 SC 로 4배/1분 가속. 도착하면 수락 → 친구 + 실시간 채팅. 친구는 홈 지구에 50km 원으로.
 
 | # | 검증 항목 | 결과 | 증거 |
 |---|---|---|---|
-| 35 | 다크 모드 · 설정에서 전환 → 홈/커뮤니티/편지/프로필/상점/잡기 | ✅ | [35-dark-settings](screenshots/35-dark-settings.png) · [35b-dark-home](screenshots/35b-dark-home.png) · [35c-dark-community](screenshots/35c-dark-community.png) · [35d-dark-letters](screenshots/35d-dark-letters.png) · [35e-dark-profile](screenshots/35e-dark-profile.png) · [35f-dark-store](screenshots/35f-dark-store.png) · [35g-dark-home-passby](screenshots/35g-dark-home-passby.png) · [35h-dark-catch](screenshots/35h-dark-catch.png) |
+| 19 | 답장 소환 → 우편함 "오는 중": 속도·거리만(도착 시간 없음) + 가속 버튼 | ✅ | [19-inbox-incoming](screenshots/19-inbox-incoming.png) |
+| 20 | 코인 부족 → 상점 안내 · +코인 → "1분 안에" 가속 → 도착 → 수락하고 채팅 시작 | ✅ | [20-boosted](screenshots/20-boosted.png) · [20b-inbox-arrived](screenshots/20b-inbox-arrived.png) · [20c-chat-open](screenshots/20c-chat-open.png) |
+| 21 | 실시간 채팅 · 보내기 → 봇 응답 | ✅ | [21-chat-reply](screenshots/21-chat-reply.png) |
+| 22 | 내 답장 도착 → 상대 수락(봇) → 친구 2명 · 홈 친구 50km 원 | ✅ | [22-friends](screenshots/22-friends.png) · [22b-home-friend-disc](screenshots/22b-home-friend-disc.png) |
+
+## 6. 커뮤니티 · 국가 스토리 · 댓글 · ⚡ 직행 편지
+
+> 사용자 입장: 엽서 공개 → 홈 스토리(국가는 탭해야) → 댓글. 직행 편지는 300 SC 로 그 사람에게 무조건 도착, 환불 없음.
+
+| # | 검증 항목 | 결과 | 증거 |
+|---|---|---|---|
+| 23 | 내 편지 엽서 공개 → 피드 거리만 → 홈 스토리 "내 나라" → 스토리 순서(최신순) | ✅ | [23-community-my-post](screenshots/23-community-my-post.png) · [23b-home-story-mine](screenshots/23b-home-story-mine.png) |
+| 24 | 스토리 탭 → 엽서 상세에서 국가 공개 · 댓글 | ✅ | [24-post-comment](screenshots/24-post-comment.png) |
+| 25 | ⚡ 직행 편지(300 SC · 환불 없음) → 작성 → "직행 보내기" → 친구 탭 진행 중 | ✅ | [25-user-direct](screenshots/25-user-direct.png) · [25b-compose-direct](screenshots/25b-compose-direct.png) · [25c-friends-direct](screenshots/25c-friends-direct.png) |
+
+## 7. 플랜 · 대여 · 플러스 엿보기/끌어오기 · 침수
+
+> 사용자 입장: 플랜은 매월 SC 와 한도·할인. 잠긴 배달원은 SC 로 1회 대여. 침수는 몇 시간 정지, 주인은 SC 로 구조.
+
+| # | 검증 항목 | 결과 | 증거 |
+|---|---|---|---|
+| 26 | 플랜(플러스) 테스트 결제 → 매월 SC 지급 · 한도 표시 | ✅ | [26-store-plus](screenshots/26-store-plus.png) |
+| 27 | 배달원 대여(SC)로 잠긴 여객기 1회 사용 | ✅ | [27-compose-rental](screenshots/27-compose-rental.png) |
+| 28 | 플러스 · 엿보기 → 끌어오기(내 위치로) | ✅ | [28-catch-peeked-plus](screenshots/28-catch-peeked-plus.png) · [28-home-pulled](screenshots/28-home-pulled.png) |
+| 29 | 침수 → 몇 시간 정지 → 지구 표시 | ✅ | [29-catch-gone-0](screenshots/29-catch-gone-0.png) · [29-catch-sunk](screenshots/29-catch-sunk.png) · [29b-home-sunk](screenshots/29b-home-sunk.png) |
+
+## 8. 다크 모드 · 트래킹
+
+> 사용자 입장: 인스타 다크 팔레트. 비회원 시점부터 화면·버튼·스크롤·게이트·가입 이벤트가 전부 기록된다.
+
+| # | 검증 항목 | 결과 | 증거 |
+|---|---|---|---|
+| 30 | 다크 모드 · 홈/커뮤니티/편지/상점/잡기 | ✅ | [30-dark-home](screenshots/30-dark-home.png) · [30b-dark-community](screenshots/30b-dark-community.png) · [30c-dark-letters](screenshots/30c-dark-letters.png) · [30d-dark-store](screenshots/30d-dark-store.png) · [30e-dark-catch](screenshots/30e-dark-catch.png) |
+| 31 | 트래킹 · 화면/버튼/스크롤/게이트/가입 이벤트가 비회원 시점부터 기록됨 | ✅ |  |
 
 ## 9. 실기기에서만 검증 가능한 항목 (체크리스트)
 
@@ -112,16 +106,19 @@
 | 스토어 결제 · 구독 갱신 · 웹훅 지급 | react-native-purchases + revenuecatWebhook | ⏳ dev build + RevenueCat/스토어 샌드박스 |
 | 지구 회전 성능 (저사양 Android) | Globe fps prop | ⏳ 실기기 필요 — 버벅이면 fps 24 → 16 |
 
-## 10. 서버 모드 검증 (Firebase 배포 후)
+## 10. 서버 모드 검증 (Supabase 배포 후)
 
 | 항목 | 방법 |
 |---|---|
 | 두 기기 A/B 로 A 가 편지 발송 → B(경로 아래) 에 통과 푸시 | tickWorld 로그 · users/B/passbys 문서 생성 확인 |
 | B 가 잡기 → A 에 "잡았어요" 푸시 | catchLetter 콜러블 |
-| B 답장 → A 우편함(delivered) → A 수락 → 수락 편지 → B 확정 → chats/{A_B} 생성 → 양쪽 friendIds | approveReply (reply→accept 편지, accept→friends) |
+| B 답장 → A 우편함(delivered) → A 수락 → chats 생성 → 양쪽 friend_ids | approve-reply |
+| A 가 오는 답장을 SC 로 가속 → arrives_at 단축 · coin_ledger 기록 | boost-reply |
 | B 가 엿보기/끌어오기 → 한도 차감 · A 방어권 소모 · 편지 destination 변경 | redirectLetter(peek/pull) |
 | 바다 추락 → sunkUntil 후 tickWorld 가 재부상 · rescueLetter 로 즉시 재개 | tickWorld / rescueLetter |
 | ⚡즉시 친구 요청 → 상대 응답 → 친구 또는 환불 | requestInstantFriend / answerInstantFriend |
 | B 가 경로 변경/달팽이 → A 방어권 소모 이벤트 | redirectLetter |
-| RevenueCat 샌드박스 구독 → users/A.plan = plus | revenuecatWebhook |
-| Firestore 규칙: 타인 users_private 읽기 거부 · letters 비참여자 읽기 거부 | 에뮬레이터 규칙 테스트 |
+| RevenueCat 샌드박스 코인 팩/플랜 → purchases(중복 방지) · users.coins/plan | purchase-webhook |
+| 통과 판정 셀 조인 · 핫셀 샘플 · 편지당 상한 · 푸시 하루 12건/조용한 시간 | tick-world · push-dispatch (docs/SCALE.md) |
+| 트래킹 배치 → events (비회원 포함) | track-events |
+| RLS: users_private 아무도 못 읽음 · letters 비참여자 거부 · 게임 필드 클라이언트 수정 차단(트리거) | supabase/tests/rls.sql |
