@@ -8,7 +8,7 @@ import { useStore } from '@/store';
 import { useColors } from '@/theme';
 import type { NotificationType } from '@/types';
 
-const ICON: Record<NotificationType, string> = { passby: '✈️', caught: '🎉', reply: '📬', accept: '✅', approved: '🤝', chat: '💬', mischief: '😈', defended: '🛡️', landed: '📍', reward: '🪙', like: '❤️', comment: '💬', sunk: '🌊', instant: '⚡', system: '🌍' };
+const ICON: Record<NotificationType, string> = { passby: '✈️', caught: '🎉', reply: '📬', direct: '📨', boost: '⚡', approved: '🤝', chat: '💬', mischief: '😈', defended: '🛡️', landed: '📍', reward: '🪙', like: '❤️', comment: '💬', sunk: '🌊', system: '🌍' };
 
 export default function Notifications() {
   const router = useRouter();

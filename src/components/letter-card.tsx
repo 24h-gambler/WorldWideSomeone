@@ -43,7 +43,7 @@ export function LetterCard({ letter, now }: { letter: Letter; now: number }) {
               <ProgressBar value={p} color={sunk ? c.red : mine || toMe ? c.pink : v.color} />
               <Row style={{ justifyContent: 'space-between' }}>
                 <T t="caption" color={c.text3}>{Math.round(p * 100)}%{snail ? ' · 🐌 느려짐' : ''}{sunk ? ' · 🌊 정지' : ''}</T>
-                <T t="caption" color={c.text3}>{sunk ? `${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : `${formatDuration(letter.arrivesAt - now)} 후 도착`}</T>
+                <T t="caption" color={c.text3}>{sunk ? `${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : `${v.speedKmh.toLocaleString()} km/h · 남은 ${formatKm(Math.max(0, letter.distanceKm * (1 - p)))}`}</T>
               </Row>
             </View>
           ) : <T t="caption" color={c.text3}>{letter.status === 'caught' ? `${letter.catchPlace}에서 ${timeAgo(letter.caughtAt ?? now, now)} 잡힘` : timeAgo(letter.events[letter.events.length - 1]?.at ?? letter.departedAt, now)}</T>}

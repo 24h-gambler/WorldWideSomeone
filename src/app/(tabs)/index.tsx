@@ -11,7 +11,8 @@ import { VEHICLE_MAP, bestVehicle } from '@/data/vehicles';
 import { OCEAN_RESCUE_COINS } from '@/data/plans';
 import { formatDuration, formatKm, fuzz50km } from '@/engine/geo';
 import { useNow } from '@/hooks/use-now';
-import { ME_ID, displayName, getUser, progressOf, selectUnread, useStore } from '@/store';
+import { ME_ID, displayName, getUser, incomingStatus, progressOf, selectUnread, useStore } from '@/store';
+import { Tour } from '@/components/tour';
 import { radius, shadow, spacing, useColors } from '@/theme';
 import { tap } from '@/engine/haptics';
 
@@ -29,11 +30,14 @@ export default function Home() {
   const focusPoint = useStore((s) => s.focusPoint);
   const setFocus = useStore((s) => s.setFocusLetter);
   const rescue = useStore((s) => s.rescueLetter);
+  const settings = useStore((s) => s.settings);
+  const tourDone = useStore((s) => s.tourDone);
   const unread = useStore(selectUnread);
   const allPassbys = useStore((s) => s.passbys);
   const passbys = useMemo(() => allPassbys.filter((p) => !p.resolved && p.expiresAt > now), [allPassbys, now]);
 
-  const shown = useMemo(() => letters.filter((l) => l.status === 'flying' || l.status === 'landed' || l.status === 'sunk'), [letters]);
+  // 착륙한 편지는 타인에게 보이지 않는다 (내 것만) — 하늘 위의 것들만 모두에게
+  const shown = useMemo(() => letters.filter((l) => l.status === 'flying' || l.status === 'sunk' || (l.status === 'landed' && l.senderId === ME_ID)), [letters]);
   const flyingCount = shown.filter((l) => l.status === 'flying').length;
   const friends = useMemo(() => friendIds.map((id) => getUser({ me }, id)).filter(Boolean).map((u) => ({ id: u!.id, avatar: u!.avatar, location: fuzz50km(u!.location), nickname: u!.nickname })), [friendIds, me]);
   // 국가별 스토리: 스토리 공유를 켠 엽서를 국가 단위로 묶고, 국가는 숨긴 채 거리만 보여준다 (누르면 엽서에서 공개)
@@ -104,9 +108,9 @@ export default function Home() {
             <View style={{ marginTop: 10, gap: 4 }}>
               <ProgressBar value={progressOf(focus, now)} color={focus.status === 'sunk' ? c.red : focus.senderId === ME_ID || focus.recipientId === ME_ID ? c.pink : VEHICLE_MAP[focus.vehicle].color} />
               <Row style={{ justifyContent: 'space-between' }}>
-                <T t="caption" color={c.text3}>{focus.status === 'sunk' ? `🌊 바다에 빠짐 · ${formatDuration((focus.sunkUntil ?? now) - now)} 뒤 떠오름` : focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${Math.round(progressOf(focus, now) * 100)}% · ${formatDuration(focus.arrivesAt - now)} 후 도착`}</T>
+                <T t="caption" color={c.text3}>{focus.status === 'sunk' ? `🌊 침수 · ${formatDuration((focus.sunkUntil ?? now) - now)} 뒤 떠오름` : focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(focus, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · 나와 ${formatKm(incomingStatus(focus, me.location, now, settings.timeScale).distanceKm)}`}</T>
                 <Row gap={12}>
-                  {focus.status === 'sunk' && focus.senderId === ME_ID ? <Pressable onPress={() => { tap(); rescue(focus.id); }}><T t="smallStrong" color={c.blue}>🛟 건져내기 {OCEAN_RESCUE_COINS}🪙</T></Pressable> : null}
+                  {focus.status === 'sunk' && focus.senderId === ME_ID ? <Pressable onPress={() => { tap(); rescue(focus.id); }}><T t="smallStrong" color={c.blue}>🛟 건져내기 {OCEAN_RESCUE_COINS} SC</T></Pressable> : null}
                   <Pressable onPress={() => { tap(); router.push(`/letter/${focus.id}`); }}><T t="smallStrong" color={c.blue}>자세히</T></Pressable>
                 </Row>
               </Row>
@@ -121,6 +125,7 @@ export default function Home() {
           <View style={{ flex: 1 }}><Button title="편지 쓰기" size="lg" full onPress={() => router.push('/compose')} /></View>
         </Row>
       </View>
+      {!tourDone ? <Tour onCompose={() => router.push('/compose')} /> : null}
     </Screen>
   );
 }

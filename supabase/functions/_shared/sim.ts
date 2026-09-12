@@ -20,7 +20,7 @@ export const VEHICLES: Record<VehicleId, Spec> = {
   carpet: S(800, 'drift', 1.2, null, { premiumItem: 'carpet', immunePeek: true }), unicorn: S(500, 'drift', 1.2, null, { premiumItem: 'event' }), dragon: S(2500, 'drift', 1.2, 80, { premiumItem: 'dragon', immune: true, immuneOcean: true, immuneSnail: true }),
 };
 export const OCEAN_SINK_MS = 3 * 3_600_000;
-export const PLAN_LIMITS = { free: { maxWaypoints: 1, unlockBoost: 0, dailyLetters: 5, dailyPeeks: 0, dailyPulls: 0, monthlyInstant: 0, acceptDelivery: 'normal' }, plus: { maxWaypoints: 2, unlockBoost: 4, dailyLetters: 20, dailyPeeks: 3, dailyPulls: 1, monthlyInstant: 0, acceptDelivery: 'fastest' }, pro: { maxWaypoints: 3, unlockBoost: 10, dailyLetters: Infinity, dailyPeeks: 10, dailyPulls: 3, monthlyInstant: 2, acceptDelivery: 'instant' } } as const;
+export const PLAN_LIMITS = { free: { maxWaypoints: 1, unlockBoost: 0, dailyLetters: 5, dailyPeeks: 0, dailyPulls: 0, monthlyDirect: 0, monthlyCoins: 0, boostDiscount: 0 }, plus: { maxWaypoints: 2, unlockBoost: 4, dailyLetters: 20, dailyPeeks: 3, dailyPulls: 1, monthlyDirect: 0, monthlyCoins: 300, boostDiscount: 0.2 }, pro: { maxWaypoints: 3, unlockBoost: 10, dailyLetters: 1e9, dailyPeeks: 10, dailyPulls: 3, monthlyDirect: 2, monthlyCoins: 1000, boostDiscount: 0.5 } } as const;
 
 export type Route = { totalKm: number; at: (p: number) => LatLng; firstKm: number };
 
@@ -108,4 +108,18 @@ export function resurface(l: FlightDoc & { sunkAt?: number }, now: number) {
 export function applySnail(l: FlightDoc, now: number) {
   const until = Math.min(now + SNAIL.durationMs, l.arrivesAt + SNAIL.durationMs);
   return { penalty: { from: now, until }, arrivesAt: l.arrivesAt + (until - now) * (1 - SNAIL.factor) };
+}
+
+/** 가속: 현재 위치 유지, 남은 시간을 remainingMs 로 */
+export function speedUp(l: FlightDoc, now: number, remainingMs: number) {
+  const p = Math.min(0.999, progressOf(l, now));
+  const D = Math.max(1000, remainingMs / (1 - p));
+  const departedAt = now - p * D;
+  return { departedAt, arrivesAt: departedAt + D, penalty: null };
+}
+/** 다음 windowMs 동안 지날 경로 샘플 (통과 판정 셀 예측용) */
+export function upcomingPoints(l: FlightDoc, now: number, windowMs: number, n = 6): LatLng[] {
+  const r = buildRoute(l.origin, l.destination, l.waypoints, l.vehicle);
+  const p0 = progressOf(l, now), p1 = progressOf(l, now + windowMs);
+  return Array.from({ length: n + 1 }).map((_, i) => r.at(p0 + ((p1 - p0) * i) / n));
 }

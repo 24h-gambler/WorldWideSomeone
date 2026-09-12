@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, useColorScheme } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel';
@@ -12,7 +12,9 @@ import { Wordmark } from '@/components/ui';
 import { getLocationPermission } from '@/services/location';
 import { getNotificationPermission, getPushToken, subscribeNotificationTaps } from '@/services/push';
 import { startSync, registerPushToken } from '@/services/sync';
-import { firebaseEnabled } from '@/services/firebase';
+import { supabaseEnabled } from '@/services/supabase';
+import { configureAnalytics, setAnalyticsUser, trackScreen } from '@/services/analytics';
+import { SignupHost } from '@/components/signup-sheet';
 import { purchases } from '@/services/purchases';
 import '@/services/background';
 
@@ -21,6 +23,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function RootLayout() {
   const router = useRouter();
   const onboarded = useStore((s) => s.onboarded);
+  const signedIn = useStore((s) => s.signedIn);
+  const pathname = usePathname();
   const themeMode = useStore((s) => s.settings.theme);
   const sys = useColorScheme();
   const scheme = themeMode === 'system' ? (sys === 'dark' ? 'dark' : 'light') : themeMode;
@@ -35,7 +39,16 @@ export default function RootLayout() {
     return unsub;
   }, []);
 
-  // 1초 게임 틱 (로컬 모드: 봇 세계 / 파이어베이스 모드: 도착·통과 로컬 보조 판정)
+  // 트래킹: 기기 id · 화면 진입/체류 (비회원 포함)
+  useEffect(() => {
+    if (!hydrated) return;
+    const st = useStore.getState();
+    configureAnalytics({ deviceId: st.deviceId, userId: st.signedIn ? st.me.id : undefined, guest: !st.signedIn });
+  }, [hydrated]);
+  useEffect(() => { setAnalyticsUser(signedIn ? 'me' : undefined, !signedIn); }, [signedIn]);
+  useEffect(() => { if (hydrated && pathname) trackScreen(pathname); }, [hydrated, pathname]);
+
+  // 1초 게임 틱 (로컬 모드: 봇 세계 / Supabase 모드: 도착·통과 로컬 보조 판정)
   useEffect(() => {
     if (!hydrated) return;
     useStore.getState().tick(Date.now());
@@ -52,7 +65,7 @@ export default function RootLayout() {
       setPermissions({ location: loc.foreground, backgroundLocation: loc.background, notifications: noti });
       const token = await getPushToken();
       if (token) { setPermissions({ pushToken: token }); registerPushToken(token).catch(() => {}); }
-      if (firebaseEnabled) await startSync().catch(() => {});
+      if (supabaseEnabled) await startSync().catch(() => {});
       await purchases.init(useStore.getState().me.id).catch(() => {});
     })();
     return subscribeNotificationTaps((route) => router.push(route as any));
@@ -92,6 +105,7 @@ export default function RootLayout() {
           <Stack.Screen name="post/[id]" />
         </Stack.Protected>
       </Stack>
+      <SignupHost />
     </View>
     </ThemeProvider>
   );

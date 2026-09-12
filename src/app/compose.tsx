@@ -9,9 +9,10 @@ import { VehicleIcon } from '@/components/vehicle-icon';
 import { Globe } from '@/components/globe/Globe';
 import { FIELDS, GENDERS, HOBBIES, JOBS } from '@/data/profile';
 import { FAMILIES, FAMILY_LABEL, VEHICLES, VEHICLE_MAP, bestVehicle, vehicleUnlocked, type Family } from '@/data/vehicles';
-import { PLAN_MAP } from '@/data/plans';
+import { ITEM_MAP, PLAN_MAP, discounted, rentalCoins } from '@/data/plans';
+import { useGate } from '@/hooks/use-gate';
 import { findCity } from '@/data/cities';
-import { describePlace, formatDuration, formatKm, fuzz50km } from '@/engine/geo';
+import { describePlace, formatKm, fuzz50km } from '@/engine/geo';
 import { buildRoute, contactChance, planFlight } from '@/engine/sim';
 import { BOTS, ME_ID, getUser, matchesTarget, useStore } from '@/store';
 import type { Gender, LatLng, Place, TargetFilter, VehicleId } from '@/types';
@@ -24,7 +25,8 @@ const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}
 export default function Compose() {
   const router = useRouter();
   const c = useColors();
-  const params = useLocalSearchParams<{ toId?: string; field?: string; job?: string; hobby?: string; gender?: string; replyTo?: string }>();
+  const params = useLocalSearchParams<{ toId?: string; field?: string; job?: string; hobby?: string; gender?: string; replyTo?: string; direct?: string }>();
+  const gate = useGate();
   const { width } = useWindowDimensions();
   const me = useStore((s) => s.me);
   const friendIds = useStore((s) => s.friendIds);
@@ -36,12 +38,13 @@ export default function Compose() {
   const replyUser = replyTo ? getUser({ me }, replyTo.senderId) : undefined;
   const toUser = params.toId ? BOTS.find((b) => b.id === params.toId) : undefined;
   const isReply = !!replyTo && !!replyUser;
+  const isDirect = !!toUser && params.direct === '1';
 
   const [step, setStep] = useState(0);
   const [text, setText] = useState('');
   const [imageUri, setImageUri] = useState<string | undefined>();
   const [destMode, setDestMode] = useState<DestMode>(toUser ? 'pick' : 'random');
-  const [dest, setDest] = useState<Place | null>(isReply ? replyUser!.location : toUser ? describePlace(fuzz50km(toUser.location)) : null);
+  const [dest, setDest] = useState<Place | null>(isReply ? replyUser!.location : toUser ? (params.direct === '1' ? toUser.location : describePlace(fuzz50km(toUser.location))) : null);
   const [waypoints, setWaypoints] = useState<LatLng[]>([]);
   const [vehicle, setVehicle] = useState<VehicleId>('walk');
   const [family, setFamily] = useState<Family>('human');
@@ -64,47 +67,49 @@ export default function Compose() {
   const hasTarget = !!(target.field || target.job || target.hobby || target.gender);
   const vehicleObj = VEHICLE_MAP[vehicle];
   const stamp = findCity(me.location.city);
-  const canNext = step === 0 ? text.trim().length >= 2 : step === 1 ? destMode === 'random' || !!dest : true;
+  const canNext = step === 0 ? text.trim().length >= 2 : step === 1 ? isDirect || isReply || destMode === 'random' || !!dest : true;
 
   const pickImage = async () => { try { const ImagePicker = await import('expo-image-picker'); const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, allowsEditing: true, aspect: [4, 3] }); if (!res.canceled && res.assets[0]) setImageUri(res.assets[0].uri); } catch { /* ignore */ } };
-  const launch = () => {
+  const rentPrice = !vehicleUnlocked(vehicleObj, friendIds.length, me.inventory, me.plan) ? discounted(rentalCoins(vehicleObj.speedKmh), me.plan) : 0;
+  const launch = () => gate('send', () => {
     setError(null);
-    const res = sendLetter({ text: text.trim(), imageUri, destination: destMode === 'random' && !isReply ? undefined : dest ?? undefined, waypoints: wps, vehicle, target: isReply ? {} : target, useShield, isPublic: isReply ? false : isPublic, shareToStory: isPublic && shareToStory, replyToId: isReply ? replyTo!.id : undefined, recipientId: isReply ? replyTo!.senderId : undefined, friendRequest: isReply ? friendRequest : undefined, kind: isReply ? 'reply' : 'letter' });
+    const res = sendLetter({ text: text.trim(), imageUri, destination: destMode === 'random' && !isReply && !isDirect ? undefined : dest ?? undefined, waypoints: wps, vehicle, target: isReply || isDirect ? {} : target, useShield, isPublic: isReply || isDirect ? false : isPublic, shareToStory: isPublic && shareToStory, replyToId: isReply ? replyTo!.id : undefined, recipientId: isReply ? replyTo!.senderId : isDirect ? toUser!.id : undefined, friendRequest: isReply ? friendRequest : undefined, kind: isReply ? 'reply' : 'letter', direct: isDirect || undefined, rent: rentPrice > 0 || undefined });
     if ('error' in res) { warn(); setError(res.error); return; }
     setLaunching(true); success();
     Animated.timing(fly, { toValue: 1, duration: 1300, useNativeDriver: Platform.OS !== 'web' }).start(() => router.replace('/'));
-  };
+  });
 
   if (launching) return (
     <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View style={{ transform: [{ translateY: fly.interpolate({ inputRange: [0, 1], outputRange: [0, -420] }) }, { translateX: fly.interpolate({ inputRange: [0, 1], outputRange: [0, 120] }) }, { scale: fly.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 1.3, 0.4] }) }], opacity: fly.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }) }}><VehicleIcon id={vehicle} size={130} bubble /></Animated.View>
       <T t="title" style={{ marginTop: spacing.xl }}>출발!</T>
-      <T t="body" color={c.text2}>{me.location.city} → {destMode === 'random' && !isReply ? '어딘가' : dest?.city} · 약 {formatDuration(flight.durationMs)}</T>
+      <T t="body" color={c.text2}>{me.location.city} → {destMode === 'random' && !isReply && !isDirect ? '어딘가' : dest?.city} · {formatKm(flight.distanceKm)} · {vehicleObj.speedKmh.toLocaleString()} km/h</T>
     </Screen>
   );
 
-  const stepTitles = isReply ? ['답장 쓰기', '배달원', '확인'] : ['내용', '목적지', '배달원 · 조건'];
+  const stepTitles = isReply ? ['답장 쓰기', '배달원', '확인'] : isDirect ? ['내용', '받는 사람', '배달원'] : ['내용', '목적지', '배달원 · 조건'];
   const VehiclePicker = (
     <View>
       <T t="bodyStrong" style={{ marginBottom: 8 }}>배달원 <T t="small" color={c.text2}>· 친구 수로 해금 · 느린 것부터 빠른 것까지</T></T>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 8 }}>{FAMILIES.map((f) => <Chip key={f} label={FAMILY_LABEL[f]} small selected={family === f} onPress={() => setFamily(f)} />)}</ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
         {VEHICLES.filter((v) => v.family === family).map((v) => { const ok = vehicleUnlocked(v, friendIds.length, me.inventory, me.plan); const on = vehicle === v.id; return (
-          <Pressable key={v.id} onPress={() => (ok ? setVehicle(v.id) : router.push(v.premiumItem ? '/store' : '/friends'))} style={[styles.vehicle, { backgroundColor: c.bg, borderColor: c.line }, on && { borderColor: c.blue, backgroundColor: c.blueSoft }, !ok && { opacity: 0.5 }]}>
+          <Pressable key={v.id} testID={`vehicle:${v.id}`} onPress={() => (ok || (v.premiumItem !== 'event' && !v.premiumItem) ? setVehicle(v.id) : router.push('/store'))} style={[styles.vehicle, { backgroundColor: c.bg, borderColor: c.line }, on && { borderColor: c.blue, backgroundColor: c.blueSoft }, !ok && !on && { opacity: 0.6 }]}>
             <VehicleIcon id={v.id} size={52} bubble />
             <T t="smallStrong" style={{ marginTop: 6 }} numberOfLines={1}>{v.name}</T>
             <T t="caption" color={c.text2}>{v.speedKmh.toLocaleString()} km/h</T>
-            {!ok ? <T t="caption" color={c.orange}>{v.premiumItem === 'event' ? '이벤트' : v.premiumItem === 'dragon' ? '프로 / 친구 80' : v.premiumItem ? '🛍️ 상점' : `🔒 친구 ${v.unlockFriends}`}</T> : v.trait ? <T t="caption" color={c.green}>{v.trait}</T> : null}
+            {!ok ? <T t="caption" color={c.orange}>{v.premiumItem === 'event' ? '이벤트' : v.premiumItem === 'dragon' ? '프로 / 친구 80' : v.premiumItem ? '상점' : `친구 ${v.unlockFriends} · 대여 ${discounted(rentalCoins(v.speedKmh), me.plan)} SC`}</T> : v.trait ? <T t="caption" color={c.green}>{v.trait}</T> : null}
           </Pressable>
         ); })}
       </ScrollView>
       <T t="small" color={c.text2} style={{ marginTop: 8 }}>{vehicleObj.desc}</T>
+      {rentPrice > 0 ? <View style={[styles.box, { backgroundColor: c.yellowSoft, borderColor: c.yellowSoft, marginTop: 8 }]}><T t="smallStrong" color={c.yellowText}>🎟️ 이 편지에만 {vehicleObj.name} 대여 · {rentPrice} SC (보유 {me.coins})</T><T t="caption" color={c.text2}>친구 {vehicleObj.unlockFriends}명이 되면 영구 해금. 플러스/프로는 대여 할인.</T></View> : null}
     </View>
   );
   const ShieldBox = (
     <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
       <Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">🛡️ 방어권 {vehicleObj.builtInShield ? '(내장)' : me.inventory.shield > 0 ? `(보유 ${me.inventory.shield})` : '(없음)'}</T>{vehicleObj.builtInShield ? <Pill label="내장" color={c.greenSoft} textColor={c.green} /> : me.inventory.shield > 0 ? <Switch value={useShield} onValueChange={setUseShield} trackColor={{ true: c.blue }} /> : <Button title="얻기" size="sm" variant="gradient" onPress={() => router.push('/store')} />}</Row>
-      <T t="small" color={c.text2}>경로 변경 · 끌어오기 · 달팽이 · 바다 · 우주 장난을 1회 튕겨내요. 친구 5명마다 1개 또는 상점.</T>
+      <T t="small" color={c.text2}>경로 변경 · 끌어오기 · 달팽이 · 침수 · 우주 장난을 1회 튕겨내요. 친구 5명마다 1개 또는 상점.</T>
     </View>
   );
 
@@ -116,7 +121,8 @@ export default function Compose() {
           {error ? <View style={[styles.error, { backgroundColor: c.redSoft }]}><Icon name="alert-circle" size={16} color={c.red} /><T t="small" color={c.red} style={{ flex: 1 }}>{error}</T><Button title="플랜" size="sm" variant="ghost" onPress={() => router.push('/store')} /></View> : null}
           {step === 0 && (
             <View style={{ gap: spacing.md }}>
-              {isReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="smallStrong" color={c.text2}>답장 대상 · {replyUser!.nickname} ({replyUser!.location.city})</T><T t="small" color={c.text2} numberOfLines={2}>“{replyTo!.text}”</T><T t="caption" color={c.text3}>답장은 상대에게 직행해요. 상대가 수락하면 수락 편지가 돌아오고, 확정하면 친구.</T></View>
+              {isReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="smallStrong" color={c.text2}>답장 대상 · {replyUser!.nickname} ({replyUser!.location.city})</T><T t="small" color={c.text2} numberOfLines={2}>“{replyTo!.text}”</T><T t="caption" color={c.text3}>답장은 상대에게 직행해요. 상대가 수락하면 친구.</T></View>
+                : isDirect ? <View style={[styles.box, { backgroundColor: c.blueSoft, borderColor: c.blueSoft }]}><T t="smallStrong">⚡ 직행 편지 · ??? · {formatKm(flight.distanceKm)}</T><T t="caption" color={c.text2}>이 사람에게 무조건 도착해요(통과·장난 없음). 답장은 상대의 마음 · {ITEM_MAP.direct1.coins} SC 또는 보유권/월 한도</T></View>
                 : toUser ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="smallStrong">??? · {formatKm(flight.distanceKm)} 떨어진 곳 · {toUser.field} · {toUser.job}</T><T t="caption" color={c.text3}>커뮤니티에서 고른 사람 근처(50km)로 날아가고 조건이 자동 설정됐어요</T></View> : null}
               <Paper>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}><T t="caption" color={c.paperMuted}>FROM {me.location.city.toUpperCase()} · {new Date().toLocaleDateString('ko-KR')}</T><Stamp flag={stamp?.flag ?? '📮'} label={me.location.city} /></Row>
@@ -127,7 +133,8 @@ export default function Compose() {
               <T t="small" color={c.text2}>잡은 사람에게는 내 프로필(아바타·닉네임·소개·엽서)이 보여요. 커뮤니티에서는 ???로만.</T>
             </View>
           )}
-          {step === 1 && !isReply && (
+          {step === 1 && isDirect ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">받는 사람: ??? · {toUser?.field} · {toUser?.job}</T><T t="small" color={c.text2}>직행 편지는 목적지를 고르지 않아요. 그 사람에게 곧장 갑니다.</T></View> : null}
+          {step === 1 && !isReply && !isDirect && (
             <View style={{ gap: spacing.md }}>
               <Row><Chip label="🎲 랜덤" selected={destMode === 'random'} onPress={() => setDestMode('random')} /><Chip label="📍 직접" selected={destMode === 'pick'} onPress={() => setDestMode('pick')} /><Chip label={`🧭 경유지 (${plan.maxWaypoints})`} selected={destMode === 'route'} onPress={() => setDestMode('route')} /></Row>
               {destMode === 'random' ? (
@@ -141,10 +148,10 @@ export default function Compose() {
           {step === 1 && isReply ? <View style={{ gap: spacing.lg }}>{VehiclePicker}{ShieldBox}</View> : null}
           {step === 2 ? (
             <View style={{ gap: spacing.lg }}>
-              {isReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">🤝 친구 요청 포함</T><Switch value={friendRequest} onValueChange={setFriendRequest} trackColor={{ true: c.blue }} /></Row><T t="small" color={c.text2}>상대가 수락하면 수락 편지가 내게 돌아오고, 내가 확정하면 친구. 그때부터 실시간 채팅.</T></View> : null}
+              {isReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">🤝 친구 요청 포함</T><Switch value={friendRequest} onValueChange={setFriendRequest} trackColor={{ true: c.blue }} /></Row><T t="small" color={c.text2}>상대가 수락하면 친구. 그때부터 실시간 채팅.</T></View> : null}
               {!isReply ? VehiclePicker : null}
-              {!isReply ? ShieldBox : null}
-              {!isReply ? (<>
+              {!isReply && !isDirect ? ShieldBox : null}
+              {!isReply && !isDirect ? (<>
                 <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
                   <Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">🖼️ 커뮤니티에 엽서로 공개</T><Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: c.blue }} /></Row>
                   <T t="small" color={c.text2}>피드에 ???로 올라가요(거리만 공개). 좋아요·댓글을 받으면 코인.</T>
@@ -160,11 +167,11 @@ export default function Compose() {
               </>) : null}
               <LinearGradient colors={[...c.sky] as any} style={[styles.summary, { borderColor: c.lineSoft }]}>
                 <Row style={{ justifyContent: 'space-between' }}>
-                  <View><T t="caption" color={c.text2}>{isReply ? '도착 후 상대 수락' : '컨택 가능성'}</T><T t="hero" color={isReply ? c.blue : chance >= 60 ? c.green : chance >= 35 ? c.yellowText : c.text}>{isReply ? '직행' : `${chance}%`}</T></View>
+                  <View><T t="caption" color={c.text2}>{isReply ? '도착 후 상대 수락' : isDirect ? '도착 보장' : '컨택 가능성'}</T><T t="hero" color={isReply || isDirect ? c.blue : chance >= 60 ? c.green : chance >= 35 ? c.yellowText : c.text}>{isReply || isDirect ? '직행' : `${chance}%`}</T></View>
                   <View style={{ alignItems: 'flex-end', gap: 2 }}>
                     <Row gap={6}><VehicleIcon id={vehicle} size={28} bubble /><T t="smallStrong">{vehicleObj.name}</T></Row>
-                    <T t="small" color={c.text2}>{formatKm(flight.distanceKm)} · 약 {formatDuration(flight.durationMs)}</T>
-                    <T t="small" color={c.text2}>{me.location.city} → {destMode === 'random' && !isReply ? '???' : dest?.city ?? '미정'}</T>
+                    <T t="small" color={c.text2}>{formatKm(flight.distanceKm)} · {vehicleObj.speedKmh.toLocaleString()} km/h{rentPrice ? ` · 대여 ${rentPrice} SC` : ''}</T>
+                    <T t="small" color={c.text2}>{me.location.city} → {destMode === 'random' && !isReply && !isDirect ? '???' : dest?.city ?? '미정'}</T>
                     {!isReply ? <T t="caption" color={c.text3}>{hasTarget ? `조건 일치 ${matching}명` : '조건 없음 · 누구나'}{plan.contactBoost ? ` · ${plan.name} +${plan.contactBoost}%` : ''}</T> : null}
                   </View>
                 </Row>
@@ -172,7 +179,7 @@ export default function Compose() {
             </View>
           ) : null}
         </ScrollView>
-        <View style={[styles.footer, { backgroundColor: c.bg, borderTopColor: c.line }]}>{step < 2 ? <Button title="다음" size="lg" full disabled={!canNext} onPress={() => setStep(step + 1)} /> : <Button title="보내기" size="lg" full onPress={launch} />}</View>
+        <View style={[styles.footer, { backgroundColor: c.bg, borderTopColor: c.line }]}>{step < 2 ? <Button title="다음" size="lg" full disabled={!canNext} onPress={() => setStep(step + 1)} track="compose:next" /> : <Button title={rentPrice ? `보내기 · 대여 ${rentPrice} SC` : isDirect ? '직행 보내기' : '보내기'} size="lg" full onPress={launch} track="compose:send" />}</View>
       </KeyboardAvoidingView>
     </Screen>
   );

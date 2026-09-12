@@ -10,7 +10,7 @@ import { spacing, useColors } from '@/theme';
 import { getLocationPermission, requestBackgroundLocation, requestForegroundLocation, startBackgroundLocation, stopBackgroundLocation } from '@/services/location';
 import { getNotificationPermission, getPushToken, requestNotificationPermission } from '@/services/push';
 import { pushProfile, registerPushToken } from '@/services/sync';
-import { firebaseEnabled } from '@/services/firebase';
+import { supabaseEnabled } from '@/services/supabase';
 import { purchases } from '@/services/purchases';
 import type { PermissionState } from '@/types';
 
@@ -57,7 +57,7 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Header title="설정" right={<Pill label={backend === 'firebase' ? 'Firebase 연결' : '로컬 시뮬'} color={backend === 'firebase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'firebase' ? colors.green : colors.yellowText} />} />
+      <Header title="설정" right={<Pill label={backend === 'supabase' ? 'Supabase 연결' : '로컬 시뮬'} color={backend === 'supabase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'supabase' ? colors.green : colors.yellowText} />} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         <Section title="기기 권한 (실제 상태)" action={{ label: '새로고침', onPress: refresh }}>
           <PermRow title="위치 (앱 사용 중)" sub="편지 출발지 · 머리 위 통과 판정" state={perms.location} onRequest={async () => { const r = await requestForegroundLocation(); setPermissions({ location: r }); }} />
@@ -83,7 +83,7 @@ export default function Settings() {
         <Section title="계정 · 결제">
           <ListRow title={`플랜: ${me.plan.toUpperCase()}`} subtitle={me.planExpiresAt ? `갱신 ${new Date(me.planExpiresAt).toLocaleDateString('ko-KR')}` : '무료'} right={<Button title="상점" size="sm" variant="secondary" onPress={() => router.push('/store')} />} />
           <ListRow title="결제 제공자" subtitle={purchases.name === 'revenuecat' ? 'RevenueCat (스토어 결제)' : 'Mock (테스트) · dev build + RevenueCat 키 설정 시 실결제'} />
-          <ListRow title="백엔드" subtitle={firebaseEnabled ? 'Firebase (Auth · Firestore · Functions)' : 'EXPO_PUBLIC_FIREBASE_* 미설정 → 로컬 봇 시뮬레이션'} />
+          <ListRow title="백엔드" subtitle={supabaseEnabled ? 'Supabase (Auth · Postgres · Realtime · Edge Functions)' : 'EXPO_PUBLIC_SUPABASE_* 미설정 → 로컬 봇 시뮬레이션'} />
         </Section>
 
         <Section title="개발자 모드" right={<Switch value={settings.devMode} onValueChange={(v) => setSettings({ devMode: v })} trackColor={{ true: colors.blue }} />}>

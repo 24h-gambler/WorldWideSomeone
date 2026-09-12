@@ -40,7 +40,7 @@ export default function ChatScreen() {
   const onSend = () => {
     const t = text.trim();
     if (!t) return;
-    if (send(other.id, t)) { setText(''); if (remote.enabled()) remote.sendMessage(other.id, t).catch(() => {}); }
+    if (send(other.id, t)) { setText(''); if (remote.enabled) remote.sendMessage(other.id, t).catch(() => {}); }
   };
 
   return (
@@ -55,9 +55,9 @@ export default function ChatScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: 12 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}><Icon name="lock" size={32} /></View>
           <T t="title" style={{ textAlign: 'center' }}>편지로만 대화할 수 있어요</T>
-          <T t="body" color={colors.text2} style={{ textAlign: 'center' }}>실시간 채팅은 편지가 한 번 왕복한 뒤에 열려요: 답장 → 상대 수락(수락 편지) → 확정. 그 전까지는 편지가 날아가는 시간만큼 기다려요.</T>
-          {pendingReply ? <Button title={pendingReply.kind === 'accept' ? '도착한 수락 편지 확정하기' : '도착한 답장 수락하기'} icon="check" onPress={() => router.push(`/letter/${pendingReply.id}`)} /> : null}
-          {myPendingReply ? <T t="small" color={colors.text2}>{myPendingReply.status === 'flying' ? `내 ${myPendingReply.kind === 'accept' ? '수락 편지' : '답장'}가 가는 중` : `내 ${myPendingReply.kind === 'accept' ? '수락 편지' : '답장'} 도착 · 상대 차례`}</T> : caughtTheirs && !pendingReply ? <Button title="답장 편지 쓰기" icon="edit-3" onPress={() => router.push({ pathname: '/compose', params: { replyTo: caughtTheirs.id } } as any)} /> : !pendingReply ? <Button title="편지 보내기" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /> : null}
+          <T t="body" color={colors.text2} style={{ textAlign: 'center' }}>실시간 채팅은 편지가 한 번 왕복한 뒤에 열려요: 내 편지 → 상대 답장 → 수락. 답장이 오는 동안은 편지가 날아가는 시간만큼 기다려요.</T>
+          {pendingReply ? <Button title="도착한 답장 수락하기" icon="check" onPress={() => router.push(`/letter/${pendingReply.id}`)} /> : null}
+          {myPendingReply ? <T t="small" color={colors.text2}>{myPendingReply.status === 'flying' ? '내 답장이 가는 중' : '내 답장 도착 · 상대 차례'}</T> : caughtTheirs && !pendingReply ? <Button title="답장 편지 쓰기" icon="edit-3" onPress={() => router.push({ pathname: '/compose', params: { replyTo: caughtTheirs.id } } as any)} /> : !pendingReply ? <Button title="편지 보내기" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /> : null}
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>

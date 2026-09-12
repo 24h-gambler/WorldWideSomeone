@@ -87,7 +87,7 @@ function effectiveElapsed(l: Letter, now: number): number {
   return e;
 }
 
-const STOPPED: Letter['status'][] = ['returned', 'space'];
+const STOPPED: Letter['status'][] = ['space'];
 
 export function progressOf(l: Letter, now: number): number {
   if (l.status === 'flying') {
@@ -99,7 +99,7 @@ export function progressOf(l: Letter, now: number): number {
     return Math.min(1, Math.max(0, p));
   }
   if (STOPPED.includes(l.status)) {
-    const ev = l.events.find((e) => e.type === 'returned' || e.type === 'space');
+    const ev = l.events.find((e) => e.type === 'space');
     if (!ev) return 1;
     const p = effectiveElapsed(l, ev.at) / Math.max(1, l.arrivesAt - l.departedAt - penaltyExtra(l));
     return Math.min(1, Math.max(0, p));
@@ -164,6 +164,14 @@ export function pathSamples(l: Letter, n = 72): LatLng[] {
   }
   for (let i = 0; i <= n; i++) out.push(r.at(i / n));
   return out;
+}
+
+/** 가속: 현재 위치를 유지한 채 남은 시간을 remainingMs 로 줄인다 (답장 가속 · 벌칙은 해제) */
+export function speedUp(l: Letter, now: number, remainingMs: number): Partial<Letter> {
+  const p = Math.min(0.999, progressOf(l, now));
+  const D = Math.max(1000, remainingMs / (1 - p));
+  const departedAt = now - p * D;
+  return { departedAt, arrivesAt: departedAt + D, penalty: undefined };
 }
 
 /** 경로 위에서 특정 지점에 가장 가까운 진행률 (0..1) — 통과 지점 계산용 */

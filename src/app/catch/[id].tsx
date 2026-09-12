@@ -9,7 +9,7 @@ import { VehicleIcon } from '@/components/vehicle-icon';
 import { ItemIcon, type ItemId } from '@/components/item-art';
 import { Globe } from '@/components/globe/Globe';
 import { VEHICLE_MAP } from '@/data/vehicles';
-import { PLAN_MAP, PRODUCTS } from '@/data/plans';
+import { ITEM_MAP, PLAN_MAP } from '@/data/plans';
 import { findCity, CITIES } from '@/data/cities';
 import { genderLabel } from '@/data/profile';
 import { describePlace } from '@/engine/geo';
@@ -70,19 +70,18 @@ export default function Catch() {
   };
   const doPeek = () => outcome(peek(letter.id), { title: '엿봤어요', body: '아래에서 내용을 볼 수 있어요. 마음에 들면 끌어오세요', icon: 'lens' }, true);
   const doPull = () => outcome(pull(letter.id), { title: '끌어왔어요!', body: '편지가 내 위치로 방향을 바꿨어요. 도착하면 집어가세요', icon: 'magnet' }, false);
-  const doRedirect = (a: 'returned' | 'sunk' | 'space') => outcome(redirect(letter.id, a), a === 'sunk' ? { title: '풍덩!', body: '몇 시간 뒤 떠오르거나, 주인이 건져내야 다시 가요', icon: 'wave' } : a === 'space' ? { title: '발사!', body: '편지가 우주로 날아갔어요', icon: 'planet' } : { title: '되돌려보냈어요', body: '발신자에게 돌아갑니다', icon: 'return' });
+  const doRedirect = (a: 'sunk' | 'space') => outcome(redirect(letter.id, a), a === 'sunk' ? { title: '침수!', body: '몇 시간 뒤 떠오르거나, 주인이 건져내야 다시 가요', icon: 'wave' } : { title: '발사!', body: '편지가 우주로 날아갔어요', icon: 'planet' });
   const doSnail = () => outcome(snail(letter.id), { title: '달팽이 붙였어요', body: '5분 동안 10배 느려져요', icon: 'snail' });
   const doReroute = () => outcome(reroute(letter.id, wps), { title: '경로를 바꿨어요', body: `경유지 ${wps.length}곳을 지나 원래 목적지로 가요`, icon: 'compass' });
-  const peekPrice = PRODUCTS.find((p) => p.id === 'peek5')!;
-  const pullPrice = PRODUCTS.find((p) => p.id === 'pull1')!;
+  const peekPrice = ITEM_MAP.peek5;
+  const pullPrice = ITEM_MAP.pull1;
 
   const ACTIONS = [
-    { key: 'peek', icon: 'lens' as ItemId, label: peeked ? '엿봤음' : '엿보기', sub: peekLeft > 0 ? `남은 ${peekLeft}회` : peekPrice.priceLabel, onPress: doPeek, disabled: peeked },
-    { key: 'pull', icon: 'magnet' as ItemId, label: '끌어오기', sub: pullLeft > 0 ? `남은 ${pullLeft}회` : pullPrice.priceLabel, onPress: doPull },
+    { key: 'peek', icon: 'lens' as ItemId, label: peeked ? '엿봤음' : '엿보기', sub: peekLeft > 0 ? `남은 ${peekLeft}회` : `${peekPrice.coins} SC`, onPress: doPeek, disabled: peeked },
+    { key: 'pull', icon: 'magnet' as ItemId, label: '끌어오기', sub: pullLeft > 0 ? `남은 ${pullLeft}회` : `${pullPrice.coins} SC`, onPress: doPull },
     { key: 'reroute', icon: 'compass' as ItemId, label: '경로 바꾸기', sub: `경유지 ${plan.maxWaypoints}개`, onPress: () => setMode('reroute') },
     { key: 'snail', icon: 'snail' as ItemId, label: '달팽이', sub: '5분 느리게', onPress: doSnail },
-    { key: 'return', icon: 'return' as ItemId, label: '되돌리기', sub: '발신자에게', onPress: () => doRedirect('returned') },
-    { key: 'sunk', icon: 'wave' as ItemId, label: '바다에', sub: '몇 시간 정지', onPress: () => doRedirect('sunk') },
+    { key: 'sunk', icon: 'wave' as ItemId, label: '침수', sub: '몇 시간 정지', onPress: () => doRedirect('sunk') },
     { key: 'space', icon: 'rocket' as ItemId, label: '우주로', sub: '안녕', onPress: () => doRedirect('space') },
   ];
 

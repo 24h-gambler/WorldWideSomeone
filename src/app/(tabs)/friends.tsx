@@ -1,11 +1,14 @@
-import React from 'react';
-import { ScrollView, View } from 'react-native';
+/**
+ * 친구 탭 — 해금 진행 · 내 차례(도착한 답장) · 왕복 진행 중 · 직행 편지 · 메시지
+ */
+import React, { useMemo } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { Avatar, Button, Empty, Header, ListRow, ProgressBar, Row, Screen, Section, T } from '@/components/ui';
-import { VEHICLES, nextUnlock } from '@/data/vehicles';
-import { PLAN_MAP } from '@/data/plans';
-import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
+import { Avatar, Button, Empty, Header, ListRow, ProgressBar, Row, Screen, Section, T, TrackedScrollView } from '@/components/ui';
+import { VehicleIcon } from '@/components/vehicle-icon';
+import { VEHICLE_MAP, nextUnlock } from '@/data/vehicles';
+import { formatKm, timeAgo } from '@/engine/geo';
 import { ME_ID, displayName, getUser, useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 
@@ -17,67 +20,69 @@ export default function Friends() {
   const revealedIds = useStore((s) => s.revealedIds);
   const chats = useStore((s) => s.chats);
   const letters = useStore((s) => s.letters);
-  const instant = useStore((s) => s.instantRequests);
-  const answerInstant = useStore((s) => s.answerInstant);
   const next = nextUnlock(friendIds.length, me.plan);
-  const boost = PLAN_MAP[me.plan].unlockBoost;
-  const prev = VEHICLES.filter((v) => v.unlockFriends !== null && !v.premiumItem && v.unlockFriends <= friendIds.length + boost).sort((a, b) => (a.unlockFriends ?? 0) - (b.unlockFriends ?? 0)).pop();
-  const pendingIn = letters.filter((l) => l.recipientId === ME_ID && l.status === 'delivered');
-  const inFlight = letters.filter((l) => (l.kind === 'reply' || l.kind === 'accept') && (l.senderId === ME_ID || l.recipientId === ME_ID) && (l.status === 'flying' || (l.status === 'delivered' && l.senderId === ME_ID)));
-  const instantIn = instant.filter((r) => r.toId === ME_ID && r.status === 'pending');
+  const prevReq = next ? Math.max(0, (next.unlockFriends ?? 0) - 6) : 0;
+  const prog = next ? Math.min(1, Math.max(0, (friendIds.length - prevReq) / Math.max(1, (next.unlockFriends ?? 1) - prevReq))) : 1;
+
+  const myTurn = useMemo(() => letters.filter((l) => l.recipientId === ME_ID && l.kind === 'reply' && l.status === 'delivered'), [letters]);
+  const inFlight = useMemo(() => letters.filter((l) => l.senderId === ME_ID && l.kind === 'reply' && (l.status === 'flying' || l.status === 'delivered')), [letters]);
+  const directs = useMemo(() => letters.filter((l) => l.senderId === ME_ID && l.direct && (l.status === 'flying' || l.status === 'delivered')), [letters]);
+  const incoming = useMemo(() => letters.filter((l) => l.recipientId === ME_ID && l.status === 'flying'), [letters]);
+  const rev = { me, friendIds, revealedIds };
 
   return (
     <Screen>
-      <Header back={false} title={me.nickname} subtitle={`친구 ${friendIds.length}명 · 50km 반경으로 위치 공유`} divider={false} right={<Button title="새 편지" size="sm" variant="ghost" icon="edit-3" onPress={() => router.push('/compose')} />} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-        <View style={{ marginHorizontal: spacing.lg, marginTop: 4, padding: spacing.lg, borderRadius: 16, backgroundColor: c.bg2, borderWidth: 1, borderColor: c.lineSoft }}>
+      <Header back={false} title={me.nickname || '친구'} subtitle={`친구 ${friendIds.length}명 · 50km 반경으로 위치 공유`} divider={false} right={<Button title="새 편지" size="sm" variant="ghost" icon="edit-2" onPress={() => router.push('/compose')} track="friends:compose" />} />
+      <TrackedScrollView id="friends" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={{ margin: spacing.lg, padding: spacing.md, borderRadius: 14, backgroundColor: c.bg2, gap: 6 }}>
           {next ? (<>
-            <Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">다음 배달원: {next.name}</T><T t="small" color={c.text2}>{friendIds.length + boost}/{next.unlockFriends}</T></Row>
-            <View style={{ marginVertical: 8 }}><ProgressBar value={(friendIds.length + boost - (prev?.unlockFriends ?? 0)) / Math.max(1, (next.unlockFriends ?? 1) - (prev?.unlockFriends ?? 0))} /></View>
-            <T t="small" color={c.text2}>친구 {Math.max(0, (next.unlockFriends ?? 0) - friendIds.length - boost)}명 더 · {next.speedKmh}km/h{boost ? ` · ${PLAN_MAP[me.plan].name} 보너스 −${boost}명` : ' · 플러스/프로는 더 빨리 해금'}</T>
+            <Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">다음 배달원: {next.name}</T><T t="small" color={c.text2}>{friendIds.length}/{next.unlockFriends}</T></Row>
+            <ProgressBar value={prog} />
+            <T t="small" color={c.text2}>친구 {Math.max(0, (next.unlockFriends ?? 0) - friendIds.length)}명 더 · {next.speedKmh.toLocaleString()}km/h · 지금 바로 쓰려면 편지 쓰기에서 대여(SC)</T>
           </>) : <T t="bodyStrong">모든 배달원을 해금했어요 🎉</T>}
         </View>
 
-        {instantIn.length > 0 ? (
-          <Section title="⚡ 즉시 친구 요청">
-            {instantIn.map((r) => { const u = getUser({ me }, r.fromId); return (
-              <ListRow key={r.id} left={<Avatar emoji={u?.avatar} size={48} ring="ig" />} title={`${u?.nickname ?? '???'} · ${formatKm(distanceKm(me.location, u?.location ?? me.location))}`} subtitle="결제로 왕복 없이 친구를 요청했어요" right={<Row><Button title="수락" size="sm" onPress={() => answerInstant(r.id, true)} /><Button title="거절" size="sm" variant="ghost" onPress={() => answerInstant(r.id, false)} /></Row>} />
+        {myTurn.length ? (
+          <Section title="내 차례 · 도착한 답장">
+            {myTurn.map((l) => { const u = getUser({ me }, l.senderId); return (
+              <ListRow key={l.id} left={<Avatar emoji={u?.avatar} size={48} ring="ig" />} title={`${u?.nickname ?? '???'} · ${l.origin.city}`} subtitle="답장 도착 · 수락하면 친구 + 실시간 채팅" right={<Button title="보기" size="sm" onPress={() => router.push(`/letter/${l.id}`)} track="friends:myturn" />} onPress={() => router.push(`/letter/${l.id}`)} track="friends:myturn-row" />
             ); })}
           </Section>
         ) : null}
-
-        {pendingIn.length > 0 ? (
-          <Section title={`내 차례 ${pendingIn.length}`} action={{ label: '우편함', onPress: () => router.push('/letters') }}>
-            {pendingIn.map((l) => { const u = getUser({ me }, l.senderId); return (
-              <ListRow key={l.id} left={<Avatar emoji={u?.avatar} size={48} ring="ig" />} title={`${u?.nickname ?? '???'} · ${l.origin.city}`} subtitle={l.kind === 'accept' ? '수락 편지 도착 · 확정하면 친구' : '답장 도착 · 수락하면 수락 편지 출발'} right={<Button title="보기" size="sm" onPress={() => router.push(`/letter/${l.id}`)} />} onPress={() => router.push(`/letter/${l.id}`)} />
+        {incoming.length ? (
+          <Section title="오는 중">
+            {incoming.map((l) => { const u = getUser({ me }, l.senderId); return (
+              <ListRow key={l.id} left={<VehicleIcon id={l.vehicle} size={44} bubble />} title={`${u?.nickname ?? '???'} · ${VEHICLE_MAP[l.vehicle].name}`} subtitle={`${l.kind === 'reply' ? '답장' : '직행 편지'}가 오는 중 · 편지 탭에서 가속 가능`} onPress={() => router.push('/letters')} track="friends:incoming" />
+            ); })}
+          </Section>
+        ) : null}
+        {inFlight.length || directs.length ? (
+          <Section title="왕복 진행 중">
+            {inFlight.map((l) => { const other = l.recipientId ?? ''; const u = getUser({ me }, other); return (
+              <ListRow key={l.id} left={<Avatar emoji={u?.avatar} size={44} anonymous={!revealedIds.includes(other) && !friendIds.includes(other)} />} title={`${displayName(rev, other)} · 내 답장`} subtitle={l.status === 'flying' ? `${VEHICLE_MAP[l.vehicle].name}로 가는 중 · 상대가 수락하면 친구` : '도착 · 상대가 수락하면 친구'} onPress={() => router.push(`/letter/${l.id}`)} track="friends:inflight" />
+            ); })}
+            {directs.map((l) => { const other = l.recipientId ?? ''; const u = getUser({ me }, other); return (
+              <ListRow key={l.id} left={<Avatar emoji={u?.avatar} size={44} ring="ig" />} title={`${displayName(rev, other)} · ⚡ 직행 편지`} subtitle={l.status === 'flying' ? '무조건 도착해요 · 답장은 상대의 마음' : '도착 · 답장을 기다리는 중'} onPress={() => router.push(`/letter/${l.id}`)} track="friends:direct" />
             ); })}
           </Section>
         ) : null}
 
         <Section title="메시지">
-          {friendIds.length === 0 ? (
-            <Empty icon="users" title="아직 친구가 없어요" body="편지를 잡고 답장 → 상대 수락 → 수락 편지 확정, 이렇게 한 번 왕복하면 친구가 돼요. 그때부터 실시간 채팅." action={<Button title="편지 쓰기" onPress={() => router.push('/compose')} />} />
-          ) : friendIds.map((id) => {
+          {friendIds.length === 0 ? <Empty icon="message-circle" title="아직 친구가 없어요" body="편지가 한 번 왕복하면 친구. 그때부터 지연 없는 채팅." action={<Button title="편지 쓰기" onPress={() => router.push('/compose')} track="friends:empty:compose" />} /> : null}
+          {friendIds.map((id) => {
             const u = getUser({ me }, id); if (!u) return null;
-            const chat = chats.find((x) => x.otherId === id); const last = chat?.messages[chat.messages.length - 1];
-            const unread = chat ? chat.messages.some((m) => m.senderId !== ME_ID && m.at > chat.lastReadAt) : false;
+            const chat = chats.find((x) => x.otherId === id);
+            const last = chat?.messages[chat.messages.length - 1];
+            const unread = !!chat && chat.messages.some((m) => m.senderId !== ME_ID && m.at > chat.lastReadAt);
             return (
               <ListRow key={id} left={<Avatar emoji={u.avatar} size={52} ring={unread ? 'ig' : 'none'} />}
                 title={<Row style={{ justifyContent: 'space-between' }}><T t={unread ? 'bodyStrong' : 'body'}>{u.nickname}</T><T t="caption" color={c.text3}>{last ? timeAgo(last.at) : ''}</T></Row>}
-                subtitle={<Row><T t="small" color={unread ? c.text : c.text2} numberOfLines={1} style={{ flex: 1 }}>{last ? `${last.senderId === ME_ID ? '나: ' : ''}${last.text}` : `${u.location.city} · ${formatKm(distanceKm(me.location, u.location))}`}</T>{unread ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.blue }} /> : null}</Row>}
-                onPress={() => router.push(`/chat/${id}`)} />
+                subtitle={<Row style={{ justifyContent: 'space-between' }}><T t="small" color={unread ? c.text : c.text2} numberOfLines={1} style={{ flex: 1 }}>{last ? `${last.senderId === ME_ID ? '나: ' : ''}${last.text}` : `${u.location.city} 근처 · ${formatKm(0)}~50km`}</T>{unread ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.blue, marginLeft: 8 }} /> : null}</Row>}
+                onPress={() => router.push(`/chat/${id}`)} track="friends:chat" />
             );
           })}
         </Section>
-
-        {inFlight.length > 0 ? (
-          <Section title="왕복 진행 중">
-            {inFlight.map((l) => { const other = l.senderId === ME_ID ? l.recipientId! : l.senderId; const u = getUser({ me }, other); return (
-              <ListRow key={l.id} left={<Avatar emoji={u?.avatar} size={44} anonymous={!revealedIds.includes(other) && !friendIds.includes(other)} />} title={`${displayName({ me, friendIds, revealedIds }, other)} · ${l.kind === 'accept' ? '수락 편지' : '답장'}`} subtitle={l.senderId === ME_ID ? (l.status === 'flying' ? '내가 보냄 · 가는 중' : '도착 · 상대 차례') : '내게 오는 중'} onPress={() => router.push(`/letter/${l.id}`)} />
-            ); })}
-          </Section>
-        ) : null}
-      </ScrollView>
+      </TrackedScrollView>
     </Screen>
   );
 }

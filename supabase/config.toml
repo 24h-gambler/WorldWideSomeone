@@ -1,0 +1,29 @@
+# Supabase CLI 설정 — `supabase link --project-ref <ref>` 후 `supabase db push` · `supabase functions deploy`
+project_id = "worldwidesomeone"
+[api]
+enabled = true
+schemas = ["public"]
+[auth]
+enabled = true
+site_url = "wws://auth"
+additional_redirect_urls = ["wws://auth", "http://localhost:8081"]
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+[auth.external.apple]
+enabled = true
+client_id = "env(APPLE_CLIENT_ID)"
+secret = "env(APPLE_CLIENT_SECRET)"
+[auth.external.kakao]
+enabled = true
+client_id = "env(KAKAO_CLIENT_ID)"
+secret = "env(KAKAO_CLIENT_SECRET)"
+[functions.tick-world]
+verify_jwt = false
+[functions.push-dispatch]
+verify_jwt = false
+[functions.purchase-webhook]
+verify_jwt = false
+[functions.track-events]
+verify_jwt = false

@@ -1,18 +1,21 @@
 /**
- * 앱 상태 v3 (zustand + AsyncStorage). 로컬 모드에서는 봇 스케줄러가 세계를 돌린다.
- * 흐름: 편지 → 잡기(프로필 공개) → 답장 → 수락(수락 편지 출발) → 확정 → 친구 + 실시간 채팅
+ * 앱 상태 v4 (zustand + AsyncStorage). 로컬 모드에서는 봇 스케줄러가 세계를 돌린다.
+ * 흐름: 편지 → 잡기(프로필 공개) → 답장(상대 배달원 · 코인으로 가속 가능) → 수락 → 친구 + 실시간 채팅
+ * 비회원: 둘러보기·잡기·엿보기는 가능, 보내기/좋아요/댓글/채팅/결제는 가입 게이트.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { AppNotification, Chat, Gender, InstantRequest, Inventory, LatLng, Letter, LetterKind, Passby, PermissionState, Place, PlanId, Post, ScheduledEvent, Settings, TargetFilter, User, VehicleId } from '@/types';
-import { BOT_ACCEPT_LETTERS, BOT_COMMENTS, BOT_GREETINGS, BOT_LETTERS, BOT_POSTS, BOT_REPLIES, BOT_REPLIES_LETTER, WEATHERS, makeBots } from '@/data/bots';
-import { SNAIL, VEHICLES, VEHICLE_MAP, bestVehicle, fastestOwned } from '@/data/vehicles';
-import { COIN_REWARDS, OCEAN_RESCUE_COINS, OCEAN_SINK_MS, PLAN_MAP, PRODUCTS, SHIELD_PER_FRIENDS, type ProductId } from '@/data/plans';
+import type { AppNotification, Auth, AuthProvider, Chat, Gender, Inventory, LatLng, Letter, LetterKind, Passby, PermissionState, Place, PlanId, Post, ScheduledEvent, Settings, TargetFilter, User, VehicleId } from '@/types';
+import { BOT_COMMENTS, BOT_GREETINGS, BOT_LETTERS, BOT_POSTS, BOT_REPLIES, BOT_REPLIES_LETTER, WEATHERS, makeBots } from '@/data/bots';
+import { SNAIL, VEHICLES, VEHICLE_MAP, bestVehicle, vehicleUnlocked } from '@/data/vehicles';
+import { AVATARS } from '@/data/profile';
+import { COIN_REWARDS, DAILY_FREE_COIN_CAP, ITEM_MAP, OCEAN_RESCUE_COINS, OCEAN_SINK_MS, PACK_MAP, PLAN_MAP, REPLY_BOOST, SHIELD_PER_FRIENDS, discounted, rentalCoins, type BoostTier, type ItemId, type PackId } from '@/data/plans';
 import { bearingDeg, describePlace, destinationPoint, distanceKm, fuzzToGrid, randomLandPoint } from '@/engine/geo';
 import { pushLocal } from '@/engine/notify';
-import { LANDED_RADIUS_KM, LANDED_WINDOW_MS, PASSBY_RADIUS_KM, aimRouteAt, appendTrail, applySnail, catchWindowMs, minDistanceBetween, planFlight, positionOf, progressOf, pullTo, rerouteThrough, resurface, seedTrail, closestProgress } from '@/engine/sim';
+import { LANDED_RADIUS_KM, LANDED_WINDOW_MS, PASSBY_RADIUS_KM, aimRouteAt, appendTrail, applySnail, catchWindowMs, closestProgress, minDistanceBetween, planFlight, positionOf, progressOf, pullTo, rerouteThrough, resurface, seedTrail, speedUp } from '@/engine/sim';
+import { track } from '@/services/analytics';
 
 export const BOTS: User[] = makeBots();
 const BOT_BY_ID: Record<string, User> = Object.fromEntries(BOTS.map((b) => [b.id, b]));
@@ -21,46 +24,54 @@ export const uid = () => `${Date.now().toString(36)}${Math.random().toString(36)
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)];
 const today = () => new Date().toDateString();
+const thisMonth = () => new Date().toISOString().slice(0, 7);
 
-const DEFAULT_INV: Inventory = { shield: 1, ufo: 0, orbit: 0, peek: 1, pull: 0, instant: 0, carpet: 0 };
+const DEFAULT_INV: Inventory = { shield: 1, ufo: 0, orbit: 0, peek: 1, pull: 0, direct: 0, carpet: 0 };
 const DEFAULT_ME: User = {
   id: ME_ID, nickname: '', avatar: '🦊', bio: '', field: 'IT/개발', gender: 'private', job: '학생', hobbies: [],
   location: { lat: 37.5665, lng: 126.978, city: '서울', country: '대한민국' }, isBot: false, lastActiveAt: Date.now(),
-  stats: { sent: 0, caught: 0, distanceKm: 0, likes: 0 }, stamps: [], coins: 100, inventory: DEFAULT_INV, quota: { date: '', peeks: 0, pulls: 0, instant: 0 },
-  plan: 'free', shieldMilestone: 0, createdAt: Date.now(),
+  stats: { sent: 0, received: 0, caught: 0, distanceKm: 0, likes: 0 }, stamps: [], coins: 100, inventory: DEFAULT_INV, quota: { date: '', peeks: 0, pulls: 0, earned: 0, month: '', direct: 0 },
+  plan: 'free', shieldMilestone: 0, createdAt: Date.now(), auth: { provider: 'guest' },
 };
 const DEFAULT_SETTINGS: Settings = { timeScale: 240, notifications: true, haptics: true, devMode: false, backgroundLocation: false, theme: 'system' };
 
-export type ComposeInput = { text: string; imageUri?: string; destination?: LatLng; waypoints?: LatLng[]; vehicle: VehicleId; target: TargetFilter; useShield: boolean; isPublic: boolean; shareToStory?: boolean; replyToId?: string; recipientId?: string; friendRequest?: boolean; kind?: LetterKind };
+export type ComposeInput = {
+  text: string; imageUri?: string; destination?: LatLng; waypoints?: LatLng[]; vehicle: VehicleId; target: TargetFilter; useShield: boolean; isPublic: boolean; shareToStory?: boolean;
+  replyToId?: string; recipientId?: string; friendRequest?: boolean; kind?: LetterKind;
+  direct?: boolean;  // 직행 편지(결제): recipientId 필수 · 무조건 도착
+  rent?: boolean;    // 잠긴 배달원을 코인으로 1회 대여
+};
 export type Permissions = { location: PermissionState; backgroundLocation: PermissionState; notifications: PermissionState; pushToken?: string };
 export type ActionResult = 'done' | 'defended' | 'immune' | 'limit' | 'quota' | 'nofunds' | 'gone';
+export type ProfileInput = { nickname: string; avatar: string; bio: string; field: string; gender: Gender; job: string; hobbies: string[] };
 
 export type State = {
-  onboarded: boolean; me: User; letters: Letter[]; friendIds: string[]; revealedIds: string[]; chats: Chat[]; posts: Post[];
-  instantRequests: InstantRequest[]; notifications: AppNotification[]; passbys: Passby[]; scheduled: ScheduledEvent[]; settings: Settings; lastTick: number;
-  focusLetterId: string | null; focusPoint: LatLng | null; permissions: Permissions; backend: 'local' | 'firebase';
+  onboarded: boolean; signedIn: boolean; tourDone: boolean; deviceId: string;
+  me: User; letters: Letter[]; friendIds: string[]; revealedIds: string[]; chats: Chat[]; posts: Post[];
+  notifications: AppNotification[]; passbys: Passby[]; scheduled: ScheduledEvent[]; settings: Settings; lastTick: number;
+  focusLetterId: string | null; focusPoint: LatLng | null; permissions: Permissions; backend: 'local' | 'supabase';
 
-  completeOnboarding: (p: { nickname: string; avatar: string; bio: string; field: string; gender: Gender; job: string; hobbies: string[]; location: Place }) => void;
+  enterAsGuest: (location: Place) => void;                       // 첫 진입: 비회원으로 지구에 들어간다
+  signUp: (provider: AuthProvider, profile: ProfileInput, email?: string) => void; // 가입 게이트에서 호출
+  setTourDone: () => void;
   updateProfile: (patch: Partial<User>) => void; setLocation: (p: Place) => void; setSettings: (patch: Partial<Settings>) => void;
-  setFocusLetter: (id: string | null) => void; setFocusPoint: (p: LatLng | null) => void; setPermissions: (patch: Partial<Permissions>) => void; setBackend: (b: 'local' | 'firebase') => void;
+  setFocusLetter: (id: string | null) => void; setFocusPoint: (p: LatLng | null) => void; setPermissions: (patch: Partial<Permissions>) => void; setBackend: (b: 'local' | 'supabase') => void;
 
   sendLetter: (input: ComposeInput) => Letter | { error: string };
   catchLetter: (letterId: string) => Letter | undefined;
   peekLetter: (letterId: string) => ActionResult;
   pullLetter: (letterId: string) => ActionResult;
-  redirectLetter: (letterId: string, action: 'returned' | 'sunk' | 'space') => ActionResult;
+  redirectLetter: (letterId: string, action: 'sunk' | 'space') => ActionResult;
   rerouteLetter: (letterId: string, waypoints: LatLng[]) => ActionResult;
   snailLetter: (letterId: string) => ActionResult;
   rescueLetter: (letterId: string) => ActionResult;
+  boostReply: (letterId: string, tier: BoostTier) => ActionResult;   // 오는 답장을 코인으로 가속
   dismissPassby: (id: string) => void;
-  acceptReply: (letterId: string) => Letter | undefined;   // 답장 수락 → 수락 편지 출발
-  confirmAccept: (letterId: string) => void;              // 수락 편지 확정 → 친구
+  approveReply: (letterId: string) => void;   // 도착한 답장 수락 → 친구 + 채팅
   declineLetter: (letterId: string) => void;
-  requestInstantFriend: (toId: string) => ActionResult;
-  answerInstant: (id: string, accept: boolean) => void;
   sendMessage: (otherId: string, text: string) => boolean; markChatRead: (otherId: string) => void; markNotificationsRead: () => void;
   likePost: (postId: string) => void; commentPost: (postId: string, text: string) => void; publishPost: (letterId: string, shareToStory: boolean) => void; setPostStory: (postId: string, on: boolean) => void;
-  buyWithCoins: (productId: ProductId) => boolean; applyPurchase: (productId: ProductId) => void; setPlan: (plan: PlanId, expiresAt?: number) => void;
+  buyItem: (itemId: ItemId) => boolean; applyPack: (packId: PackId) => void; setPlan: (plan: PlanId, expiresAt?: number) => void;
   tick: (now: number) => void; devFastForward: (ms: number) => void; devSpawnPassby: () => void; devSpawnReply: () => void; resetAll: () => void;
 };
 
@@ -76,7 +87,8 @@ const notif = (type: AppNotification['type'], title: string, body: string, route
 const fill = (s: string, bot: User) => s.replace('{city}', bot.location.city).replace('{weather}', pick(WEATHERS));
 const botVehicles: VehicleId[] = ['walk', 'jog', 'run', 'kick', 'bike', 'pigeon', 'seagull', 'goose', 'crane', 'hawk', 'eagle', 'albatross', 'horse', 'camel', 'dolphin', 'cheetah', 'scooter', 'kei', 'bus', 'sedan', 'truck', 'sports', 'train', 'ktx', 'maglev', 'sail', 'speedboat', 'cruise', 'submarine', 'hover', 'balloon', 'paraglider', 'heli', 'prop', 'airliner', 'fighter', 'concorde', 'rocket', 'ufo', 'satellite', 'carpet', 'dragon'];
 const botVehicleFor = (): VehicleId => pick(botVehicles);
-const replyVehicleFor = (km: number): VehicleId => (km > 1500 ? 'airliner' : km > 400 ? 'ktx' : 'sedan');
+/** 봇의 답장 배달원: 봇의 친구 수(=해금 수준)에 따라 느릴 수도 있다 — 그래서 받는 쪽이 가속을 산다 */
+const replyVehicleFor = (bot: User): VehicleId => bestVehicle(Math.floor((bot.stats.received + bot.stats.caught) / 4), { ufo: 0, orbit: 0 }, 'free');
 const sunkMs = (v: VehicleId, timeScale: number) => { const base = v === 'camel' || v === 'sail' ? OCEAN_SINK_MS / 3 : OCEAN_SINK_MS; return Math.max(90_000, Math.min(base, base / (timeScale / 60))); };
 
 function baseLetter(partial: Partial<Letter> & Pick<Letter, 'senderId' | 'text' | 'origin' | 'destination' | 'vehicle' | 'departedAt' | 'arrivesAt' | 'distanceKm' | 'stamp'>): Letter {
@@ -107,18 +119,38 @@ function friendMilestone(me: User, friendCount: number): { me: User; granted: nu
   const granted = Math.max(0, target - me.shieldMilestone);
   return granted ? { me: { ...me, shieldMilestone: target, inventory: { ...me.inventory, shield: me.inventory.shield + granted } }, granted } : { me, granted: 0 };
 }
-function resetQuota(me: User): User { return me.quota.date === today() ? me : { ...me, quota: { date: today(), peeks: 0, pulls: 0, instant: me.quota.instant } }; }
+function resetQuota(me: User): User {
+  const q = me.quota;
+  const d = q.date === today() ? q : { ...q, date: today(), peeks: 0, pulls: 0, earned: 0 };
+  const m = d.month === thisMonth() ? d : { ...d, month: thisMonth(), direct: 0 };
+  return m === q ? me : { ...me, quota: m };
+}
+/** 플레이 보상 코인 — 하루 상한 (인플레 방지) */
+function earn(me: User, amount: number): User {
+  const room = Math.max(0, DAILY_FREE_COIN_CAP - me.quota.earned);
+  const give = Math.min(room, amount);
+  return give ? { ...me, coins: me.coins + give, quota: { ...me.quota, earned: me.quota.earned + give } } : me;
+}
+function addFriend(s: { me: User; friendIds: string[]; chats: Chat[] }, other: string, now: number, hello?: string): { me: User; friendIds: string[]; chats: Chat[]; granted: number } {
+  const friendIds = s.friendIds.includes(other) ? s.friendIds : [...s.friendIds, other];
+  const { me, granted } = friendMilestone(earn(s.me, COIN_REWARDS.friend), friendIds.length);
+  const msgs = hello ? [{ id: uid(), senderId: other, text: hello, at: now + 1 }] : [];
+  const chats = s.chats.some((c) => c.otherId === other) ? s.chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, ...msgs] } : c)) : [{ id: other, otherId: other, messages: msgs, lastReadAt: 0, since: now }, ...s.chats];
+  return { me, friendIds, chats, granted };
+}
 /** 통과 판정을 할 수 있는 상태의 편지인지 */
 const inSky = (l: Letter) => l.status === 'flying';
+const grant = (inv: Inventory, g: Partial<Record<keyof Inventory, number>>): Inventory => ({ shield: inv.shield + (g.shield ?? 0), ufo: inv.ufo + (g.ufo ?? 0), orbit: inv.orbit + (g.orbit ?? 0), peek: inv.peek + (g.peek ?? 0), pull: inv.pull + (g.pull ?? 0), direct: inv.direct + (g.direct ?? 0), carpet: inv.carpet + (g.carpet ?? 0) });
 
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
-      onboarded: false, me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], instantRequests: [], notifications: [], passbys: [], scheduled: [],
+      onboarded: false, signedIn: false, tourDone: false, deviceId: uid(),
+      me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [],
       settings: DEFAULT_SETTINGS, lastTick: Date.now(), focusLetterId: null, focusPoint: null, permissions: { location: 'undetermined', backgroundLocation: 'undetermined', notifications: 'undetermined' }, backend: 'local',
 
-      completeOnboarding: (p) => {
-        const me: User = resetQuota({ ...get().me, ...p, lastActiveAt: Date.now(), createdAt: Date.now() });
+      enterAsGuest: (location) => {
+        const me: User = resetQuota({ ...get().me, location, avatar: pick(AVATARS), lastActiveAt: Date.now(), createdAt: Date.now(), auth: { provider: 'guest' } });
         const ts = get().settings.timeScale;
         const letters: Letter[] = [];
         const shuffled = [...BOTS].sort(() => Math.random() - 0.5);
@@ -136,8 +168,16 @@ export const useStore = create<State>()(
         }
         const posts = shuffled.slice(12, 40).map((b, i) => makeBotPost(b, me.location, Date.now() - i * rand(600_000, 7_200_000))).sort((a, b) => b.at - a.at);
         set({ onboarded: true, me, letters, posts, scheduled: [{ id: uid(), at: Date.now() + 30_000, type: 'bot_send', payload: {} }, { id: uid(), at: Date.now() + 90_000, type: 'bot_post', payload: {} }],
-          notifications: [notif('system', '환영해요 🌍', '첫 편지는 걸어서 갑니다. 친구가 늘수록 더 빠른 배달원을 쓸 수 있어요.')] });
+          notifications: [notif('system', '환영해요 🌍', '머리 위로 편지가 지나가면 잡아보세요. 첫 편지는 걸어서 갑니다.')] });
+        track('guest_enter', { city: location.city });
       },
+      signUp: (provider, profile, email) => {
+        const s = get();
+        const auth: Auth = { provider, email, signedUpAt: Date.now() };
+        set({ signedIn: true, me: { ...s.me, ...profile, auth }, notifications: [notif('system', `${profile.nickname} 님, 가입을 환영해요`, '이제 편지를 보내고 답장을 받을 수 있어요'), ...s.notifications] });
+        track('sign_up', { provider });
+      },
+      setTourDone: () => { set({ tourDone: true }); track('tour_done'); },
       updateProfile: (patch) => set((s) => ({ me: { ...s.me, ...patch } })),
       setLocation: (p) => set((s) => ({ me: { ...s.me, location: p } })),
       setSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -148,29 +188,52 @@ export const useStore = create<State>()(
 
       sendLetter: (input) => {
         const s = get();
-        const me = resetQuota(s.me);
+        if (!s.signedIn) return { error: '편지를 보내려면 가입이 필요해요' };
+        let me = resetQuota(s.me);
         const plan = PLAN_MAP[me.plan];
         const kind: LetterKind = input.kind ?? (input.replyToId ? 'reply' : 'letter');
-        if (kind === 'letter') {
+        if (kind === 'letter' && !input.direct) {
           const sentToday = s.letters.filter((l) => l.senderId === ME_ID && l.kind === 'letter' && new Date(l.departedAt).toDateString() === today()).length;
           if (sentToday >= plan.dailyLetters) return { error: `오늘 편지 ${plan.dailyLetters}통을 다 썼어요. 플러스로 업그레이드하면 더 보낼 수 있어요.` };
         }
-        const ts = s.settings.timeScale;
-        const destPt = input.destination ?? randomLandPoint();
-        const destination = describePlace(destPt);
-        const waypoints = input.waypoints ?? [];
-        const fl = planFlight(me.location, destPt, waypoints, input.vehicle, ts);
-        const now = Date.now();
         const v = VEHICLE_MAP[input.vehicle];
         const inv: Inventory = { ...me.inventory };
-        const shield = v.builtInShield || (input.useShield && inv.shield > 0);
-        if (!v.builtInShield && shield) inv.shield -= 1;
-        if (v.premiumItem === 'ufo') inv.ufo = Math.max(0, inv.ufo - 1);
-        if (v.premiumItem === 'orbit') inv.orbit = Math.max(0, inv.orbit - 1);
-        if (v.premiumItem === 'carpet' && me.plan !== 'pro') inv.carpet = Math.max(0, inv.carpet - 1);
-        const letter = baseLetter({ kind, senderId: ME_ID, recipientId: input.recipientId, replyToId: input.replyToId, friendRequest: input.friendRequest, text: input.text, imageUri: input.imageUri, origin: me.location, destination, randomDestination: !input.destination, waypoints, vehicle: input.vehicle, shield, target: input.target, isPublic: input.isPublic, departedAt: now, arrivesAt: now + fl.durationMs, distanceKm: fl.distanceKm, stamp: me.location.city });
+        let coins = me.coins;
+        // 대여: 잠긴 배달원을 코인으로 1회
+        const unlocked = vehicleUnlocked(v, s.friendIds.length, inv, me.plan);
+        let rented = false;
+        if (!unlocked) {
+          if (!input.rent || v.premiumItem === 'event') return { error: '아직 해금되지 않은 배달원이에요' };
+          const price = discounted(rentalCoins(v.speedKmh), me.plan);
+          if (coins < price) return { error: `대여에 ${price} SC가 필요해요` };
+          coins -= price; rented = true;
+        }
+        // 직행 편지: 월 한도(프로) → 보유권 → 코인
+        if (input.direct) {
+          if (!input.recipientId) return { error: '받는 사람이 필요해요' };
+          if (me.quota.direct < plan.monthlyDirect) me = { ...me, quota: { ...me.quota, direct: me.quota.direct + 1 } };
+          else if (inv.direct > 0) inv.direct -= 1;
+          else if (coins >= ITEM_MAP.direct1.coins) coins -= ITEM_MAP.direct1.coins;
+          else return { error: `직행 편지에 ${ITEM_MAP.direct1.coins} SC가 필요해요` };
+        }
+        const ts = s.settings.timeScale;
+        const recipient = input.recipientId ? BOT_BY_ID[input.recipientId] : undefined;
+        const destPt = input.direct && recipient ? recipient.location : input.destination ?? randomLandPoint();
+        const destination = describePlace(destPt);
+        const waypoints = input.direct ? [] : input.waypoints ?? [];
+        const fl = planFlight(me.location, destPt, waypoints, input.vehicle, ts);
+        const now = Date.now();
+        const shield = v.builtInShield || input.direct || (input.useShield && inv.shield > 0);
+        if (!v.builtInShield && !input.direct && shield) inv.shield -= 1;
+        if (!rented) {
+          if (v.premiumItem === 'ufo') inv.ufo = Math.max(0, inv.ufo - 1);
+          if (v.premiumItem === 'orbit') inv.orbit = Math.max(0, inv.orbit - 1);
+          if (v.premiumItem === 'carpet' && me.plan !== 'pro') inv.carpet = Math.max(0, inv.carpet - 1);
+        }
+        const letter = baseLetter({ kind, senderId: ME_ID, recipientId: input.recipientId, replyToId: input.replyToId, friendRequest: input.friendRequest, direct: input.direct || undefined, rented: rented || undefined, text: input.text, imageUri: input.imageUri, origin: me.location, destination, randomDestination: !input.destination && !input.direct, waypoints, vehicle: input.vehicle, shield, target: input.direct ? {} : input.target, isPublic: input.isPublic, departedAt: now, arrivesAt: now + fl.durationMs, distanceKm: fl.distanceKm, stamp: me.location.city,
+          events: [{ type: 'departed', at: now, place: me.location.city }, ...(rented ? [{ type: 'rented' as const, at: now, by: ME_ID }] : [])] });
         const sched: ScheduledEvent[] = [];
-        if (kind === 'letter') {
+        if (kind === 'letter' && !input.direct) {
           const candidates = BOTS.filter((b) => matchesTarget(b, input.target));
           const nearDest = candidates.map((b) => ({ b, d: distanceKm(b.location, destPt) })).sort((x, y) => x.d - y.d);
           const catcher = nearDest[0] && (nearDest[0].d < 2500 || Math.random() < 0.35) ? nearDest[0].b : null;
@@ -178,12 +241,14 @@ export const useStore = create<State>()(
           if (!v.immune && Math.random() < 0.15) sched.push({ id: uid(), at: now + fl.durationMs * rand(0.3, 0.7), type: 'bot_mischief', payload: { letterId: letter.id, botId: pick(BOTS).id } });
         }
         let posts = s.posts;
-        if (input.isPublic && kind === 'letter') {
+        if (input.isPublic && kind === 'letter' && !input.direct) {
           posts = [{ id: uid(), letterId: letter.id, authorId: ME_ID, text: input.text, imageUri: input.imageUri, city: me.location.city, country: me.location.country, stamp: me.location.city, vehicle: input.vehicle, at: now, likes: 0, likedByMe: false, distanceKm: Math.round(fl.distanceKm), comments: [], shareToStory: !!input.shareToStory }, ...s.posts];
           sched.push({ id: uid(), at: now + rand(20_000, 90_000), type: 'bot_like', payload: { postId: posts[0].id } });
           if (Math.random() < 0.7) sched.push({ id: uid(), at: now + rand(40_000, 120_000), type: 'bot_comment', payload: { postId: posts[0].id } });
         }
-        set({ letters: [letter, ...s.letters], scheduled: [...s.scheduled, ...sched], posts, me: { ...me, inventory: inv, coins: me.coins + COIN_REWARDS.send, stats: { ...me.stats, sent: me.stats.sent + 1, distanceKm: me.stats.distanceKm + Math.round(fl.distanceKm) } }, focusLetterId: letter.id });
+        me = earn({ ...me, inventory: inv, coins, stats: { ...me.stats, sent: me.stats.sent + 1, distanceKm: me.stats.distanceKm + Math.round(fl.distanceKm) } }, COIN_REWARDS.send);
+        set({ letters: [letter, ...s.letters], scheduled: [...s.scheduled, ...sched], posts, me, focusLetterId: letter.id, revealedIds: input.direct && input.recipientId && !s.revealedIds.includes(input.recipientId) ? [...s.revealedIds, input.recipientId] : s.revealedIds });
+        track('letter_send', { kind, vehicle: input.vehicle, direct: !!input.direct, rented, km: Math.round(fl.distanceKm), shield });
         return letter;
       },
 
@@ -195,13 +260,15 @@ export const useStore = create<State>()(
         const place = s.me.location.city;
         const updated: Letter = { ...letter, status: 'caught', caughtBy: ME_ID, caughtAt: now, catchPlace: place, events: [...letter.events, { type: 'caught', at: now, by: ME_ID, place }] };
         const stamps = s.me.stamps.includes(letter.stamp) ? s.me.stamps : [...s.me.stamps, letter.stamp];
+        const me = earn({ ...s.me, stamps, stats: { ...s.me.stats, caught: s.me.stats.caught + 1, received: s.me.stats.received + 1 } }, COIN_REWARDS.catch);
         set({
           letters: s.letters.map((l) => (l.id === letterId ? updated : l)),
           passbys: s.passbys.map((p) => (p.letterId === letterId ? { ...p, resolved: 'caught' } : p)),
           revealedIds: s.revealedIds.includes(letter.senderId) ? s.revealedIds : [...s.revealedIds, letter.senderId],
-          me: { ...s.me, stamps, coins: s.me.coins + COIN_REWARDS.catch, stats: { ...s.me.stats, caught: s.me.stats.caught + 1 } },
-          notifications: [notif('reward', `+${COIN_REWARDS.catch} 코인`, `${letter.stamp}에서 온 편지를 잡았어요. 보낸 사람의 프로필을 보고 답장해보세요`, `/letter/${letter.id}`), ...s.notifications],
+          me,
+          notifications: [notif('reward', `+${COIN_REWARDS.catch} SC`, `${letter.stamp}에서 온 편지를 잡았어요. 보낸 사람의 프로필을 보고 답장해보세요`, `/letter/${letter.id}`), ...s.notifications],
         });
+        track('letter_catch', { vehicle: letter.vehicle, from: letter.origin.country });
         return updated;
       },
 
@@ -221,6 +288,7 @@ export const useStore = create<State>()(
         else if (inv.peek > 0) inv = { ...inv, peek: inv.peek - 1 };
         else return 'quota';
         set({ me: { ...me, inventory: inv, quota }, passbys: s.passbys.map((p) => (p.id === pb.id ? { ...p, peeked: true } : p)), letters: s.letters.map((x) => (x.id === letterId ? { ...x, peekedBy: [...x.peekedBy, ME_ID], events: [...x.events, { type: 'peeked', at: Date.now(), by: ME_ID, place: me.location.city }] } : x)) });
+        track('letter_peek', { vehicle: l.vehicle });
         return 'done';
       },
 
@@ -253,6 +321,7 @@ export const useStore = create<State>()(
           focusLetterId: letterId,
           notifications: [notif('system', '🧲 편지를 끌어왔어요', '내 위치에 도착하면 알림이 와요. 그때 집어가세요', `/letter/${letterId}`), ...s.notifications],
         });
+        track('letter_pull', { vehicle: l.vehicle });
         return 'done';
       },
 
@@ -267,7 +336,8 @@ export const useStore = create<State>()(
         if (v.immune || (action === 'sunk' && v.immuneOcean)) { set({ passbys: resolvePb('defended') }); return 'immune'; }
         if (l.shield) { set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, shield: false, events: [...x.events, { type: 'defended', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('defended') }); return 'defended'; }
         const patch: Partial<Letter> = action === 'sunk' ? { status: 'sunk', sunkAt: now, sunkUntil: now + sunkMs(l.vehicle, s.settings.timeScale) } : { status: action };
-        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...patch, events: [...x.events, { type: action, at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb(action), me: { ...s.me, coins: s.me.coins + COIN_REWARDS.mischief } });
+        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...patch, events: [...x.events, { type: action, at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb(action), me: earn(s.me, COIN_REWARDS.mischief) });
+        track('letter_mischief', { action, vehicle: l.vehicle });
         return 'done';
       },
 
@@ -282,7 +352,8 @@ export const useStore = create<State>()(
         if (VEHICLE_MAP[l.vehicle].immune) { set({ passbys: resolvePb('defended') }); return 'immune'; }
         if (l.shield) { set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, shield: false, events: [...x.events, { type: 'defended', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('defended') }); return 'defended'; }
         const patch = rerouteThrough(l, now, waypoints, s.settings.timeScale);
-        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...patch, redirects: x.redirects + 1, events: [...x.events, { type: 'rerouted', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('rerouted'), me: { ...s.me, coins: s.me.coins + COIN_REWARDS.mischief }, focusLetterId: letterId });
+        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...patch, redirects: x.redirects + 1, events: [...x.events, { type: 'rerouted', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('rerouted'), me: earn(s.me, COIN_REWARDS.mischief), focusLetterId: letterId });
+        track('letter_mischief', { action: 'rerouted', waypoints: waypoints.length });
         return 'done';
       },
 
@@ -296,7 +367,8 @@ export const useStore = create<State>()(
         const resolvePb = (r: Passby['resolved']) => s.passbys.map((p) => (p.letterId === letterId ? { ...p, resolved: r } : p));
         if (v.immune || v.immuneSnail) { set({ passbys: resolvePb('defended') }); return 'immune'; }
         if (l.shield) { set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, shield: false, events: [...x.events, { type: 'defended', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('defended') }); return 'defended'; }
-        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...applySnail(x, now), events: [...x.events, { type: 'snail', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('snail'), me: { ...s.me, coins: s.me.coins + COIN_REWARDS.mischief } });
+        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...applySnail(x, now), events: [...x.events, { type: 'snail', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('snail'), me: earn(s.me, COIN_REWARDS.mischief) });
+        track('letter_mischief', { action: 'snail' });
         return 'done';
       },
 
@@ -307,75 +379,43 @@ export const useStore = create<State>()(
         if (s.me.coins < OCEAN_RESCUE_COINS) return 'nofunds';
         const now = Date.now();
         set({ me: { ...s.me, coins: s.me.coins - OCEAN_RESCUE_COINS }, letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...resurface(x, now), status: 'flying', sunkAt: undefined, sunkUntil: undefined, events: [...x.events, { type: 'rescued', at: now, by: ME_ID }] } : x)), focusLetterId: letterId });
+        track('coin_spend', { on: 'rescue', coins: OCEAN_RESCUE_COINS });
+        return 'done';
+      },
+
+      boostReply: (letterId, tier) => {
+        // 내게 오는 답장을 코인으로 가속 — 상대 배달원이 느릴 때 유료 유저의 선택지
+        const s = get();
+        const l = s.letters.find((x) => x.id === letterId);
+        if (!l || l.recipientId !== ME_ID || l.status !== 'flying') return 'gone';
+        if (l.boost === 'instant' || (l.boost === 'fast' && tier === 'fast')) return 'limit';
+        const price = discounted(REPLY_BOOST[tier].coins, s.me.plan);
+        if (s.me.coins < price) return 'nofunds';
+        const now = Date.now();
+        const remaining = tier === 'instant' ? REPLY_BOOST.instant.seconds * 1000 : Math.max(5_000, (l.arrivesAt - now) / REPLY_BOOST.fast.factor);
+        set({ me: { ...s.me, coins: s.me.coins - price }, letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...speedUp(x, now, remaining), boost: tier, events: [...x.events, { type: 'boosted', at: now, by: ME_ID }] } : x)), focusLetterId: letterId,
+          notifications: [notif('boost', tier === 'instant' ? '⚡ 답장이 1분 안에 도착해요' : '⚡ 답장이 4배 빨라졌어요', `${price} SC 사용`, `/letter/${letterId}`), ...s.notifications] });
+        track('coin_spend', { on: `boost_${tier}`, coins: price });
         return 'done';
       },
 
       dismissPassby: (id) => set((s) => ({ passbys: s.passbys.map((p) => (p.id === id && !p.resolved ? { ...p, resolved: 'missed' } : p)) })),
 
-      acceptReply: (letterId) => {
-        // 내게 온 답장(kind reply)을 수락 → 수락 편지(kind accept)가 상대에게 출발. 도착하면 상대가 확정.
+      approveReply: (letterId) => {
+        // 도착한 답장(kind reply)을 수락 → 친구 + 채팅. 왕복(내 편지 → 상대 답장)이 끝난 뒤에만 가능.
         const s = get();
         const r = s.letters.find((x) => x.id === letterId);
         if (!r || r.kind !== 'reply' || r.recipientId !== ME_ID || r.status !== 'delivered') return;
         const other = r.senderId;
-        const plan = PLAN_MAP[s.me.plan];
-        const bot = BOT_BY_ID[other];
-        const dest = bot ? bot.location : r.origin;
-        const vehicle = plan.acceptDelivery === 'normal' ? bestVehicle(s.friendIds.length, s.me.inventory, s.me.plan) : fastestOwned(s.friendIds.length, s.me.inventory, s.me.plan);
-        const fl = planFlight(s.me.location, dest, [], vehicle, s.settings.timeScale);
         const now = Date.now();
-        const arrivesAt = plan.acceptDelivery === 'instant' ? now + 1500 : now + fl.durationMs;
-        const k = baseLetter({ kind: 'accept', senderId: ME_ID, recipientId: other, replyToId: r.id, friendRequest: true, text: '답장 잘 읽었어요. 친구가 되고 싶어요 — 이 편지가 도착하면 확정해주세요.', origin: s.me.location, destination: dest, vehicle, departedAt: now, arrivesAt, distanceKm: fl.distanceKm, stamp: s.me.location.city });
-        set({ letters: [k, ...s.letters.map((x) => (x.id === r.id ? { ...x, status: 'approved' as const, events: [...x.events, { type: 'approved' as const, at: now, by: ME_ID }] } : x))], focusLetterId: k.id,
-          notifications: [notif('accept', '✅ 수락 편지가 출발했어요', plan.acceptDelivery === 'instant' ? '프로: 즉시 전달 · 상대가 확정하면 친구' : `${VEHICLE_MAP[vehicle].name}로 가는 중 · 상대가 확정하면 친구`, `/letter/${k.id}`), ...s.notifications] });
-        return k;
-      },
-
-      confirmAccept: (letterId) => {
-        // 내게 온 수락 편지(kind accept)를 확정 → 친구 + 채팅
-        const s = get();
-        const k = s.letters.find((x) => x.id === letterId);
-        if (!k || k.kind !== 'accept' || k.recipientId !== ME_ID || k.status !== 'delivered') return;
-        const other = k.senderId;
-        const now = Date.now();
-        const friendIds = s.friendIds.includes(other) ? s.friendIds : [...s.friendIds, other];
-        const { me, granted } = friendMilestone({ ...s.me, coins: s.me.coins + COIN_REWARDS.friend }, friendIds.length);
         const bot = BOT_BY_ID[other];
-        const hello = bot ? [{ id: uid(), senderId: other, text: fill(pick(BOT_GREETINGS), bot), at: now + 1 }] : [];
-        const chats = s.chats.some((c) => c.otherId === other) ? s.chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, ...hello] } : c)) : [{ id: other, otherId: other, messages: hello, lastReadAt: 0, since: now }, ...s.chats];
-        const noti = [notif('approved', `🤝 ${bot?.nickname ?? '???'} 님과 친구가 됐어요`, `왕복 완료 · 지연 없는 실시간 채팅 · +${COIN_REWARDS.friend} 코인`, `/chat/${other}`)];
+        const { me, friendIds, chats, granted } = addFriend(s, other, now, bot ? fill(pick(BOT_GREETINGS), bot) : undefined);
+        const noti = [notif('approved', `🤝 ${bot?.nickname ?? '???'} 님과 친구가 됐어요`, `왕복 완료 · 지연 없는 실시간 채팅 · +${COIN_REWARDS.friend} SC`, `/chat/${other}`)];
         if (granted) noti.push(notif('reward', `🛡️ 방어권 +${granted}`, `친구 ${friendIds.length}명 달성 보너스`));
-        set({ letters: s.letters.map((x) => (x.id === letterId || x.id === k.replyToId ? { ...x, status: 'approved', events: [...x.events, { type: 'approved', at: now, by: ME_ID }] } : x)), friendIds, chats, me, notifications: [...noti, ...s.notifications] });
+        set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'approved', events: [...x.events, { type: 'approved', at: now, by: ME_ID }] } : x)), friendIds, chats, me, notifications: [...noti, ...s.notifications] });
+        track('reply_approve', { friends: friendIds.length });
       },
-
-      declineLetter: (letterId) => set((s) => ({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'declined', events: [...x.events, { type: 'declined', at: Date.now(), by: ME_ID }] } : x)) })),
-
-      requestInstantFriend: (toId) => {
-        const s = get();
-        const me = resetQuota(s.me);
-        if (s.friendIds.includes(toId) || s.instantRequests.some((r) => r.toId === toId && r.status === 'pending')) return 'limit';
-        const plan = PLAN_MAP[me.plan];
-        const month = new Date().toISOString().slice(0, 7);
-        let inv = me.inventory; let quota = me.quota;
-        const monthlyUsed = s.instantRequests.filter((r) => r.fromId === ME_ID && new Date(r.at).toISOString().slice(0, 7) === month && r.status !== 'refunded').length;
-        if (monthlyUsed < plan.monthlyInstant) quota = { ...quota };
-        else if (inv.instant > 0) inv = { ...inv, instant: inv.instant - 1 };
-        else return 'quota';
-        const req: InstantRequest = { id: uid(), fromId: ME_ID, toId, status: 'pending', at: Date.now() };
-        const sched = BOT_BY_ID[toId] ? [{ id: uid(), at: Date.now() + rand(8_000, 30_000), type: 'bot_instant_answer' as const, payload: { requestId: req.id } }] : [];
-        set({ me: { ...me, inventory: inv, quota }, instantRequests: [req, ...s.instantRequests], scheduled: [...s.scheduled, ...sched], revealedIds: s.revealedIds.includes(toId) ? s.revealedIds : [...s.revealedIds, toId] });
-        return 'done';
-      },
-      answerInstant: (id, accept) => {
-        const s = get();
-        const req = s.instantRequests.find((r) => r.id === id);
-        if (!req) return;
-        if (!accept) { set({ instantRequests: s.instantRequests.map((r) => (r.id === id ? { ...r, status: 'declined' } : r)) }); return; }
-        const other = req.fromId === ME_ID ? req.toId : req.fromId;
-        const friendIds = s.friendIds.includes(other) ? s.friendIds : [...s.friendIds, other];
-        const { me } = friendMilestone({ ...s.me, coins: s.me.coins + COIN_REWARDS.friend }, friendIds.length);
-        set({ instantRequests: s.instantRequests.map((r) => (r.id === id ? { ...r, status: 'accepted' } : r)), friendIds, me, chats: s.chats.some((c) => c.otherId === other) ? s.chats : [{ id: other, otherId: other, messages: [], lastReadAt: 0, since: Date.now() }, ...s.chats] });
-      },
+      declineLetter: (letterId) => { set((s) => ({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'declined', events: [...x.events, { type: 'declined', at: Date.now(), by: ME_ID }] } : x)) })); track('reply_decline'); },
 
       sendMessage: (otherId, text) => {
         const s = get();
@@ -385,18 +425,20 @@ export const useStore = create<State>()(
         const chats = s.chats.some((c) => c.otherId === otherId) ? s.chats.map((c) => (c.otherId === otherId ? updated : c)) : [updated, ...s.chats];
         const sched = BOT_BY_ID[otherId] ? [...s.scheduled, { id: uid(), at: Date.now() + rand(2_500, 9_000), type: 'bot_chat' as const, payload: { botId: otherId } }] : s.scheduled;
         set({ chats, scheduled: sched });
+        track('chat_send', { len: text.length });
         return true;
       },
       markChatRead: (otherId) => set((s) => ({ chats: s.chats.map((c) => (c.otherId === otherId ? { ...c, lastReadAt: Date.now() } : c)) })),
       markNotificationsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
 
-      likePost: (postId) => set((s) => ({ posts: s.posts.map((p) => (p.id === postId ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) } : p)) })),
+      likePost: (postId) => { set((s) => ({ posts: s.posts.map((p) => (p.id === postId ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) } : p)) })); track('post_like'); },
       commentPost: (postId, text) => {
         const s = get();
         const post = s.posts.find((p) => p.id === postId);
         if (!post || !text.trim()) return;
         const sched = post.authorId !== ME_ID && Math.random() < 0.6 ? [...s.scheduled, { id: uid(), at: Date.now() + rand(8_000, 40_000), type: 'bot_comment' as const, payload: { postId, botId: post.authorId } }] : s.scheduled;
-        set({ posts: s.posts.map((p) => (p.id === postId ? { ...p, comments: [...p.comments, { id: uid(), authorId: ME_ID, text: text.trim(), at: Date.now() }] } : p)), scheduled: sched, me: { ...s.me, coins: s.me.coins + COIN_REWARDS.comment } });
+        set({ posts: s.posts.map((p) => (p.id === postId ? { ...p, comments: [...p.comments, { id: uid(), authorId: ME_ID, text: text.trim(), at: Date.now() }] } : p)), scheduled: sched, me: earn(s.me, COIN_REWARDS.comment) });
+        track('post_comment');
       },
       publishPost: (letterId, shareToStory) => {
         const s = get();
@@ -404,30 +446,32 @@ export const useStore = create<State>()(
         if (!l || s.posts.some((p) => p.letterId === letterId)) return;
         const post: Post = { id: uid(), letterId, authorId: l.senderId, text: l.text, imageUri: l.imageUri, city: l.origin.city, country: l.origin.country, stamp: l.stamp, vehicle: l.vehicle, at: Date.now(), likes: 0, likedByMe: false, distanceKm: Math.round(l.distanceKm), comments: [], shareToStory };
         set({ posts: [post, ...s.posts], letters: s.letters.map((x) => (x.id === letterId ? { ...x, isPublic: true } : x)), scheduled: [...s.scheduled, { id: uid(), at: Date.now() + rand(15_000, 60_000), type: 'bot_like', payload: { postId: post.id } }] });
+        track('post_publish', { story: shareToStory });
       },
       setPostStory: (postId, on) => set((s) => ({ posts: s.posts.map((p) => (p.id === postId ? { ...p, shareToStory: on } : p)) })),
 
-      buyWithCoins: (productId) => {
+      buyItem: (itemId) => {
         const s = get();
-        const p = PRODUCTS.find((x) => x.id === productId);
-        if (!p || !p.coins || s.me.coins < p.coins) return false;
-        const g = p.grants;
-        set({ me: { ...s.me, coins: s.me.coins - p.coins, inventory: { ...s.me.inventory, shield: s.me.inventory.shield + (g.shield ?? 0), ufo: s.me.inventory.ufo + (g.ufo ?? 0), orbit: s.me.inventory.orbit + (g.orbit ?? 0), peek: s.me.inventory.peek + (g.peek ?? 0), pull: s.me.inventory.pull + (g.pull ?? 0), instant: s.me.inventory.instant + (g.instant ?? 0) } } });
+        const it = ITEM_MAP[itemId];
+        if (!it || s.me.coins < it.coins) return false;
+        set({ me: { ...s.me, coins: s.me.coins - it.coins, inventory: grant(s.me.inventory, it.grants) } });
+        track('coin_spend', { on: itemId, coins: it.coins });
         return true;
       },
-      applyPurchase: (productId) => {
+      applyPack: (packId) => {
         const s = get();
-        const p = PRODUCTS.find((x) => x.id === productId);
+        const p = PACK_MAP[packId];
         if (!p) return;
-        const g = p.grants;
-        set({ me: { ...s.me, coins: s.me.coins + (g.coins ?? 0), inventory: { ...s.me.inventory, shield: s.me.inventory.shield + (g.shield ?? 0), ufo: s.me.inventory.ufo + (g.ufo ?? 0), orbit: s.me.inventory.orbit + (g.orbit ?? 0), peek: s.me.inventory.peek + (g.peek ?? 0), pull: s.me.inventory.pull + (g.pull ?? 0), instant: s.me.inventory.instant + (g.instant ?? 0) } }, notifications: [notif('reward', `${p.emoji} ${p.name} 구매 완료`, p.desc), ...s.notifications] });
+        set({ me: { ...s.me, coins: s.me.coins + p.coins }, notifications: [notif('reward', `${p.coins.toLocaleString('ko-KR')} SC 충전 완료`, p.bonusPct ? `보너스 ${p.bonusPct}% 포함` : '썸원코인이 채워졌어요'), ...s.notifications] });
+        track('purchase', { pack: packId, krw: p.priceKrw, coins: p.coins });
       },
       setPlan: (plan, expiresAt) => {
         const s = get();
         const P = PLAN_MAP[plan];
         const upgrade = plan !== 'free' && plan !== s.me.plan;
-        set({ me: { ...s.me, plan, planExpiresAt: expiresAt, inventory: upgrade ? { ...s.me.inventory, shield: s.me.inventory.shield + P.monthlyShields, ufo: s.me.inventory.ufo + P.monthlyUfo, orbit: s.me.inventory.orbit + P.monthlyOrbit } : s.me.inventory },
-          notifications: upgrade ? [notif('reward', `${P.badge ?? ''} ${P.name} 시작!`, `방어권 ${P.monthlyShields}${P.monthlyUfo ? ` · UFO ${P.monthlyUfo}` : ''}${P.monthlyOrbit ? ` · 위성 ${P.monthlyOrbit}` : ''} · 엿보기 ${P.dailyPeeks}/일 · 끌어오기 ${P.dailyPulls}/일 · 경유지 ${P.maxWaypoints}`), ...s.notifications] : s.notifications });
+        set({ me: { ...s.me, plan, planExpiresAt: expiresAt, coins: s.me.coins + (upgrade ? P.monthlyCoins : 0), inventory: upgrade ? grant(s.me.inventory, { shield: P.monthlyShields, ufo: P.monthlyUfo, orbit: P.monthlyOrbit }) : s.me.inventory },
+          notifications: upgrade ? [notif('reward', `${P.badge ?? ''} ${P.name} 시작!`, `${P.monthlyCoins} SC · 방어권 ${P.monthlyShields}${P.monthlyUfo ? ` · UFO ${P.monthlyUfo}` : ''}${P.monthlyOrbit ? ` · 위성 ${P.monthlyOrbit}` : ''} · 엿보기 ${P.dailyPeeks}/일 · 끌어오기 ${P.dailyPulls}/일 · 경유지 ${P.maxWaypoints}`), ...s.notifications] : s.notifications });
+        if (upgrade) track('purchase', { plan, krw: P.monthlyKrw });
       },
 
       tick: (now) => {
@@ -435,7 +479,7 @@ export const useStore = create<State>()(
         if (!s.onboarded) return;
         const prev = s.lastTick;
         const local = s.backend === 'local';
-        let { letters, passbys, notifications, chats, friendIds, revealedIds, scheduled, posts, instantRequests } = s;
+        let { letters, passbys, notifications, chats, friendIds, revealedIds, scheduled, posts } = s;
         let me = resetQuota(s.me);
         let changed = me !== s.me;
         const pushes: { title: string; body: string; route?: string }[] = [];
@@ -459,12 +503,14 @@ export const useStore = create<State>()(
             if (l.recipientId) {
               if (l.recipientId === ME_ID) {
                 if (!revealedIds.includes(l.senderId)) revealedIds = [...revealedIds, l.senderId];
-                const isAccept = l.kind === 'accept';
-                nf(notif(isAccept ? 'accept' : 'reply', isAccept ? '📬 수락 편지가 도착했어요' : '📬 답장이 도착했어요', isAccept ? '확정하면 친구가 되고 실시간 채팅이 열려요' : `${l.origin.city}에서 온 답장. 프로필을 보고 수락해보세요`, `/letter/${l.id}`));
-                pushes.push({ title: isAccept ? '📬 수락 편지가 도착했어요' : '📬 답장이 도착했어요', body: isAccept ? '확정하면 친구' : '프로필을 보고 수락', route: `/letter/${l.id}` });
+                me = earn({ ...me, stats: { ...me.stats, received: me.stats.received + 1 } }, COIN_REWARDS.received);
+                const isReply = l.kind === 'reply';
+                nf(notif(isReply ? 'reply' : 'direct', isReply ? '📬 답장이 도착했어요' : '📬 직행 편지가 도착했어요', isReply ? `${l.origin.city}에서 온 답장. 수락하면 친구가 되고 실시간 채팅이 열려요` : `${l.origin.city}에서 누군가 나에게 직접 보냈어요`, `/letter/${l.id}`));
+                pushes.push({ title: isReply ? '📬 답장이 도착했어요' : '📬 직행 편지가 도착했어요', body: isReply ? '수락하면 친구' : '읽고 답장해보세요', route: `/letter/${l.id}` });
               } else if (local && BOT_BY_ID[l.recipientId]) {
-                scheduled = [...scheduled, { id: uid(), at: now + rand(10_000, 40_000), type: l.kind === 'accept' ? 'bot_confirm' : 'bot_accept', payload: { letterId: l.id } }];
-                nf(notif('landed', `📬 ${l.kind === 'accept' ? '수락 편지' : '답장'}이 ${l.destination.city}에 도착`, l.kind === 'accept' ? '상대가 확정하면 친구가 돼요' : '상대가 수락하면 수락 편지가 돌아와요', `/letter/${l.id}`));
+                // 봇에게 도착: 내 답장이면 봇이 수락(90%) → 친구 / 내 직행 편지면 봇이 답장(80%)
+                scheduled = [...scheduled, { id: uid(), at: now + rand(10_000, 40_000), type: l.kind === 'reply' ? 'bot_approve' : 'bot_reply', payload: l.kind === 'reply' ? { letterId: l.id } : { botId: l.recipientId, letterId: l.id, direct: true } }];
+                nf(notif('landed', `📬 ${l.kind === 'reply' ? '답장' : '직행 편지'}이 ${l.destination.city}에 도착`, l.kind === 'reply' ? '상대가 수락하면 친구가 돼요' : '상대가 답장하면 우편함에 와요', `/letter/${l.id}`));
               }
               return { ...l, status: 'delivered', landedAt: now, events: [...l.events, { type: 'delivered', at: now, place: l.destination.city }] };
             }
@@ -486,7 +532,7 @@ export const useStore = create<State>()(
           return l;
         });
 
-        // 2) 통과 판정
+        // 2) 통과 판정 (직행·수신자 지정 편지는 통과 없음)
         for (const l of letters) {
           if (!inSky(l) || l.senderId === ME_ID || l.recipientId) continue;
           if (passbys.some((p) => p.letterId === l.id)) continue;
@@ -524,7 +570,7 @@ export const useStore = create<State>()(
                 const post = posts.find((p) => p.id === e.payload.postId);
                 if (post) {
                   posts = posts.map((p) => (p.id === post.id ? { ...p, likes: p.likes + 1 } : p));
-                  me = { ...me, coins: me.coins + COIN_REWARDS.like, stats: { ...me.stats, likes: me.stats.likes + 1 } };
+                  me = earn({ ...me, stats: { ...me.stats, likes: me.stats.likes + 1 } }, COIN_REWARDS.like);
                   nf(notif('like', '❤️ 누군가 내 엽서를 좋아해요', post.text.slice(0, 40), `/post/${post.id}`));
                   if (Math.random() < 0.5) scheduled.push({ id: uid(), at: now + rand(30_000, 120_000), type: 'bot_like', payload: { postId: post.id } });
                 }
@@ -546,69 +592,36 @@ export const useStore = create<State>()(
                 letters = letters.map((x) => (x.id === l.id ? { ...x, status: 'caught', caughtBy: bot.id, caughtAt: now, catchPlace: bot.location.city, events: [...x.events, { type: 'caught', at: now, by: bot.id, place: bot.location.city }] } : x));
                 nf(notif('caught', `🎉 ${bot.location.city}에서 누군가 내 편지를 잡았어요`, '답장이 오면 프로필을 보고 수락해보세요', `/letter/${l.id}`));
                 pushes.push({ title: `🎉 ${bot.location.city}에서 누군가 내 편지를 잡았어요`, body: '곧 답장이 날아올지도', route: `/letter/${l.id}` });
-                me = { ...me, coins: me.coins + COIN_REWARDS.caughtByOther };
+                me = earn(me, COIN_REWARDS.caughtByOther);
                 if (Math.random() < 0.75 && !friendIds.includes(bot.id)) scheduled.push({ id: uid(), at: now + rand(10_000, 40_000), type: 'bot_reply', payload: { botId: bot.id, letterId: l.id } });
                 break;
               }
               case 'bot_reply': {
+                // 봇이 답장 — 봇의 배달원은 봇의 해금 수준(느릴 수 있음). 받는 나는 코인으로 가속할 수 있다.
                 const bot = BOT_BY_ID[e.payload.botId];
                 if (!bot || friendIds.includes(bot.id)) break;
-                const km = distanceKm(bot.location, me.location);
-                const vehicle = replyVehicleFor(km);
+                if (e.payload.direct && Math.random() < 0.2) { nf(notif('system', `😶 ${bot.nickname} 님은 아직 답장이 없어요`, '직행 편지는 도착까지만 보장돼요', `/letter/${e.payload.letterId}`)); break; }
+                const vehicle = replyVehicleFor(bot);
                 const fl = planFlight(bot.location, me.location, [], vehicle, s.settings.timeScale);
                 const reply = baseLetter({ kind: 'reply', senderId: bot.id, recipientId: ME_ID, replyToId: e.payload.letterId, friendRequest: true, text: pick(BOT_REPLIES_LETTER), origin: bot.location, destination: me.location, vehicle, shield: true, departedAt: now, arrivesAt: now + fl.durationMs, distanceKm: fl.distanceKm, stamp: bot.location.city });
                 letters = [reply, ...letters];
-                nf(notif('reply', `✉️ ${bot.location.city}에서 답장이 출발했어요`, `${VEHICLE_MAP[vehicle].name}로 오는 중 · 도착하면 수락할 수 있어요`, `/letter/${reply.id}`));
+                if (!revealedIds.includes(bot.id)) revealedIds = [...revealedIds, bot.id];
+                nf(notif('reply', `✉️ ${bot.location.city}에서 답장이 출발했어요`, `${VEHICLE_MAP[vehicle].name}로 오는 중 · 느리면 코인으로 가속할 수 있어요`, `/letter/${reply.id}`));
+                pushes.push({ title: '✉️ 답장이 출발했어요', body: `${VEHICLE_MAP[vehicle].name}로 오는 중`, route: `/letter/${reply.id}` });
                 break;
               }
-              case 'bot_accept': {
-                // 봇이 내 답장을 수락 → 수락 편지를 내게 보냄
+              case 'bot_approve': {
+                // 봇이 내 답장을 수락(90%) → 친구
                 const r = letters.find((x) => x.id === e.payload.letterId);
                 const bot = r ? BOT_BY_ID[r.recipientId ?? ''] : undefined;
                 if (!r || !bot || r.status !== 'delivered') break;
                 if (Math.random() < 0.1) { letters = letters.map((x) => (x.id === r.id ? { ...x, status: 'declined', events: [...x.events, { type: 'declined', at: now, by: bot.id }] } : x)); nf(notif('system', '😢 상대가 답장을 수락하지 않았어요', '다른 편지를 날려보세요', `/letter/${r.id}`)); break; }
-                const km = distanceKm(bot.location, me.location);
-                const vehicle = replyVehicleFor(km);
-                const fl = planFlight(bot.location, me.location, [], vehicle, s.settings.timeScale);
-                const k = baseLetter({ kind: 'accept', senderId: bot.id, recipientId: ME_ID, replyToId: r.id, friendRequest: true, text: pick(BOT_ACCEPT_LETTERS), origin: bot.location, destination: me.location, vehicle, shield: true, departedAt: now, arrivesAt: now + fl.durationMs, distanceKm: fl.distanceKm, stamp: bot.location.city });
-                letters = [k, ...letters.map((x) => (x.id === r.id ? { ...x, status: 'approved' as const, events: [...x.events, { type: 'approved' as const, at: now, by: bot.id }] } : x))];
-                nf(notif('accept', `✅ ${bot.location.city}에서 수락 편지가 출발했어요`, '도착하면 확정해서 친구가 되세요', `/letter/${k.id}`));
-                pushes.push({ title: '✅ 상대가 답장을 수락했어요', body: '수락 편지가 오는 중', route: `/letter/${k.id}` });
-                break;
-              }
-              case 'bot_confirm': {
-                // 봇이 내 수락 편지를 확정 → 친구
-                const k = letters.find((x) => x.id === e.payload.letterId);
-                const bot = k ? BOT_BY_ID[k.recipientId ?? ''] : undefined;
-                if (!k || !bot || k.status !== 'delivered') break;
-                if (!friendIds.includes(bot.id)) friendIds = [...friendIds, bot.id];
-                const ms = friendMilestone({ ...me, coins: me.coins + COIN_REWARDS.friend }, friendIds.length);
-                me = ms.me;
-                const hello = { id: uid(), senderId: bot.id, text: fill(pick(BOT_GREETINGS), bot), at: now };
-                chats = chats.some((c) => c.otherId === bot.id) ? chats.map((c) => (c.otherId === bot.id ? { ...c, messages: [...c.messages, hello] } : c)) : [{ id: bot.id, otherId: bot.id, messages: [hello], lastReadAt: 0, since: now }, ...chats];
-                letters = letters.map((x) => (x.id === k.id || x.id === k.replyToId ? { ...x, status: 'approved', events: [...x.events, { type: 'approved', at: now, by: bot.id }] } : x));
-                nf(notif('approved', `🤝 ${bot.nickname} 님과 친구가 됐어요`, `왕복 완료 · 실시간 채팅 · +${COIN_REWARDS.friend} 코인`, `/chat/${bot.id}`));
-                if (ms.granted) nf(notif('reward', `🛡️ 방어권 +${ms.granted}`, `친구 ${friendIds.length}명 달성 보너스`));
+                const res = addFriend({ me, friendIds, chats }, bot.id, now, fill(pick(BOT_GREETINGS), bot));
+                me = res.me; friendIds = res.friendIds; chats = res.chats;
+                letters = letters.map((x) => (x.id === r.id ? { ...x, status: 'approved', events: [...x.events, { type: 'approved', at: now, by: bot.id }] } : x));
+                nf(notif('approved', `🤝 ${bot.nickname} 님과 친구가 됐어요`, `왕복 완료 · 실시간 채팅 · +${COIN_REWARDS.friend} SC`, `/chat/${bot.id}`));
+                if (res.granted) nf(notif('reward', `🛡️ 방어권 +${res.granted}`, `친구 ${friendIds.length}명 달성 보너스`));
                 pushes.push({ title: `🤝 ${bot.nickname} 님과 친구가 됐어요`, body: '실시간 채팅이 열렸어요', route: `/chat/${bot.id}` });
-                break;
-              }
-              case 'bot_instant_answer': {
-                const req = instantRequests.find((r) => r.id === e.payload.requestId);
-                const bot = req ? BOT_BY_ID[req.toId] : undefined;
-                if (!req || !bot || req.status !== 'pending') break;
-                if (Math.random() < 0.8) {
-                  if (!friendIds.includes(bot.id)) friendIds = [...friendIds, bot.id];
-                  const ms = friendMilestone({ ...me, coins: me.coins + COIN_REWARDS.friend }, friendIds.length);
-                  me = ms.me;
-                  instantRequests = instantRequests.map((r) => (r.id === req.id ? { ...r, status: 'accepted' } : r));
-                  const hello = { id: uid(), senderId: bot.id, text: fill(pick(BOT_GREETINGS), bot), at: now };
-                  chats = chats.some((c) => c.otherId === bot.id) ? chats : [{ id: bot.id, otherId: bot.id, messages: [hello], lastReadAt: 0, since: now }, ...chats];
-                  nf(notif('instant', `⚡ ${bot.nickname} 님이 즉시 친구를 수락했어요`, '실시간 채팅이 열렸어요', `/chat/${bot.id}`));
-                } else {
-                  instantRequests = instantRequests.map((r) => (r.id === req.id ? { ...r, status: 'refunded' } : r));
-                  me = { ...me, inventory: { ...me.inventory, instant: me.inventory.instant + 1 } };
-                  nf(notif('instant', '⚡ 상대가 즉시 친구를 거절했어요', '즉시 친구권 1개를 돌려드렸어요', '/community'));
-                }
                 break;
               }
               case 'bot_chat': {
@@ -630,7 +643,7 @@ export const useStore = create<State>()(
                   nf(notif('defended', '🛡️ 방어권이 장난을 막았어요', `${bot.location.city}에서 누군가 편지를 건드렸지만 튕겨냈어요`, `/letter/${l.id}`));
                   pushes.push({ title: '🛡️ 방어권이 장난을 막았어요', body: '편지는 무사히 가는 중', route: `/letter/${l.id}` });
                 } else {
-                  const options = (['rerouted', 'snail', 'returned', 'sunk', 'space', 'pulled'] as const).filter((a) => !(a === 'sunk' && v.immuneOcean) && !(a === 'snail' && v.immuneSnail));
+                  const options = (['rerouted', 'snail', 'sunk', 'space', 'pulled'] as const).filter((a) => !(a === 'sunk' && v.immuneOcean) && !(a === 'snail' && v.immuneSnail));
                   const action = pick(options);
                   if (action === 'rerouted') {
                     const wp = destinationPoint(bot.location, Math.random() * 360, rand(200, 900));
@@ -646,10 +659,10 @@ export const useStore = create<State>()(
                     nf(notif('mischief', '🐌 내 편지에 달팽이가 붙었어요', `${SNAIL.durationMs / 60_000}분 동안 느려져요`, `/letter/${l.id}`));
                   } else if (action === 'sunk') {
                     letters = letters.map((x) => (x.id === l.id ? { ...x, status: 'sunk', sunkAt: now, sunkUntil: now + sunkMs(x.vehicle, s.settings.timeScale), events: [...x.events, { type: 'sunk', at: now, by: bot.id, place: bot.location.city }] } : x));
-                    nf(notif('sunk', '🌊 내 편지가 바다에 빠졌어요', `${Math.round(sunkMs(l.vehicle, s.settings.timeScale) / 60_000)}분 뒤 떠오르거나, 지금 건져낼 수 있어요 (${OCEAN_RESCUE_COINS}코인)`, `/letter/${l.id}`));
+                    nf(notif('sunk', '🌊 내 편지가 침수됐어요', `${Math.round(sunkMs(l.vehicle, s.settings.timeScale) / 60_000)}분 뒤 떠오르거나, 지금 건져낼 수 있어요 (${OCEAN_RESCUE_COINS} SC)`, `/letter/${l.id}`));
                   } else {
-                    letters = letters.map((x) => (x.id === l.id ? { ...x, status: action, events: [...x.events, { type: action, at: now, by: bot.id, place: bot.location.city }] } : x));
-                    nf(notif('mischief', action === 'space' ? '🚀 내 편지가 우주로 날아갔어요' : '↩️ 내 편지가 되돌아오고 있어요', '방어권을 장착하면 막을 수 있어요', '/store'));
+                    letters = letters.map((x) => (x.id === l.id ? { ...x, status: 'space', events: [...x.events, { type: 'space', at: now, by: bot.id, place: bot.location.city }] } : x));
+                    nf(notif('mischief', '🚀 내 편지가 우주로 날아갔어요', '방어권을 장착하면 막을 수 있어요', '/store'));
                   }
                   pushes.push({ title: '😈 누군가 내 편지에 장난을 쳤어요', body: '방어권으로 막을 수 있어요', route: `/letter/${l.id}` });
                 }
@@ -667,7 +680,7 @@ export const useStore = create<State>()(
         }
         if (notifications.length > 80) notifications = notifications.slice(0, 80);
         if (s.settings.notifications) for (const p of pushes) pushLocal(p.title, p.body, { route: p.route });
-        if (changed) set({ letters, passbys, notifications, chats, friendIds, revealedIds, me, scheduled, posts, instantRequests, lastTick: now });
+        if (changed) set({ letters, passbys, notifications, chats, friendIds, revealedIds, me, scheduled, posts, lastTick: now });
         else set({ lastTick: now });
       },
 
@@ -691,9 +704,9 @@ export const useStore = create<State>()(
         if (!bot) return;
         set({ scheduled: [...s.scheduled, { id: uid(), at: Date.now() + 1000, type: 'bot_reply', payload: { botId: bot.id } }] });
       },
-      resetAll: () => set({ onboarded: false, me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], instantRequests: [], notifications: [], passbys: [], scheduled: [], settings: DEFAULT_SETTINGS, focusLetterId: null, focusPoint: null, lastTick: Date.now() }),
+      resetAll: () => set({ onboarded: false, signedIn: false, tourDone: false, me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [], settings: DEFAULT_SETTINGS, focusLetterId: null, focusPoint: null, lastTick: Date.now() }),
     }),
-    { name: 'wws-v3', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => { const { focusLetterId, focusPoint, permissions, backend, ...rest } = s as any; return rest; } },
+    { name: 'wws-v4', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => { const { focusLetterId, focusPoint, permissions, backend, ...rest } = s as any; return rest; } },
   ),
 );
 
@@ -703,4 +716,12 @@ export const selectPendingInbox = (s: State) => s.letters.filter((l) => l.recipi
 /** 표시 이름: 친구이거나 편지로 드러난 사람은 실명 */
 export const displayName = (s: Pick<State, 'me' | 'friendIds' | 'revealedIds'>, id: string) => (id === ME_ID ? s.me.nickname || '나' : s.friendIds.includes(id) || s.revealedIds.includes(id) ? getUser(s, id)?.nickname ?? '???' : '???');
 export const isRevealed = (s: Pick<State, 'friendIds' | 'revealedIds'>, id: string) => id === ME_ID || s.friendIds.includes(id) || s.revealedIds.includes(id);
+/** 오는 편지의 현재 속도(km/h)와 나와의 거리(km) — 예상 도착 시간은 의도적으로 노출하지 않는다 */
+export const incomingStatus = (l: Letter, me: LatLng, now: number, timeScale: number) => {
+  const v = VEHICLE_MAP[l.vehicle];
+  const snail = !!l.penalty && now < l.penalty.until;
+  const speed = Math.round(v.speedKmh * (snail ? SNAIL.factor : 1) * (l.boost === 'instant' ? 40 : l.boost === 'fast' ? 4 : 1));
+  const pos = positionOf(l, now);
+  return { speedKmh: speed, distanceKm: Math.round(distanceKm(pos, me)), progress: progressOf(l, now), timeScale };
+};
 export { progressOf, positionOf, VEHICLES };

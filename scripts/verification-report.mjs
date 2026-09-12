@@ -5,14 +5,14 @@ const shots = fs.readdirSync('docs/screenshots').filter((f) => f.endsWith('.png'
 const shotsFor = (id) => shots.filter((f) => new RegExp(`^${id}[a-h]?-`).test(f) && !(id.length === 2 && /^\d\d[a-z]-/.test(f) && r.results.some((x) => x.id === f.slice(0, 3)))).map((f) => `[${f.replace('.png', '')}](screenshots/${f})`).join(' · ');
 
 const STAGES = [
-  { name: '1. 첫 진입 · 온보딩', ids: ['01', '02', '03', '04'], user: '처음 연 사용자가 앱이 무엇인지 10초 안에 이해하고, 프로필과 위치를 2단계로 마친 뒤 살아있는 지구를 본다. 지구 위 배달원(커스텀 아이콘)이 실시간으로 움직이고, 경로는 보이지 않는다.' },
-  { name: '2. 둘러보기 · 5탭', ids: ['05', '06', '07', '08', '09', '10', '11', '12'], user: '편지·친구·커뮤니티·프로필·상점·설정이 인스타그램 문법으로 읽힌다. 커뮤니티는 국가 없이 km 거리만, 댓글이 붙고, 사람 탭에는 ⚡즉시 친구가 있다. 상점에는 엿보기/끌어오기/즉시 친구 한도가 플랜별로 적혀 있다.' },
-  { name: '3. 첫 편지 보내기', ids: ['13', '14', '15', '16'], user: '편지지에 쓰고(스토리 공유 옵션) → 목적지 → 배달원 가족(사람·새·동물·차·기차·배·비행·우주·전설) 중 해금된 것을 고른다. 보내면 내 편지만 경로가 보이고, 포커스를 풀면 다시 숨겨진다.' },
-  { name: '4. 머리 위 통과 → 엿보기 · 끌어오기 · 경로 · 잡기', ids: ['17', '18', '18b', '19', '20', '20d', '36'], user: '배너를 탭하면 타이머와 7가지 행동. 무료는 엿보기 한도가 없어 상점으로 안내된다. 잡으면 봉투가 열리고 보낸 사람의 실제 프로필(소개·태그·엽서)과 공유 버튼이 보인다.' },
-  { name: '5. 왕복(답장 → 수락 편지 → 확정) → 실시간 채팅', ids: ['21', '22', '23', '24', '25', '26', '27', '28'], user: '답장을 보내면 "왕복 진행 중". 상대 답장이 오면 프로필을 보고 수락 → 수락 편지가 출발 → 상대가 확정하면 친구(왕복 A). 반대로 내 답장을 상대가 수락하면 수락 편지가 내게 오고 내가 확정한다(왕복 B). 그 뒤에만 지연 없는 채팅.' },
-  { name: '6. 커뮤니티 · 국가 스토리 · 엽서 · 댓글 · ⚡즉시 친구', ids: ['29', '30', '31'], user: '내 편지를 엽서로 공개하면 피드에는 거리만, 홈 상단 스토리에 국가 대표 사진으로 뜬다. 다른 나라 스토리를 탭해야 엽서 상세에서 국가가 공개된다. 왕복을 건너뛰는 ⚡즉시 친구는 결제(또는 코인)로 요청하고, 거절되면 환불된다.' },
-  { name: '7. 유료 플랜 · 엿보기/끌어오기 · 바다', ids: ['32', '33', '34'], user: '플러스가 되면 경유지 2개, 엿보기 3회/일, 끌어오기 1회/일. 지나가는 편지를 엿보고 마음에 들면 내 위치로 끌어온다(편지당 1회, 방어권에 막힘). 바다에 빠뜨리면 몇 시간 멈추고 주인은 코인으로 건져낼 수 있다.' },
-  { name: '8. 다크 모드', ids: ['35'], user: '설정에서 시스템/라이트/다크를 고르면 인스타그램 다크 팔레트로 모든 화면과 지구(밤 바다)가 바뀐다.' },
+  { name: '1. 첫 진입 · 비회원 · 투어', ids: ['01', '02', '03', '04'], user: '가입 없이 환영 화면에서 바로 지구로 들어간다. 투어가 한 군데씩 짧은 CTA 로 안내하고 마지막에 편지 쓰기로 이어진다. 착륙한 편지는 남에게 보이지 않는다.' },
+  { name: '2. 비회원 둘러보기 · 5탭', ids: ['05', '06', '07', '08', '09', '10', '11'], user: '편지·친구·커뮤니티·프로필·상점·설정을 비회원으로 본다. 원화는 상점의 코인 팩에서만 보이고 나머지는 전부 SC. 커뮤니티는 받은 편지 수와 거리만.' },
+  { name: '3. 가입 게이트 → 첫 편지', ids: ['12', '13'], user: '편지를 다 쓰고 보내기를 누르는 순간에만 SNS 가입 시트가 뜬다(나중에 가능). 가입하면 바로 발송되고 홈에는 속도·거리만(도착 시간 없음).' },
+  { name: '4. 머리 위 통과 → 엿보기 · 끌어오기 · 경로 · 침수 · 잡기', ids: ['14', '15', '16', '17', '18', '32'], user: '되돌리기는 없다. 침수·우주·달팽이·경로·엿보기·끌어오기. 잡으면 보낸 사람의 실제 프로필과 공유 버튼.' },
+  { name: '5. 왕복(내 편지 → 상대 답장) · 코인 가속 → 수락 → 채팅', ids: ['19', '20', '21', '22'], user: '오는 답장은 속도와 나와의 거리만 보인다. 느리면 SC 로 4배/1분 가속. 도착하면 수락 → 친구 + 실시간 채팅. 친구는 홈 지구에 50km 원으로.' },
+  { name: '6. 커뮤니티 · 국가 스토리 · 댓글 · ⚡ 직행 편지', ids: ['23', '24', '25'], user: '엽서 공개 → 홈 스토리(국가는 탭해야) → 댓글. 직행 편지는 300 SC 로 그 사람에게 무조건 도착, 환불 없음.' },
+  { name: '7. 플랜 · 대여 · 플러스 엿보기/끌어오기 · 침수', ids: ['26', '27', '28', '29'], user: '플랜은 매월 SC 와 한도·할인. 잠긴 배달원은 SC 로 1회 대여. 침수는 몇 시간 정지, 주인은 SC 로 구조.' },
+  { name: '8. 다크 모드 · 트래킹', ids: ['30', '31'], user: '인스타 다크 팔레트. 비회원 시점부터 화면·버튼·스크롤·게이트·가입 이벤트가 전부 기록된다.' },
 ];
 
 const DEVICE = [
@@ -42,7 +42,7 @@ for (const st of STAGES) {
 }
 md += `## 9. 실기기에서만 검증 가능한 항목 (체크리스트)\n\n| 항목 | 구현 | 상태 |\n|---|---|---|\n`;
 for (const [a, b, c] of DEVICE) md += `| ${a} | ${b} | ⏳ ${c} |\n`;
-md += `\n## 10. 서버 모드 검증 (Firebase 배포 후)\n\n| 항목 | 방법 |\n|---|---|\n| 두 기기 A/B 로 A 가 편지 발송 → B(경로 아래) 에 통과 푸시 | tickWorld 로그 · users/B/passbys 문서 생성 확인 |\n| B 가 잡기 → A 에 "잡았어요" 푸시 | catchLetter 콜러블 |\n| B 답장 → A 우편함(delivered) → A 수락 → 수락 편지 → B 확정 → chats/{A_B} 생성 → 양쪽 friendIds | approveReply (reply→accept 편지, accept→friends) |\n| B 가 엿보기/끌어오기 → 한도 차감 · A 방어권 소모 · 편지 destination 변경 | redirectLetter(peek/pull) |\n| 바다 추락 → sunkUntil 후 tickWorld 가 재부상 · rescueLetter 로 즉시 재개 | tickWorld / rescueLetter |\n| ⚡즉시 친구 요청 → 상대 응답 → 친구 또는 환불 | requestInstantFriend / answerInstantFriend |\n| B 가 경로 변경/달팽이 → A 방어권 소모 이벤트 | redirectLetter |\n| RevenueCat 샌드박스 구독 → users/A.plan = plus | revenuecatWebhook |\n| Firestore 규칙: 타인 users_private 읽기 거부 · letters 비참여자 읽기 거부 | 에뮬레이터 규칙 테스트 |\n`;
+md += `\n## 10. 서버 모드 검증 (Supabase 배포 후)\n\n| 항목 | 방법 |\n|---|---|\n| 두 기기 A/B 로 A 가 편지 발송 → B(경로 아래) 에 통과 푸시 | tickWorld 로그 · users/B/passbys 문서 생성 확인 |\n| B 가 잡기 → A 에 "잡았어요" 푸시 | catchLetter 콜러블 |\n| B 답장 → A 우편함(delivered) → A 수락 → chats 생성 → 양쪽 friend_ids | approve-reply |\n| A 가 오는 답장을 SC 로 가속 → arrives_at 단축 · coin_ledger 기록 | boost-reply |\n| B 가 엿보기/끌어오기 → 한도 차감 · A 방어권 소모 · 편지 destination 변경 | redirectLetter(peek/pull) |\n| 바다 추락 → sunkUntil 후 tickWorld 가 재부상 · rescueLetter 로 즉시 재개 | tickWorld / rescueLetter |\n| ⚡즉시 친구 요청 → 상대 응답 → 친구 또는 환불 | requestInstantFriend / answerInstantFriend |\n| B 가 경로 변경/달팽이 → A 방어권 소모 이벤트 | redirectLetter |\n| RevenueCat 샌드박스 코인 팩/플랜 → purchases(중복 방지) · users.coins/plan | purchase-webhook |\n| 통과 판정 셀 조인 · 핫셀 샘플 · 편지당 상한 · 푸시 하루 12건/조용한 시간 | tick-world · push-dispatch (docs/SCALE.md) |\n| 트래킹 배치 → events (비회원 포함) | track-events |\n| RLS: users_private 아무도 못 읽음 · letters 비참여자 거부 · 게임 필드 클라이언트 수정 차단(트리거) | supabase/tests/rls.sql |\n`;
 if (r.errors.length) md += `\n## 콘솔 오류\n\n\`\`\`\n${r.errors.join('\n')}\n\`\`\`\n`;
 fs.writeFileSync('docs/VERIFICATION.md', md);
 console.log('docs/VERIFICATION.md written');

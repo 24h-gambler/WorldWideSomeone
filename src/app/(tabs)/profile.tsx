@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { Avatar, Button, Header, IconButton, Pill, Row, Screen, T, UnderlineTabs } from '@/components/ui';
 import { VehicleIcon } from '@/components/vehicle-icon';
+import { openSignup } from '@/components/signup-sheet';
 import { ItemIcon, type ItemId } from '@/components/item-art';
 import { FAMILIES, FAMILY_LABEL, VEHICLES, vehicleUnlocked } from '@/data/vehicles';
 import { PLAN_MAP } from '@/data/plans';
@@ -23,28 +24,29 @@ export default function Profile() {
   const plan = PLAN_MAP[me.plan];
   const owned = VEHICLES.filter((v) => vehicleUnlocked(v, friendIds.length, me.inventory, me.plan)).length;
   const myPosts = posts.filter((p) => p.authorId === 'me');
+  const signedIn = useStore((s) => s.signedIn);
   return (
     <Screen>
-      <Header back={false} title={`${me.nickname} ${plan.badge ?? ''}`} divider={false} right={<><IconButton name="shopping-bag" onPress={() => router.push('/store')} /><IconButton name="menu" onPress={() => router.push('/settings')} /></>} />
+      <Header back={false} title={signedIn ? `${me.nickname} ${plan.badge ?? ''}` : '둘러보는 중'} divider={false} right={<><IconButton name="shopping-bag" onPress={() => router.push('/store')} /><IconButton name="menu" onPress={() => router.push('/settings')} /></>} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <Row style={{ paddingHorizontal: spacing.lg, gap: 20 }}>
           <Avatar emoji={me.avatar} size={84} ring="ig" />
           <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around' }}>
-            {[['편지', me.stats.sent], ['친구', friendIds.length], ['배달원', `${owned}/${VEHICLES.length}`]].map(([k, v]) => <View key={String(k)} style={{ alignItems: 'center' }}><T t="h2">{String(v)}</T><T t="small">{String(k)}</T></View>)}
+            {[['받은 편지', me.stats.received], ['친구', friendIds.length], ['배달원', `${owned}/${VEHICLES.length}`]].map(([k, v]) => <View key={String(k)} style={{ alignItems: 'center' }}><T t="h2">{String(v)}</T><T t="small">{String(k)}</T></View>)}
           </View>
         </Row>
         <View style={{ paddingHorizontal: spacing.lg, marginTop: 12, gap: 4 }}>
-          <T t="bodyStrong">{me.nickname}</T>
+          <T t="bodyStrong">{signedIn ? me.nickname : '비회원'}</T>
           <T t="body">{me.bio || '한 줄 소개를 적어보세요'}</T>
           <T t="small" color={c.text2}>📍 {me.location.city}, {me.location.country} · 커뮤니티엔 ??? · 비행 {formatKm(me.stats.distanceKm)} · ❤️ {me.stats.likes}</T>
           <Row style={{ flexWrap: 'wrap', marginTop: 4 }} gap={4}><Pill label={me.field} /><Pill label={genderLabel(me.gender)} /><Pill label={me.job} />{me.hobbies.map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blue} />)}</Row>
         </View>
         <Row style={{ paddingHorizontal: spacing.lg, marginTop: 12 }}>
-          <Button title="프로필 편집" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => router.push('/profile-edit')} />
+          {signedIn ? <Button title="프로필 편집" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => router.push('/profile-edit')} track="profile:edit" /> : <Button title="가입하고 편지 보내기" size="sm" style={{ flex: 1 }} onPress={() => openSignup('send', () => router.push('/compose'))} track="profile:signup" />}
           <Button title={me.plan === 'free' ? '플러스 시작' : `${plan.name} 이용 중`} size="sm" variant={me.plan === 'free' ? 'gradient' : 'secondary'} style={{ flex: 1 }} onPress={() => router.push('/store')} />
         </Row>
         <Row style={{ paddingHorizontal: spacing.lg, marginTop: 16, justifyContent: 'space-around' }}>
-          {([['shield', '방어권', me.inventory.shield], ['lens', '엿보기', me.inventory.peek], ['magnet', '끌어오기', me.inventory.pull], ['bolt', '즉시친구', me.inventory.instant], ['coin', '코인', me.coins]] as [ItemId, string, number][]).map(([e, n, v]) => (
+          {([['shield', '방어권', me.inventory.shield], ['lens', '엿보기', me.inventory.peek], ['magnet', '끌어오기', me.inventory.pull], ['bolt', '직행', me.inventory.direct], ['coin', 'SC', me.coins]] as [ItemId, string, number][]).map(([e, n, v]) => (
             <View key={String(n)} style={{ alignItems: 'center', gap: 4 }}><View style={[styles.highlight, { backgroundColor: c.bg3, borderColor: c.line }]}><ItemIcon id={e} size={26} /></View><T t="caption">{String(n)} {String(v)}</T></View>
           ))}
         </Row>

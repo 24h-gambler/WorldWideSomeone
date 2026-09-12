@@ -1,94 +1,69 @@
 /**
- * Firebase 동기화 레이어. 로컬 스토어(zustand)를 캐시로 쓰고, 서버가 세계(비행·통과·봇 없음)를 돌린다.
- *  - 프로필/위치/푸시토큰 → users/{uid}, users_private/{uid}
- *  - 편지 발송/잡기/경로변경/승인 → callable functions (서버 검증)
- *  - 편지·통과·채팅 → Firestore 실시간 구독 → 스토어에 반영
- * Firebase 비활성이면 모든 함수는 no-op 이고 로컬 봇 시뮬이 동작한다.
+ * Supabase 동기화 — 내 편지/답장·통과·알림·채팅을 구독하고, 게임 액션은 Edge Function 을 호출한다.
+ * 환경변수가 없으면 아무것도 하지 않는다(로컬 봇 시뮬).
  */
-import { collection, doc, httpsCallable, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, addDoc, limit } from './firestore-shim';
-import { ensureSignedIn, fb, firebaseEnabled } from './firebase';
-import { useStore, ME_ID } from '@/store';
-import type { LatLng, Letter, Passby } from '@/types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase, supabaseEnabled } from './supabase';
+import { useStore } from '@/store';
+import { configureAnalytics, flush, type AnalyticsEvent } from './analytics';
+import type { LatLng } from '@/types';
 
-let uid: string | null = null;
-const unsubs: (() => void)[] = [];
+let channel: RealtimeChannel | null = null;
+
+export async function ensureSession(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+const call = async <T = any>(fn: string, body: Record<string, unknown>): Promise<T> => {
+  if (!supabase) throw new Error('supabase disabled');
+  const { data, error } = await supabase.functions.invoke(fn, { body });
+  if (error) throw error;
+  return data as T;
+};
 
 export async function startSync(): Promise<void> {
-  if (!firebaseEnabled) return;
-  uid = await ensureSignedIn();
-  const { db } = fb();
+  if (!supabaseEnabled || !supabase) return;
+  const uid = await ensureSession();
   const st = useStore.getState();
-  st.setBackend('firebase');
+  st.setBackend('supabase');
+  // 트래킹 싱크: 배치를 track-events 로
+  configureAnalytics({ deviceId: st.deviceId, userId: uid ?? undefined, guest: !uid, sink: async (events: AnalyticsEvent[]) => { try { await call('track-events', { events }); return true; } catch { return false; } } });
+  if (!uid) return; // 비회원: 읽기만(공개 뷰) — 구독 없음
   await pushProfile();
-
-  // 내 편지 + 내게 온 답장
-  unsubs.push(onSnapshot(query(collection(db, 'letters'), where('participants', 'array-contains', uid), orderBy('departedAt', 'desc'), limit(100)), (snap: any) => {
-    const mine: Letter[] = snap.docs.map((d: any) => fromServerLetter(d.id, d.data()));
-    const s = useStore.getState();
-    const others = s.letters.filter((l) => !mine.some((m) => m.id === l.id) && l.senderId !== ME_ID && l.recipientId !== ME_ID);
-    useStore.setState({ letters: [...mine, ...others] });
-  }));
-  // 하늘 위 편지 (전 세계, 최근 40개) — 구경용
-  unsubs.push(onSnapshot(query(collection(db, 'letters'), where('status', '==', 'flying'), orderBy('departedAt', 'desc'), limit(40)), (snap: any) => {
-    const flying: Letter[] = snap.docs.map((d: any) => fromServerLetter(d.id, d.data())).filter((l: Letter) => l.senderId !== ME_ID && l.recipientId !== ME_ID);
-    const s = useStore.getState();
-    const mine = s.letters.filter((l) => l.senderId === ME_ID || l.recipientId === ME_ID);
-    useStore.setState({ letters: [...mine, ...flying] });
-  }));
-  // 통과 이벤트
-  unsubs.push(onSnapshot(query(collection(db, 'users', uid, 'passbys'), orderBy('at', 'desc'), limit(30)), (snap: any) => {
-    const passbys: Passby[] = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    useStore.setState({ passbys });
-  }));
-  // 친구/채팅
-  unsubs.push(onSnapshot(doc(db, 'users', uid), (d: any) => {
-    const data = d.data();
-    if (!data) return;
-    useStore.setState((s) => ({ friendIds: data.friendIds ?? s.friendIds, me: { ...s.me, coins: data.coins ?? s.me.coins, inventory: data.inventory ?? s.me.inventory, plan: data.plan ?? s.me.plan, stamps: data.stamps ?? s.me.stamps } }));
-  }));
+  channel?.unsubscribe();
+  channel = supabase.channel(`user:${uid}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, (p) => { const n = p.new as any; useStore.setState((s) => ({ notifications: [{ id: n.id, type: n.type, title: n.title, body: n.body, at: new Date(n.at).getTime(), read: false, route: n.route ?? undefined }, ...s.notifications] })); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'passbys', filter: `user_id=eq.${uid}` }, (p) => { const b = p.new as any; useStore.setState((s) => ({ passbys: [{ id: b.id, letterId: b.letter_id, at: new Date(b.at).getTime(), expiresAt: new Date(b.expires_at).getTime(), canCatch: b.can_catch }, ...s.passbys] })); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => { const m = p.new as any; const other = m.sender_id; if (other === uid) return; useStore.setState((s) => ({ chats: s.chats.some((c) => c.otherId === other) ? s.chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, { id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }] } : c)) : [{ id: other, otherId: other, messages: [{ id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }], lastReadAt: 0, since: Date.now() }, ...s.chats] })); })
+    .subscribe();
 }
-
-export function stopSync() {
-  unsubs.splice(0).forEach((u) => u());
-}
-
-function fromServerLetter(id: string, d: any): Letter {
-  const me = uid;
-  return { ...d, id, senderId: d.senderId === me ? ME_ID : d.senderId, recipientId: d.recipientId === me ? ME_ID : d.recipientId, caughtBy: d.caughtBy === me ? ME_ID : d.caughtBy };
-}
+export function stopSync() { channel?.unsubscribe(); channel = null; void flush(); }
 
 export async function pushProfile() {
-  if (!firebaseEnabled || !uid) return;
-  const { db } = fb();
+  if (!supabase) return;
+  const uid = await ensureSession(); if (!uid) return;
   const me = useStore.getState().me;
-  await setDoc(doc(db, 'users', uid), { nickname: me.nickname, avatar: me.avatar, bio: me.bio, field: me.field, gender: me.gender, job: me.job, hobbies: me.hobbies, city: me.location.city, country: me.location.country, plan: me.plan, updatedAt: serverTimestamp() }, { merge: true });
-  await syncMyLocation(me.location);
+  await supabase.from('users').upsert({ id: uid, nickname: me.nickname, avatar: me.avatar, bio: me.bio, field: me.field, gender: me.gender, job: me.job, hobbies: me.hobbies, city: me.location.city, country: me.location.country, auth_provider: me.auth?.provider ?? 'guest', last_active_at: new Date().toISOString() });
 }
-
-/** 정확 위치는 users_private 에만 (통과 판정용, 10km 격자). 친구에게는 서버가 50km 격자로 내려줌. */
-export async function syncMyLocation(p: LatLng) {
-  if (!firebaseEnabled) return;
-  const id = uid ?? (await ensureSignedIn());
-  const { db } = fb();
-  const { geohashForLocation } = await import('geofire-common');
-  await setDoc(doc(db, 'users_private', id), { lat: p.lat, lng: p.lng, geohash: geohashForLocation([p.lat, p.lng]), updatedAt: serverTimestamp() }, { merge: true });
+export async function syncMyLocation(p: LatLng & { city?: string; country?: string }) {
+  if (!supabase) return;
+  try { await call('set-location', { lat: p.lat, lng: p.lng, city: p.city, country: p.country, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }); } catch { /* 분당 1회 제한 등은 조용히 무시 */ }
 }
+export async function registerPushToken(token: string) { if (!supabase) return; try { await call('register-push', { token }); } catch { /* ignore */ } }
 
-export async function registerPushToken(token: string) {
-  if (!firebaseEnabled || !uid) return;
-  const { db } = fb();
-  await setDoc(doc(db, 'users_private', uid), { pushToken: token, platform: process.env.EXPO_OS ?? 'unknown' }, { merge: true });
-}
-
+/** 게임 액션 (서버 검증). 로컬 모드에서는 store 가 직접 처리하므로 호출하지 않는다. */
 export const remote = {
-  enabled: () => firebaseEnabled,
-  sendLetter: (input: any) => httpsCallable(fb().fns, 'sendLetter')(input),
-  catchLetter: (letterId: string) => httpsCallable(fb().fns, 'catchLetter')({ letterId }),
-  redirectLetter: (letterId: string, action: string, waypoints?: LatLng[]) => httpsCallable(fb().fns, 'redirectLetter')({ letterId, action, waypoints }),
-  approveReply: (letterId: string, approve: boolean) => httpsCallable(fb().fns, 'approveReply')({ letterId, approve }),
-  sendMessage: async (otherId: string, text: string) => {
-    const { db } = fb();
-    const chatId = [uid!, otherId].sort().join('_');
-    await addDoc(collection(db, 'chats', chatId, 'messages'), { senderId: uid, text, at: Date.now() });
-  },
+  enabled: supabaseEnabled,
+  sendLetter: (body: Record<string, unknown>) => call<{ id: string }>('send-letter', body),
+  catchLetter: (letterId: string) => call('catch-letter', { letterId }),
+  redirect: (letterId: string, action: 'peek' | 'pull' | 'reroute' | 'snail' | 'sunk' | 'space', waypoints?: LatLng[]) => call<{ outcome: string; text?: string }>('redirect-letter', { letterId, action, waypoints }),
+  rescue: (letterId: string) => call<{ outcome: string }>('rescue-letter', { letterId }),
+  approveReply: (letterId: string, accept = true) => call('approve-reply', { letterId, accept }),
+  boostReply: (letterId: string, tier: 'fast' | 'instant') => call<{ outcome: string }>('boost-reply', { letterId, tier }),
+  publishPost: (letterId: string, shareToStory: boolean) => call<{ id: string }>('publish-post', { letterId, shareToStory }),
+  sendMessage: async (otherId: string, text: string) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; const id = uid < otherId ? `${uid}_${otherId}` : `${otherId}_${uid}`; await supabase.from('messages').insert({ chat_id: id, sender_id: uid, text }); },
+  likePost: async (postId: string, on: boolean) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; if (on) await supabase.from('post_likes').upsert({ post_id: postId, user_id: uid }); else await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', uid); },
+  comment: async (postId: string, text: string) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; await supabase.from('comments').insert({ post_id: postId, author_id: uid, text }); },
 };

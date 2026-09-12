@@ -1,6 +1,8 @@
 /** v3 UI 키트 — 모든 컴포넌트가 useColors() 로 라이트/다크 팔레트를 읽는다. */
 import React from 'react';
 import { ItemIcon } from '../item-art';
+import { trackTap, trackScroll } from '@/services/analytics';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ActivityIndicator, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextProps, View, ViewProps, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -49,7 +51,7 @@ export function Header({ title, subtitle, right, left, back = true, onBack, cent
   );
 }
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'gradient' | 'dark';
-export function Button({ title, onPress, variant = 'primary', size = 'md', disabled, loading, icon, style, full }: { title: string; onPress?: () => void; variant?: BtnVariant; size?: 'sm' | 'md' | 'lg'; disabled?: boolean; loading?: boolean; icon?: FeatherName | string; style?: StyleProp<ViewStyle>; full?: boolean }) {
+export function Button({ title, onPress, variant = 'primary', size = 'md', disabled, loading, icon, style, full, track }: { title: string; onPress?: () => void; variant?: BtnVariant; size?: 'sm' | 'md' | 'lg'; disabled?: boolean; loading?: boolean; icon?: FeatherName | string; style?: StyleProp<ViewStyle>; track?: string; full?: boolean }) {
   const c = useColors();
   const h = size === 'lg' ? 50 : size === 'sm' ? 32 : 44;
   const fs = size === 'lg' ? 15 : size === 'sm' ? 13 : 14;
@@ -62,14 +64,14 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', disab
     </View>
   );
   return (
-    <Pressable disabled={disabled || loading} onPress={() => { tap(); onPress?.(); }} style={({ pressed }) => [{ borderRadius: radius.sm, overflow: 'hidden', opacity: disabled ? 0.4 : pressed ? 0.75 : 1 }, full && { alignSelf: 'stretch' }, variant === 'ghost' && { borderWidth: 1, borderColor: c.line }, style]}>
+    <Pressable disabled={disabled || loading} testID={`btn:${track ?? title}`} accessibilityRole="button" accessibilityLabel={title} onPress={() => { tap(); trackTap(track ?? `btn:${title}`); onPress?.(); }} style={({ pressed }) => [{ borderRadius: radius.sm, overflow: 'hidden', opacity: disabled ? 0.4 : pressed ? 0.75 : 1 }, full && { alignSelf: 'stretch' }, variant === 'ghost' && { borderWidth: 1, borderColor: c.line }, style]}>
       {variant === 'gradient' ? <LinearGradient colors={[...gradients.ig3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>{inner}</LinearGradient> : <View style={{ backgroundColor: bg }}>{inner}</View>}
     </Pressable>
   );
 }
-export function IconButton({ name, onPress, badge, size = 24, color, label }: { name: FeatherName; onPress?: () => void; badge?: number; size?: number; color?: string; label?: string }) {
+export function IconButton({ name, onPress, badge, size = 24, color, label, track }: { name: FeatherName; onPress?: () => void; badge?: number; size?: number; color?: string; label?: string; track?: string }) {
   return (
-    <Pressable hitSlop={8} accessibilityLabel={label} accessibilityRole="button" onPress={() => { tap(); onPress?.(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+    <Pressable hitSlop={8} testID={`icon:${track ?? label ?? name}`} accessibilityLabel={label} accessibilityRole="button" onPress={() => { tap(); trackTap(track ?? `icon:${label ?? name}`); onPress?.(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
       <Icon name={name} size={size} color={color} />
       {badge ? <Badge count={badge} /> : null}
     </Pressable>
@@ -87,10 +89,10 @@ export function Avatar({ emoji, size = 44, anonymous, ring = 'none', bg }: { emo
   if (ring === 'ig') return <LinearGradient colors={[...gradients.ig]} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={{ width: outer, height: outer, borderRadius: outer, alignItems: 'center', justifyContent: 'center' }}>{inner}</LinearGradient>;
   return <View style={{ width: outer, height: outer, borderRadius: outer, alignItems: 'center', justifyContent: 'center', backgroundColor: ring === 'blue' ? c.blue : c.line }}>{inner}</View>;
 }
-export function StoryItem({ label, children, onPress, sub }: { label: string; children: React.ReactNode; onPress?: () => void; sub?: string }) {
+export function StoryItem({ label, children, onPress, sub, track }: { label: string; children: React.ReactNode; onPress?: () => void; sub?: string; track?: string }) {
   const c = useColors();
   return (
-    <Pressable onPress={onPress ? () => { tap(); onPress(); } : undefined} style={{ alignItems: 'center', width: 74, gap: 4 }}>
+    <Pressable testID={`story:${track ?? label}`} onPress={onPress ? () => { tap(); trackTap(track ?? `story:${label}`); onPress(); } : undefined} style={{ alignItems: 'center', width: 74, gap: 4 }}>
       {children}
       <T t="caption" numberOfLines={1} style={{ maxWidth: 72 }}>{label}</T>
       {sub ? <T t="caption" color={c.text3} numberOfLines={1} style={{ marginTop: -3 }}>{sub}</T> : null}
@@ -110,11 +112,11 @@ export function UnderlineTabs<K extends string>({ tabs, value, onChange }: { tab
     </View>
   );
 }
-export function Chip({ label, selected, onPress, small, icon, color }: { label: string; selected?: boolean; onPress?: () => void; small?: boolean; icon?: string; color?: string }) {
+export function Chip({ label, selected, onPress, small, icon, color, track }: { label: string; selected?: boolean; onPress?: () => void; small?: boolean; icon?: string; color?: string; track?: string }) {
   const c = useColors();
   const col = color ?? c.text;
   return (
-    <Pressable onPress={onPress ? () => { tap(); onPress(); } : undefined} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: small ? 5 : 7, paddingHorizontal: small ? 10 : 14, borderRadius: radius.pill, borderWidth: 1 }, selected ? { backgroundColor: col, borderColor: col } : { backgroundColor: c.bg, borderColor: c.line }]}>
+    <Pressable testID={`chip:${track ?? label}`} onPress={onPress ? () => { tap(); trackTap(track ?? `chip:${label}`, { selected: !selected }); onPress(); } : undefined} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: small ? 5 : 7, paddingHorizontal: small ? 10 : 14, borderRadius: radius.pill, borderWidth: 1 }, selected ? { backgroundColor: col, borderColor: col } : { backgroundColor: c.bg, borderColor: c.line }]}>
       {icon ? <T style={{ fontSize: small ? 12 : 14, marginRight: 4 }}>{icon}</T> : null}
       <T t={small ? 'smallStrong' : 'bodyStrong'} color={selected ? (col === c.text ? c.bg : '#fff') : c.text}>{label}</T>
     </Pressable>
@@ -126,7 +128,7 @@ export function Card({ children, style, onPress, flat }: ViewProps & { onPress?:
   if (!onPress) return body;
   return <Pressable onPress={() => { tap(); onPress(); }} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>{body}</Pressable>;
 }
-export function ListRow({ left, title, subtitle, right, onPress, divider = true }: { left?: React.ReactNode; title: React.ReactNode; subtitle?: React.ReactNode; right?: React.ReactNode; onPress?: () => void; divider?: boolean }) {
+export function ListRow({ left, title, subtitle, right, onPress, divider = true, track }: { left?: React.ReactNode; title: React.ReactNode; subtitle?: React.ReactNode; right?: React.ReactNode; onPress?: () => void; divider?: boolean; track?: string }) {
   const c = useColors();
   const body = (
     <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.lg, paddingVertical: 10 }, divider && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lineSoft }]}>
@@ -136,7 +138,7 @@ export function ListRow({ left, title, subtitle, right, onPress, divider = true 
     </View>
   );
   if (!onPress) return body;
-  return <Pressable onPress={() => { tap(); onPress(); }} style={({ pressed }) => ({ backgroundColor: pressed ? c.bg2 : 'transparent' })}>{body}</Pressable>;
+  return <Pressable testID={`row:${track ?? (typeof title === 'string' ? title : 'row')}`} onPress={() => { tap(); trackTap(track ?? `row:${typeof title === 'string' ? title : 'row'}`); onPress(); }} style={({ pressed }) => ({ backgroundColor: pressed ? c.bg2 : 'transparent' })}>{body}</Pressable>;
 }
 export function Section({ title, right, children, style, action }: { title: string; right?: React.ReactNode; children?: React.ReactNode; style?: StyleProp<ViewStyle>; action?: { label: string; onPress: () => void } }) {
   const c = useColors();
@@ -170,7 +172,7 @@ export function Row({ children, style, gap = spacing.sm }: { children: React.Rea
 }
 export function Coin({ amount, onPress }: { amount: number; onPress?: () => void }) {
   const c = useColors();
-  return <Pressable onPress={onPress ? () => { tap(); onPress(); } : undefined} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.bg3, paddingHorizontal: 10, height: 28, borderRadius: 14 }}><ItemIcon id="coin" size={15} /><T t="smallStrong">{amount.toLocaleString('ko-KR')}</T></Pressable>;
+  return <Pressable onPress={onPress ? () => { tap(); onPress(); } : undefined} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.bg3, paddingHorizontal: 10, height: 28, borderRadius: 14 }}><ItemIcon id="coin" size={15} /><T t="smallStrong">{amount.toLocaleString('ko-KR')}</T><T t="caption" style={{ opacity: 0.7 }}>SC</T></Pressable>;
 }
 export function Divider({ inset = 0 }: { inset?: number }) { const c = useColors(); return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginLeft: inset }} />; }
 export function ProgressBar({ value, color, height = 4, track }: { value: number; color?: string; height?: number; track?: string }) {
@@ -192,4 +194,17 @@ export function Paper({ children, style }: { children: React.ReactNode; style?: 
 export function Stamp({ flag, label }: { flag: string; label: string }) {
   const c = useColors();
   return <View style={{ width: 58, height: 62, borderWidth: 1.5, borderColor: c.stampLine, borderStyle: 'dashed', borderRadius: 6, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: c.stampBg, transform: [{ rotate: '4deg' }] }}><T style={{ fontSize: 22 }}>{flag}</T><T t="caption" color={c.paperMuted}>{label}</T></View>;
+}
+
+/** 스크롤 깊이(25/50/75/100%) 트래킹 스크롤뷰 — 화면 단위 id */
+export function TrackedScrollView({ id, children, onScroll, ...rest }: React.ComponentProps<typeof ScrollView> & { id: string }) {
+  const sent = React.useRef<Set<number>>(new Set());
+  const handle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const max = Math.max(1, contentSize.height - layoutMeasurement.height);
+    const depth = Math.min(100, Math.round((contentOffset.y / max) * 100));
+    for (const m of [25, 50, 75, 100]) if (depth >= m && !sent.current.has(m)) { sent.current.add(m); trackScroll(id, m); }
+    onScroll?.(e);
+  };
+  return <ScrollView scrollEventThrottle={250} onScroll={handle} {...rest}>{children}</ScrollView>;
 }

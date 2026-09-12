@@ -1,16 +1,12 @@
 /**
- * 결제 어댑터. 실제 스토어 결제는 RevenueCat(react-native-purchases) — dev build에서만 동작.
- * Expo Go / 웹에서는 Mock 어댑터가 확인 다이얼로그 후 즉시 지급(테스트용).
- *
- * 연동 절차(docs/LAUNCH.md):
- *  1) npx expo install react-native-purchases
- *  2) App Store Connect / Google Play Console 에 PLANS·PRODUCTS의 storeId 로 상품 생성
- *  3) RevenueCat 프로젝트에서 Entitlement 'plus','pro' 와 Offering 구성
- *  4) EXPO_PUBLIC_RC_IOS_KEY / EXPO_PUBLIC_RC_ANDROID_KEY 설정
+ * 결제 어댑터 — 원화 결제는 오직 코인 팩과 플랜뿐. 아이템은 전부 썸원코인(SC)으로 산다.
+ * 실제 스토어 결제는 RevenueCat(react-native-purchases) — dev build에서만 동작. Expo Go / 웹에서는 Mock(테스트 결제).
+ * 서버 지급(이중 검증)은 supabase/functions/purchase-webhook.
  */
 import { Alert, Platform } from 'react-native';
-import { PLANS, PRODUCTS, type PlanId, type ProductId } from '@/data/plans';
+import { COIN_PACKS, PLANS, type PackId, type PlanId } from '@/data/plans';
 import { useStore } from '@/store';
+import { track } from '@/services/analytics';
 
 export type PurchaseResult = { ok: true } | { ok: false; error: string; cancelled?: boolean };
 
@@ -18,7 +14,7 @@ export interface PurchaseProvider {
   readonly name: 'mock' | 'revenuecat';
   init(userId: string): Promise<void>;
   purchasePlan(plan: PlanId): Promise<PurchaseResult>;
-  purchaseProduct(product: ProductId): Promise<PurchaseResult>;
+  purchasePack(pack: PackId): Promise<PurchaseResult>;
   restore(): Promise<PurchaseResult>;
 }
 
@@ -40,16 +36,18 @@ const mock: PurchaseProvider = {
   async init() {},
   async purchasePlan(plan) {
     const P = PLANS.find((p) => p.id === plan)!;
+    track('purchase_start', { plan });
     const ok = await confirm(`${P.name} ${P.priceLabel}`, '테스트 결제입니다. 실제 청구되지 않아요. (스토어 결제는 dev build + RevenueCat)');
-    if (!ok) return { ok: false, error: 'cancelled', cancelled: true };
+    if (!ok) { track('purchase_cancel', { plan }); return { ok: false, error: 'cancelled', cancelled: true }; }
     useStore.getState().setPlan(plan, Date.now() + 30 * 86_400_000);
     return { ok: true };
   },
-  async purchaseProduct(product) {
-    const p = PRODUCTS.find((x) => x.id === product)!;
-    const ok = await confirm(`${p.name} ${p.priceLabel}`, '테스트 결제입니다. 실제 청구되지 않아요.');
-    if (!ok) return { ok: false, error: 'cancelled', cancelled: true };
-    useStore.getState().applyPurchase(product);
+  async purchasePack(pack) {
+    const p = COIN_PACKS.find((x) => x.id === pack)!;
+    track('purchase_start', { pack });
+    const ok = await confirm(`${p.coins.toLocaleString('ko-KR')} SC ${p.priceLabel}`, '테스트 결제입니다. 실제 청구되지 않아요.');
+    if (!ok) { track('purchase_cancel', { pack }); return { ok: false, error: 'cancelled', cancelled: true }; }
+    useStore.getState().applyPack(pack);
     return { ok: true };
   },
   async restore() { return { ok: true }; },
@@ -80,6 +78,7 @@ function loadRevenueCat(): PurchaseProvider | null {
     },
     async purchasePlan(plan) {
       try {
+        track('purchase_start', { plan });
         const offerings = await Purchases.getOfferings();
         const pkg = offerings.current?.availablePackages.find((p: any) => p.product.identifier === PLANS.find((x) => x.id === plan)!.productId);
         if (!pkg) return { ok: false, error: '상품을 찾을 수 없어요' };
@@ -90,13 +89,14 @@ function loadRevenueCat(): PurchaseProvider | null {
         return { ok: false, error: e?.message ?? 'purchase failed', cancelled: !!e?.userCancelled };
       }
     },
-    async purchaseProduct(product) {
+    async purchasePack(pack) {
       try {
-        const p = PRODUCTS.find((x) => x.id === product)!;
+        track('purchase_start', { pack });
+        const p = COIN_PACKS.find((x) => x.id === pack)!;
         const products = await Purchases.getProducts([p.storeId]);
         if (!products[0]) return { ok: false, error: '상품을 찾을 수 없어요' };
         await Purchases.purchaseStoreProduct(products[0]);
-        useStore.getState().applyPurchase(product); // 소모품은 서버 웹훅(functions: revenuecatWebhook)에서도 이중 검증
+        useStore.getState().applyPack(pack); // 서버 웹훅(purchase-webhook)에서 이중 검증 후 확정 지급
         return { ok: true };
       } catch (e: any) {
         return { ok: false, error: e?.message ?? 'purchase failed', cancelled: !!e?.userCancelled };

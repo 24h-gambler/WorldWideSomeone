@@ -11,11 +11,12 @@ import { Avatar, Button, Header, Icon, IconButton, Paper, Pill, ProgressBar, Row
 import { VehicleIcon } from '@/components/vehicle-icon';
 import { ItemIcon } from '@/components/item-art';
 import { VEHICLE_MAP } from '@/data/vehicles';
-import { OCEAN_RESCUE_COINS } from '@/data/plans';
+import { OCEAN_RESCUE_COINS, REPLY_BOOST, discounted } from '@/data/plans';
+import { useGate } from '@/hooks/use-gate';
 import { findCity } from '@/data/cities';
 import { formatDuration, formatKm } from '@/engine/geo';
 import { useNow } from '@/hooks/use-now';
-import { ME_ID, displayName, getUser, isRevealed, progressOf, useStore } from '@/store';
+import { ME_ID, displayName, getUser, incomingStatus, isRevealed, progressOf, useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 import { success, warn } from '@/engine/haptics';
 
@@ -30,8 +31,10 @@ export default function LetterScreen() {
   const me = useStore((s) => s.me);
   const friendIds = useStore((s) => s.friendIds);
   const revealedIds = useStore((s) => s.revealedIds);
-  const acceptReply = useStore((s) => s.acceptReply);
-  const confirmAccept = useStore((s) => s.confirmAccept);
+  const approve = useStore((s) => s.approveReply);
+  const boost = useStore((s) => s.boostReply);
+  const settings = useStore((s) => s.settings);
+  const gate = useGate();
   const decline = useStore((s) => s.declineLetter);
   const publish = useStore((s) => s.publishPost);
   const rescue = useStore((s) => s.rescueLetter);
@@ -56,7 +59,7 @@ export default function LetterScreen() {
   const isFriend = otherId ? friendIds.includes(otherId) : false;
   const p = progressOf(letter, now);
   const stamp = findCity(letter.stamp);
-  const myReply = caughtByMe ? letters.find((l) => l.replyToId === letter.id && l.senderId === ME_ID) : undefined;
+  const myReply = caughtByMe || toMe ? letters.find((l) => l.replyToId === letter.id && l.senderId === ME_ID) : undefined;
   const isPosted = posts.some((x) => x.letterId === letter.id);
   const snail = !!letter.penalty && now < letter.penalty.until;
   const sunk = letter.status === 'sunk';
@@ -79,15 +82,15 @@ export default function LetterScreen() {
             <Globe size={Math.min(width, 360)} letters={[letter]} me={me.location} meAvatar={me.avatar} focusLetterId={letter.id} fps={24} showRoutes="focus" />
             <View style={{ width: '100%', paddingHorizontal: spacing.lg, gap: 4, marginTop: -8 }}>
               <ProgressBar value={p} color={sunk ? c.red : mine || toMe ? c.pink : v.color} track={c.bubble} />
-              <Row style={{ justifyContent: 'space-between' }}><T t="caption" color={c.text2}>{Math.round(p * 100)}%{snail ? ' · 🐌 달팽이 벌칙 중' : ''}{letter.redirects ? ` · 경로변경 ${letter.redirects}회` : ''}{letter.pulls ? ' · 🧲 끌려감' : ''}</T><T t="caption" color={c.text2}>{sunk ? `🌊 ${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : letter.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${formatDuration(letter.arrivesAt - now)} 후 도착`}</T></Row>
+              <Row style={{ justifyContent: 'space-between' }}><T t="caption" color={c.text2}>{Math.round(p * 100)}%{snail ? ' · 🐌 달팽이 벌칙 중' : ''}{letter.redirects ? ` · 경로변경 ${letter.redirects}회` : ''}{letter.pulls ? ' · 🧲 끌려감' : ''}</T><T t="caption" color={c.text2}>{sunk ? `🌊 ${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : letter.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(letter, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · 나와 ${formatKm(incomingStatus(letter, me.location, now, settings.timeScale).distanceKm)}`}</T></Row>
             </View>
           </LinearGradient>
         )}
         {sunk ? (
           <View style={[styles.box, { backgroundColor: c.redSoft, borderColor: c.red, marginHorizontal: spacing.lg, marginTop: spacing.lg }]}>
-            <T t="bodyStrong" color={c.red}>🌊 바다에 빠져 있어요</T>
+            <T t="bodyStrong" color={c.red}>🌊 침수됐어요</T>
             <T t="small" color={c.text2}>{formatDuration((letter.sunkUntil ?? now) - now)} 뒤 저절로 떠오르거나, 주인이 지금 건져낼 수 있어요.</T>
-            {mine ? <Button title={`지금 건져내기 · ${OCEAN_RESCUE_COINS} 코인`} size="sm" icon="anchor" onPress={() => { const r = rescue(letter.id); if (r === 'nofunds') { warn(); setShareMsg('코인이 부족해요'); setTimeout(() => setShareMsg(null), 2000); } else success(); }} /> : null}
+            {mine ? <Button title={`지금 건져내기 · ${OCEAN_RESCUE_COINS} SC`} size="sm" icon="anchor" track="letter:rescue" onPress={() => { const r = rescue(letter.id); if (r === 'nofunds') { warn(); setShareMsg('코인이 부족해요'); setTimeout(() => setShareMsg(null), 2000); } else success(); }} /> : null}
           </View>
         ) : null}
         {shareMsg ? <T t="small" color={c.text2} style={{ paddingHorizontal: spacing.lg, paddingTop: 8 }}>{shareMsg}</T> : null}
@@ -119,24 +122,24 @@ export default function LetterScreen() {
             <Row gap={10} style={{ paddingVertical: 4 }}><Avatar anonymous size={36} /><View style={{ flex: 1 }}><T t="bodyStrong">??? <T t="small" color={c.text2}>· {other.location.city}</T></T><T t="small" color={c.text2}>{other.field} · {other.job} · 잡으면 프로필이 공개돼요</T></View></Row>
           ) : null}
 
+          {toMe && letter.status === 'flying' ? (
+            <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
+              <T t="bodyStrong">{letter.kind === 'reply' ? '✉️ 답장이 오는 중' : '⚡ 직행 편지가 오는 중'}{letter.boost ? ' · 가속 중' : ''}</T>
+              <T t="small" color={c.text2}>도착 시간은 알 수 없어요. 프로필은 도착하면 열려요. 상대 배달원이 느리면 코인으로 당길 수 있어요.</T>
+              {letter.boost !== 'instant' ? <Row>{letter.boost !== 'fast' ? <Button title={`4배 빠르게 · ${discounted(REPLY_BOOST.fast.coins, me.plan)} SC`} size="sm" variant="secondary" style={{ flex: 1 }} track="letter:boost:fast" onPress={() => { const r = boost(letter.id, 'fast'); if (r === 'nofunds') { warn(); router.push('/store'); } else success(); }} /> : null}<Button title={`1분 안에 · ${discounted(REPLY_BOOST.instant.coins, me.plan)} SC`} size="sm" variant="gradient" style={{ flex: 1 }} track="letter:boost:instant" onPress={() => { const r = boost(letter.id, 'instant'); if (r === 'nofunds') { warn(); router.push('/store'); } else success(); }} /></Row> : null}
+            </View>
+          ) : null}
           {toMe && letter.status === 'delivered' && letter.kind === 'reply' ? (
             <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
               <T t="bodyStrong">📬 답장이 도착했어요{letter.friendRequest ? ' · 친구 요청 포함' : ''}</T>
-              <T t="small" color={c.text2}>프로필을 보고 수락하면 수락 편지가 상대에게 출발해요. 상대가 확정하면 친구가 되고 실시간 채팅이 열려요. (편지 한 번 왕복)</T>
-              <Row><Button title="수락 · 수락 편지 보내기" icon="check" style={{ flex: 1 }} onPress={() => { const k = acceptReply(letter.id); success(); if (k) router.replace(`/letter/${k.id}`); }} /><Button title="거절" variant="ghost" onPress={() => { decline(letter.id); router.back(); }} /></Row>
+              <T t="small" color={c.text2}>편지가 한 번 왕복했어요. 프로필을 보고 수락하면 친구가 되고 지연 없는 실시간 채팅이 열려요. 위치는 50km 반경으로 공유돼요.</T>
+              <Row><Button title="수락하고 채팅 시작" icon="check" style={{ flex: 1 }} track="letter:approve" onPress={() => { approve(letter.id); success(); if (otherId) router.replace(`/chat/${otherId}`); }} /><Button title="거절" variant="ghost" track="letter:decline" onPress={() => { decline(letter.id); router.back(); }} /></Row>
             </View>
           ) : null}
-          {toMe && letter.status === 'delivered' && letter.kind === 'accept' ? (
-            <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
-              <T t="bodyStrong">✅ 수락 편지가 도착했어요 · 왕복 완료</T>
-              <T t="small" color={c.text2}>확정하면 {other?.nickname ?? '상대'}와 친구가 되고 지연 없는 실시간 채팅이 시작돼요. 위치는 50km 반경으로 공유돼요.</T>
-              <Row><Button title="확정하고 채팅 시작" icon="message-circle" style={{ flex: 1 }} onPress={() => { confirmAccept(letter.id); success(); if (otherId) router.replace(`/chat/${otherId}`); }} /><Button title="거절" variant="ghost" onPress={() => { decline(letter.id); router.back(); }} /></Row>
-            </View>
+          {(caughtByMe || (toMe && letter.kind === 'letter' && letter.status === 'delivered')) && !isFriend && !myReply ? (
+            <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">✉️ 답장을 보내 친구가 되어보세요</T><T t="small" color={c.text2}>답장은 발신자에게 직행해요. 상대가 수락하면 친구 · 그때부터 실시간 채팅.</T><Button title="답장 편지 쓰기" icon="edit-3" track="letter:reply" onPress={() => gate('reply', () => router.push({ pathname: '/compose', params: { replyTo: letter.id } } as any))} /></View>
           ) : null}
-          {caughtByMe && !isFriend && !myReply ? (
-            <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">✉️ 답장을 보내 친구가 되어보세요</T><T t="small" color={c.text2}>답장은 발신자에게 직행해요. 상대가 수락하면 수락 편지가 돌아오고, 내가 확정하면 친구.</T><Button title="답장 편지 쓰기" icon="edit-3" onPress={() => router.push({ pathname: '/compose', params: { replyTo: letter.id } } as any)} /></View>
-          ) : null}
-          {myReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">{myReply.status === 'flying' ? '✈️ 답장이 가는 중' : myReply.status === 'delivered' ? '📬 답장 도착 · 상대 수락 대기' : myReply.status === 'approved' ? '✅ 상대가 수락 · 수락 편지 확인' : '🙅 상대가 수락하지 않았어요'}</T><Row><Button title="답장 보기" size="sm" variant="secondary" onPress={() => router.push(`/letter/${myReply.id}`)} />{isFriend && otherId ? <Button title="채팅" size="sm" onPress={() => router.push(`/chat/${otherId}`)} /> : null}</Row></View> : null}
+          {myReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">{myReply.status === 'flying' ? '✈️ 답장이 가는 중' : myReply.status === 'delivered' ? '📬 답장 도착 · 상대 수락 대기' : myReply.status === 'approved' ? '✅ 상대가 수락 · 친구' : '🙅 상대가 수락하지 않았어요'}</T><Row><Button title="답장 보기" size="sm" variant="secondary" onPress={() => router.push(`/letter/${myReply.id}`)} />{isFriend && otherId ? <Button title="채팅" size="sm" onPress={() => router.push(`/chat/${otherId}`)} /> : null}</Row></View> : null}
           {mine && letter.status === 'caught' && other ? (
             <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
               <Row gap={10}><Avatar anonymous={!otherShown} emoji={other.avatar} size={40} ring="ig" /><View style={{ flex: 1 }}><T t="bodyStrong">{displayName(rev, other.id)} · {other.location.city}</T><T t="small" color={c.text2}>{other.field} · {other.job} · 내 편지를 잡았어요</T></View></Row>
@@ -144,7 +147,7 @@ export default function LetterScreen() {
               {isFriend ? <Button title="채팅하기" icon="message-circle" onPress={() => router.push(`/chat/${other.id}`)} /> : null}
             </View>
           ) : null}
-          {mine && letter.kind === 'letter' && !isPosted ? <Button title="커뮤니티에 엽서로 공개 (+스토리)" variant="secondary" icon="image" onPress={() => publish(letter.id, true)} /> : null}
+          {mine && letter.kind === 'letter' && !letter.direct && !isPosted ? <Button title="커뮤니티에 엽서로 공개 (+스토리)" variant="secondary" icon="image" track="letter:publish" onPress={() => publish(letter.id, true)} /> : null}
           {isFriend && otherId && !mine && !toMe ? <Button title="채팅하기" icon="message-circle" onPress={() => router.push(`/chat/${otherId}`)} /> : null}
           {hasTarget(letter) ? <Row style={{ flexWrap: 'wrap' }} gap={4}><T t="caption" color={c.text2}>조건</T>{letter.target.field ? <Pill label={letter.target.field} /> : null}{letter.target.job ? <Pill label={letter.target.job} /> : null}{letter.target.hobby ? <Pill label={letter.target.hobby} /> : null}{letter.target.gender ? <Pill label={letter.target.gender} /> : null}</Row> : null}
         </View>

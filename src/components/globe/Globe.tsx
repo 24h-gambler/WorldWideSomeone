@@ -140,7 +140,8 @@ export function Globe({ size, letters, me, meAvatar = '🙂', friends = [], focu
         {/* 친구 */}
         {friends.map((f) => { const xy = project(f.location); if (!xy) return null; return (
           <G key={f.id}>
-            <Circle cx={xy[0]} cy={xy[1]} r={16} fill={c.blue} fillOpacity={0.12} stroke={c.blue} strokeOpacity={0.35} strokeWidth={1} />
+            {/* 젠리식: 친구는 정확한 점이 아니라 50km 반경 원으로 */}
+            <Circle cx={xy[0]} cy={xy[1]} r={Math.max(10, r * (50 / 6371) * zoom)} fill={c.blue} fillOpacity={0.14} stroke={c.blue} strokeOpacity={0.45} strokeWidth={1.2} strokeDasharray="3 3" />
             <Bubble x={xy[0]} y={xy[1]} size={26} ring={c.pink}><SvgText x={xy[0]} y={xy[1] + 5} fontSize={14} textAnchor="middle">{f.avatar}</SvgText></Bubble>
           </G>
         ); })}

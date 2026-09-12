@@ -39,8 +39,8 @@ export async function requestBackgroundLocation(): Promise<PermissionState> {
   try { return toState(await Location.requestBackgroundPermissionsAsync()); } catch { return 'unavailable'; }
 }
 
-export async function getCurrentPlace(): Promise<Place> {
-  const perm = await Location.requestForegroundPermissionsAsync();
+export async function getCurrentPlace(prompt = true): Promise<Place> {
+  const perm = prompt ? await Location.requestForegroundPermissionsAsync() : await Location.getForegroundPermissionsAsync();
   if (!perm.granted) throw new Error('위치 권한이 꺼져 있어요. 설정에서 허용하거나 도시를 직접 선택하세요.');
   const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   return describePlace({ lat: pos.coords.latitude, lng: pos.coords.longitude });

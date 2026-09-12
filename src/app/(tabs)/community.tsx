@@ -7,7 +7,8 @@ import { Avatar, Button, Chip, HScroll, Header, Icon, IconButton, Pill, Row, Scr
 import { VehicleIcon } from '@/components/vehicle-icon';
 import { FIELDS, HOBBIES } from '@/data/profile';
 import { VEHICLE_MAP } from '@/data/vehicles';
-import { PLAN_MAP, PRODUCTS } from '@/data/plans';
+import { ITEM_MAP, PLAN_MAP } from '@/data/plans';
+import { useGate } from '@/hooks/use-gate';
 import { botFriendCount } from '@/data/bots';
 import { BOTS, ME_ID, displayName, isRevealed, useStore } from '@/store';
 import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
@@ -37,7 +38,8 @@ export default function Community() {
   const [tab, setTab] = useState<Tab>('feed');
   const [field, setField] = useState<string | null>(null);
   const [hobby, setHobby] = useState<string | null>(null);
-  const instantPrice = PRODUCTS.find((p) => p.id === 'instant1')!;
+  const directPrice = ITEM_MAP.direct1;
+  const gate = useGate();
 
   const people = useMemo(() => BOTS.filter((b) => (!field || b.field === field) && (!hobby || b.hobbies.includes(hobby))).map((b) => ({ b, pct: contactPct(b, me.location) })).sort((x, y) => y.pct - x.pct), [field, hobby, me.location]);
   const ranking = useMemo(() => { const rows = BOTS.map((b) => ({ u: b, friends: botFriendCount(b), caught: b.stats.caught, km: b.stats.distanceKm })); rows.push({ u: me, friends: friendIds.length, caught: me.stats.caught, km: me.stats.distanceKm }); return rows.sort((a, b) => b.friends - a.friends || b.caught - a.caught); }, [me, friendIds.length]);
@@ -84,7 +86,7 @@ export default function Community() {
                 </View>
               </Pressable>
               <Row style={{ paddingHorizontal: spacing.lg, paddingTop: 8, gap: 16 }}>
-                <IconButton name="heart" color={p.likedByMe ? c.red : c.text} onPress={() => likePost(p.id)} />
+                <IconButton name="heart" color={p.likedByMe ? c.red : c.text} onPress={() => gate('like', () => likePost(p.id))} />
                 <IconButton name="message-circle" onPress={() => router.push(`/post/${p.id}`)} />
                 <IconButton name="send" onPress={() => (mine ? router.push('/compose') : router.push({ pathname: '/compose', params: { toId: p.authorId } } as any))} />
                 <View style={{ flex: 1 }} /><IconButton name="bookmark" />
@@ -114,7 +116,7 @@ export default function Community() {
                   <T t="bodyStrong" style={{ marginTop: 8 }}>{displayName(rev, b.id)} {PLAN_MAP[b.plan].badge ?? ''}</T>
                   <T t="caption" color={c.text2}>{formatKm(distanceKm(me.location, b.location))} 떨어짐</T>
                   <View style={styles.tags}><Pill label={b.field} /><Pill label={b.job} />{b.hobbies.slice(0, 2).map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blue} />)}</View>
-                  <T t="caption" color={c.text3} style={{ marginTop: 6 }}>친구 {botFriendCount(b)} · {timeAgo(b.lastActiveAt)} 활동</T>
+                  <T t="caption" color={c.text3} style={{ marginTop: 6 }}>받은 편지 {b.stats.received} · 친구 {botFriendCount(b)} · {timeAgo(b.lastActiveAt)} 활동</T>
                   <Row style={{ marginTop: 8 }} gap={6}>
                     <Button title={isFriend ? '채팅' : '편지'} size="sm" variant={isFriend ? 'secondary' : 'primary'} style={{ flex: 1 }} onPress={() => (isFriend ? router.push(`/chat/${b.id}`) : router.push({ pathname: '/compose', params: { toId: b.id, field: b.field, job: b.job } } as any))} />
                     {!isFriend ? <Button title={`⚡`} size="sm" variant="gradient" onPress={() => router.push(`/user/${b.id}`)} /> : null}
@@ -122,7 +124,7 @@ export default function Community() {
                 </Pressable>
               ); })}
             </View>
-            <T t="caption" color={c.text3} style={{ paddingHorizontal: spacing.lg, marginTop: 8 }}>⚡ 즉시 친구: 왕복 없이 바로 친구 요청 · {instantPrice.priceLabel} 또는 🪙{instantPrice.coins} · 프로 월 2회 · 상대가 거절하면 환불</T>
+            <T t="caption" color={c.text3} style={{ paddingHorizontal: spacing.lg, marginTop: 8 }}>⚡ 직행 편지: 그 사람에게 편지가 무조건 도착 · {directPrice.coins} SC · 프로 월 2회 · 답장은 상대의 마음(환불 없음)</T>
           </View>
         )}
 
