@@ -134,9 +134,16 @@ await step('28', '플러스 · 엿보기 → 끌어오기(내 위치로)', async
   throw new Error('no pullable letter in 5 spawns');
 });
 await step('29', '침수 → 몇 시간 정지 → 지구 표시', async () => {
+  // 방어권·바다 면역(돌고래·잠수함·드래곤)·초고속 편지는 건너뛰고 침수시킬 수 있는 편지를 고른다
+  const skip = new Set(['dolphin', 'submarine', 'dragon', 'rocket', 'satellite', 'ufo', 'fighter', 'concorde', 'maglev', 'ktx', 'airliner', 'heli', 'prop', 'sports', 'truck', 'cruise', 'train']);
   let outcome = '';
-  for (let i = 0; i < 3 && outcome !== 'sunk'; i++) { await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('침수', { exact: true }); const t = await page.getByText(/침수!|튕겨나갔어요|건드릴 수 없어요|이미 착륙했어요/).first().textContent({ timeout: 8000 }); outcome = t.includes('침수!') ? 'sunk' : t.includes('튕겨') ? 'defended' : t.includes('착륙') ? 'gone' : 'immune'; await shot(outcome === 'sunk' ? '29-catch-sunk' : `29-catch-${outcome}-${i}`); await page.waitForTimeout(1800); }
-  const s = await state(); const sunk = s.letters.find((l) => l.status === 'sunk'); if (!sunk) throw new Error(`no sunk letter (${outcome})`); await shot('29b-home-sunk'); return `sunkUntil in ${Math.round((sunk.sunkUntil - Date.now()) / 1000)}s`;
+  for (let i = 0; i < 6 && outcome !== 'sunk'; i++) {
+    await spawnPassby(); const s0 = await state(); const pb = s0.passbys.find((p) => !p.resolved && p.expiresAt > Date.now()); const l = pb && s0.letters.find((x) => x.id === pb.letterId);
+    await tap('보기', { exact: true }); await page.waitForTimeout(800);
+    if (!l || l.shield || skip.has(l.vehicle)) { console.log(`  (skip ${l?.vehicle} shield=${l?.shield})`); await tap('그냥 보내주기'); await page.waitForTimeout(800); continue; }
+    await tap('침수', { exact: true }); const t = await page.getByText(/침수!|튕겨나갔어요|건드릴 수 없어요|이미 착륙했어요/).first().textContent({ timeout: 8000 }); outcome = t.includes('침수!') ? 'sunk' : t.includes('튕겨') ? 'defended' : t.includes('착륙') ? 'gone' : 'immune'; await shot(outcome === 'sunk' ? '29-catch-sunk' : `29-catch-${outcome}-${i}`); await page.waitForTimeout(1800);
+  }
+  const s = await state(); const sunk = s.letters.find((l) => l.status === 'sunk'); if (!sunk) throw new Error(`no sunk letter (${outcome || 'no candidate'})`); await shot('29b-home-sunk'); return `sunkUntil in ${Math.round((sunk.sunkUntil - Date.now()) / 1000)}s`;
 });
 
 // ── 8. 다크 모드 · 트래킹 ────────────────────────────
