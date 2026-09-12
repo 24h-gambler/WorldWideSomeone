@@ -29,9 +29,11 @@ export default function Letters() {
   const decline = useStore((s) => s.declineLetter);
   const boost = useStore((s) => s.boostReply);
   const pending = useStore(selectPendingInbox);
-  const [tab, setTab] = useState<Tab>(pending > 0 ? 'inbox' : 'sent');
+  const incomingCount = useStore((s) => s.letters.filter((l) => l.recipientId === ME_ID && l.status === 'flying').length);
+  const [tab, setTab] = useState<Tab>(pending > 0 || incomingCount > 0 ? 'inbox' : 'sent');
   const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => { if (pending > 0) setTab('inbox'); }, [pending]);
+  // 답장이 오는 중이거나 도착하면 우편함으로 (사용자가 다른 탭을 보는 중이어도 새 소식일 때만)
+  useEffect(() => { if (pending > 0 || incomingCount > 0) setTab('inbox'); }, [pending, incomingCount]);
 
   const sent = useMemo(() => letters.filter((l) => l.senderId === ME_ID), [letters]);
   const delivered = useMemo(() => letters.filter((l) => l.recipientId === ME_ID && l.status === 'delivered'), [letters]);
