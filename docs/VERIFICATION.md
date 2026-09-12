@@ -1,7 +1,7 @@
 # 검증 리포트 (사용자 관점 · 단계별)
 
-- 실행: 2026-09-12T16:12:29.574Z · 웹 빌드를 390×844(iPhone 14) 뷰포트에서 Playwright 로 자동 주행 · 로컬 시뮬 모드(봇 60명)
-- 결과: **31/32 통과** · 콘솔 오류 0건
+- 실행: 2026-09-12T16:24:48.761Z · 웹 빌드를 390×844(iPhone 14) 뷰포트에서 Playwright 로 자동 주행 · 로컬 시뮬 모드(봇 60명)
+- 결과: **32/32 통과** · 콘솔 오류 0건
 - 재실행: `npm run export:web && npx serve dist -l 8081 -s` → `BASE=http://localhost:8081 CHROMIUM_PATH=... npm run shots && npm run report`
 
 ## 1. 첫 진입 · 비회원 · 투어
@@ -49,7 +49,7 @@
 | 16 | 경로 바꾸기(경유지 1) | ✅ | [16-reroute](screenshots/16-reroute.png) |
 | 17 | 잡기 → 봉투 → 보낸 사람 실제 프로필 · 공유 | ✅ | [17-letter-revealed](screenshots/17-letter-revealed.png) |
 | 18 | 답장 편지 쓰기(직행 · 친구 요청) → 발송 → "왕복 진행 중" | ✅ | [18-reply-confirm](screenshots/18-reply-confirm.png) · [18b-friends-roundtrip](screenshots/18b-friends-roundtrip.png) |
-| 32 | 통과 알림 신뢰성 3회 (miss, ok, miss) | ❌  |  |
+| 32 | 통과 알림 신뢰성 3회 (ok, ok, ok) | ✅ |  |
 
 ## 5. 왕복(내 편지 → 상대 답장) · 코인 가속 → 수락 → 채팅
 
@@ -81,7 +81,7 @@
 | 26 | 플랜(플러스) 테스트 결제 → 매월 SC 지급 · 한도 표시 | ✅ | [26-store-plus](screenshots/26-store-plus.png) |
 | 27 | 배달원 대여(SC)로 잠긴 여객기 1회 사용 | ✅ | [27-compose-rental](screenshots/27-compose-rental.png) |
 | 28 | 플러스 · 엿보기 → 끌어오기(내 위치로) | ✅ | [28-catch-peeked-plus](screenshots/28-catch-peeked-plus.png) · [28-home-pulled](screenshots/28-home-pulled.png) |
-| 29 | 침수 → 몇 시간 정지 → 지구 표시 | ✅ | [29-catch-gone-0](screenshots/29-catch-gone-0.png) · [29-catch-sunk](screenshots/29-catch-sunk.png) · [29b-home-sunk](screenshots/29b-home-sunk.png) |
+| 29 | 침수 → 몇 시간 정지 → 지구 표시 | ✅ | [29-catch-gone-1](screenshots/29-catch-gone-1.png) · [29-catch-sunk](screenshots/29-catch-sunk.png) · [29b-home-sunk](screenshots/29b-home-sunk.png) |
 
 ## 8. 다크 모드 · 트래킹
 
