@@ -6,16 +6,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, Button, Header, Icon, IconButton, Row, Screen, T } from '@/components/ui';
 import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
-import { ME_ID, displayName, getUser, useStore } from '@/store';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { ME_ID, displayName, getUser, isRevealed, useStore } from '@/store';
+import { fontFamily, radius, spacing, useColors } from '@/theme';
 import { remote } from '@/services/sync';
 
 export default function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const colors = useColors();
   const me = useStore((s) => s.me);
   const friendIds = useStore((s) => s.friendIds);
+  const revealedIds = useStore((s) => s.revealedIds);
   const chat = useStore((s) => s.chats.find((c) => c.otherId === id));
   const letters = useStore((s) => s.letters);
   const send = useStore((s) => s.sendMessage);
@@ -27,6 +29,7 @@ export default function ChatScreen() {
   const messages = chat?.messages ?? [];
   const pendingReply = letters.find((l) => l.recipientId === ME_ID && l.senderId === id && l.status === 'delivered');
   const myPendingReply = letters.find((l) => l.senderId === ME_ID && l.recipientId === id && (l.status === 'flying' || l.status === 'delivered'));
+  const isRevealedUser = isRevealed({ friendIds, revealedIds }, other?.id ?? '');
   const caughtTheirs = letters.find((l) => l.senderId === id && l.caughtBy === ME_ID);
 
   useEffect(() => { if (id) markRead(id); }, [id, markRead, messages.length]);
@@ -43,8 +46,8 @@ export default function ChatScreen() {
   return (
     <Screen>
       <Header
-        left={<Row gap={8}><Pressable hitSlop={10} onPress={() => (router.canGoBack() ? router.back() : router.replace('/friends'))}><Icon name="chevron-left" size={28} /></Pressable><Avatar anonymous={!isFriend} emoji={other.avatar} size={36} /></Row>}
-        title={displayName({ me, friendIds }, other.id)}
+        left={<Row gap={8}><Pressable hitSlop={10} onPress={() => (router.canGoBack() ? router.back() : router.replace('/friends'))}><Icon name="chevron-left" size={28} /></Pressable><Avatar anonymous={!isRevealedUser} emoji={other.avatar} size={36} /></Row>}
+        title={displayName({ me, friendIds, revealedIds }, other.id)}
         subtitle={`${other.location.city} · ${formatKm(distanceKm(me.location, other.location))} · ${isFriend ? '친구 · 실시간' : '아직 친구가 아니에요'}`}
         right={<><IconButton name="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /><IconButton name="info" onPress={() => router.push(`/user/${other.id}`)} /></>}
       />
@@ -52,9 +55,9 @@ export default function ChatScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: 12 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}><Icon name="lock" size={32} /></View>
           <T t="title" style={{ textAlign: 'center' }}>편지로만 대화할 수 있어요</T>
-          <T t="body" color={colors.text2} style={{ textAlign: 'center' }}>실시간 채팅은 답장 편지를 회수하고 승인한 뒤에 열려요. 그 전까지는 편지가 날아가는 시간만큼 기다려요.</T>
-          {pendingReply ? <Button title="도착한 답장 승인하기" icon="check" onPress={() => router.push(`/letter/${pendingReply.id}`)} /> : null}
-          {myPendingReply ? <T t="small" color={colors.text2}>{myPendingReply.status === 'flying' ? '내 답장이 가는 중 · 도착하면 상대가 승인해요' : '내 답장 도착 · 상대 승인 대기 중'}</T> : caughtTheirs && !pendingReply ? <Button title="답장 편지 쓰기" icon="edit-3" onPress={() => router.push({ pathname: '/compose', params: { replyTo: caughtTheirs.id } } as any)} /> : !pendingReply ? <Button title="편지 보내기" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /> : null}
+          <T t="body" color={colors.text2} style={{ textAlign: 'center' }}>실시간 채팅은 편지가 한 번 왕복한 뒤에 열려요: 답장 → 상대 수락(수락 편지) → 확정. 그 전까지는 편지가 날아가는 시간만큼 기다려요.</T>
+          {pendingReply ? <Button title={pendingReply.kind === 'accept' ? '도착한 수락 편지 확정하기' : '도착한 답장 수락하기'} icon="check" onPress={() => router.push(`/letter/${pendingReply.id}`)} /> : null}
+          {myPendingReply ? <T t="small" color={colors.text2}>{myPendingReply.status === 'flying' ? `내 ${myPendingReply.kind === 'accept' ? '수락 편지' : '답장'}가 가는 중` : `내 ${myPendingReply.kind === 'accept' ? '수락 편지' : '답장'} 도착 · 상대 차례`}</T> : caughtTheirs && !pendingReply ? <Button title="답장 편지 쓰기" icon="edit-3" onPress={() => router.push({ pathname: '/compose', params: { replyTo: caughtTheirs.id } } as any)} /> : !pendingReply ? <Button title="편지 보내기" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /> : null}
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -73,9 +76,9 @@ export default function ChatScreen() {
                 <View key={m.id} style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: mine ? 'flex-end' : 'flex-start', gap: 6, marginTop: prevSame ? 0 : 6 }}>
                   {!mine ? <View style={{ width: 26 }}>{!prevSame ? <Avatar emoji={other.avatar} size={26} /> : null}</View> : null}
                   {mine ? (
-                    <LinearGradient colors={['#5851DB', '#833AB4', '#E1306C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, { borderBottomRightRadius: 4 }]}><T color="#fff">{m.text}</T></LinearGradient>
+                    <LinearGradient colors={[...colors.bubbleMe] as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, { borderBottomRightRadius: 4 }]}><T color="#fff">{m.text}</T></LinearGradient>
                   ) : (
-                    <View style={[styles.bubble, { backgroundColor: colors.bg3, borderBottomLeftRadius: 4 }]}><T>{m.text}</T></View>
+                    <View style={[styles.bubble, { backgroundColor: colors.bubbleThem, borderBottomLeftRadius: 4 }]}><T>{m.text}</T></View>
                   )}
                 </View>
               );
@@ -83,8 +86,8 @@ export default function ChatScreen() {
             {messages.length ? <T t="caption" color={colors.text3} style={{ alignSelf: 'flex-end', marginTop: 2 }}>{new Date(messages[messages.length - 1].at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</T> : null}
           </ScrollView>
           <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <View style={styles.inputWrap}>
-              <TextInput value={text} onChangeText={setText} placeholder="메시지 보내기…" placeholderTextColor={colors.text3} style={[styles.input, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} onSubmitEditing={onSend} returnKeyType="send" />
+            <View style={[styles.inputWrap, { borderColor: colors.line }]}>
+              <TextInput value={text} onChangeText={setText} placeholder="메시지 보내기…" placeholderTextColor={colors.text3} style={[styles.input, { color: colors.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} onSubmitEditing={onSend} returnKeyType="send" />
               {text.trim() ? <Pressable onPress={onSend} hitSlop={8}><T t="bodyStrong" color={colors.blue}>보내기</T></Pressable> : <Row gap={12}><Icon name="mic" size={20} /><Icon name="image" size={20} /></Row>}
             </View>
           </View>
@@ -97,6 +100,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   bubble: { maxWidth: '75%', paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.xl },
   inputRow: { paddingHorizontal: spacing.lg, paddingTop: 8 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.line, borderRadius: 999, paddingLeft: 16, paddingRight: 14, height: 44 },
-  input: { flex: 1, color: colors.text, fontSize: 14, fontFamily, height: 44 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 999, paddingLeft: 16, paddingRight: 14, height: 44 },
+  input: { flex: 1, fontSize: 14, fontFamily, height: 44 },
 });

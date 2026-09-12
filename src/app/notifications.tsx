@@ -5,13 +5,14 @@ import { useRouter } from 'expo-router';
 import { Empty, Header, ListRow, Screen, T } from '@/components/ui';
 import { timeAgo } from '@/engine/geo';
 import { useStore } from '@/store';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 import type { NotificationType } from '@/types';
 
-const ICON: Record<NotificationType, string> = { passby: '✈️', caught: '🎉', reply: '📬', approved: '🤝', chat: '💬', mischief: '😈', defended: '🛡️', landed: '📍', reward: '🪙', like: '❤️', system: '🌍' };
+const ICON: Record<NotificationType, string> = { passby: '✈️', caught: '🎉', reply: '📬', accept: '✅', approved: '🤝', chat: '💬', mischief: '😈', defended: '🛡️', landed: '📍', reward: '🪙', like: '❤️', comment: '💬', sunk: '🌊', instant: '⚡', system: '🌍' };
 
 export default function Notifications() {
   const router = useRouter();
+  const colors = useColors();
   const list = useStore((s) => s.notifications);
   const markRead = useStore((s) => s.markNotificationsRead);
   useEffect(() => { const t = setTimeout(markRead, 800); return () => clearTimeout(t); }, [markRead]);

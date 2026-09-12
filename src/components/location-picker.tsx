@@ -5,13 +5,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CITIES } from '@/data/cities';
 import type { LatLng, Place } from '@/types';
 import { describePlace } from '@/engine/geo';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { fontFamily, radius, spacing, useColors, useStyles, type ThemeColors } from '@/theme';
 import { Button, Chip, Icon, Row, T } from '@/components/ui';
 import { Globe } from '@/components/globe/Globe';
 import { getCurrentPlace } from '@/services/location';
 
 export function LocationPicker({ value, onChange, letters = [], compact, points = [], hint }: { value: Place | null; onChange: (p: Place) => void; letters?: any[]; compact?: boolean; points?: LatLng[]; hint?: string }) {
   const { width } = useWindowDimensions();
+  const colors = useColors();
+  const styles = useStyles(makeStyles);
   const [q, setQ] = useState('');
   const [locating, setLocating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function LocationPicker({ value, onChange, letters = [], compact, points 
 
   return (
     <View style={{ gap: spacing.md }}>
-      <LinearGradient colors={['#F7FBFF', '#EAF4FF']} style={{ borderRadius: radius.lg, alignItems: 'center', paddingVertical: 8 }}>
+      <LinearGradient colors={[...colors.sky] as any} style={{ borderRadius: radius.lg, alignItems: 'center', paddingVertical: 8 }}>
         <Globe size={size} letters={letters} me={null} pickedPoints={value ? [...points, value] : points} focusPoint={value} autoRotate={!value} fps={24} onSelectPoint={(p: LatLng) => onChange(describePlace(p))} />
         <T t="small" color={colors.text2}>{hint ?? '지구를 돌려서 탭하면 위치가 찍혀요'}</T>
       </LinearGradient>
@@ -60,7 +62,7 @@ export function LocationPicker({ value, onChange, letters = [], compact, points 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   selected: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.bg2, borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: colors.line },
   search: { backgroundColor: colors.bg3, borderRadius: radius.sm, paddingHorizontal: 10, height: 38 },
   input: { flex: 1, color: colors.text, fontSize: 14, fontFamily, height: 38 },

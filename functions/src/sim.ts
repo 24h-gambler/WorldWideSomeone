@@ -6,23 +6,21 @@ export const LANDED_WINDOW_MS = 24 * 3_600_000; // 실서비스: 착륙 후 24�
 export const ORBIT_LAPS = 3;
 export const SNAIL = { factor: 0.1, durationMs: 30 * 60_000 }; // 실서비스: 30분
 
-export type VehicleId = 'walk' | 'jog' | 'sprint' | 'bike' | 'horse' | 'scooter' | 'car' | 'train' | 'plane' | 'rocket' | 'dragon' | 'ufo' | 'satellite';
-export const VEHICLES: Record<VehicleId, { speedKmh: number; motion: 'straight' | 'drift' | 'zigzag' | 'orbit'; catchWindowMultiplier: number; immune?: boolean; unlockFriends: number | null; premiumItem?: 'ufo' | 'orbit' | 'dragon' }> = {
-  walk: { speedKmh: 5, motion: 'drift', catchWindowMultiplier: 1.4, unlockFriends: 0 },
-  jog: { speedKmh: 10, motion: 'drift', catchWindowMultiplier: 1.3, unlockFriends: 2 },
-  sprint: { speedKmh: 18, motion: 'straight', catchWindowMultiplier: 1.2, unlockFriends: 5 },
-  bike: { speedKmh: 25, motion: 'straight', catchWindowMultiplier: 1.1, unlockFriends: 8 },
-  horse: { speedKmh: 45, motion: 'drift', catchWindowMultiplier: 1, unlockFriends: 12 },
-  scooter: { speedKmh: 70, motion: 'straight', catchWindowMultiplier: 1, unlockFriends: 16 },
-  car: { speedKmh: 120, motion: 'straight', catchWindowMultiplier: 0.9, unlockFriends: 22 },
-  train: { speedKmh: 300, motion: 'straight', catchWindowMultiplier: 0.8, unlockFriends: 30 },
-  plane: { speedKmh: 900, motion: 'straight', catchWindowMultiplier: 0.8, unlockFriends: 40 },
-  rocket: { speedKmh: 6000, motion: 'straight', catchWindowMultiplier: 0.7, unlockFriends: 55 },
-  dragon: { speedKmh: 2500, motion: 'drift', catchWindowMultiplier: 1.2, immune: true, unlockFriends: 80, premiumItem: 'dragon' },
-  ufo: { speedKmh: 12000, motion: 'zigzag', catchWindowMultiplier: 2.2, unlockFriends: null, premiumItem: 'ufo' },
-  satellite: { speedKmh: 28000, motion: 'orbit', catchWindowMultiplier: 1.5, unlockFriends: null, premiumItem: 'orbit' },
+export type VehicleId = 'walk' | 'jog' | 'run' | 'kick' | 'bike' | 'pigeon' | 'seagull' | 'goose' | 'crane' | 'hawk' | 'eagle' | 'albatross' | 'horse' | 'camel' | 'dolphin' | 'cheetah' | 'scooter' | 'kei' | 'bus' | 'sedan' | 'truck' | 'sports' | 'train' | 'ktx' | 'maglev' | 'sail' | 'speedboat' | 'cruise' | 'submarine' | 'hover' | 'balloon' | 'paraglider' | 'heli' | 'prop' | 'airliner' | 'fighter' | 'concorde' | 'rocket' | 'satellite' | 'ufo' | 'carpet' | 'unicorn' | 'dragon';
+type Spec = { speedKmh: number; motion: 'straight' | 'drift' | 'zigzag' | 'orbit'; catchWindowMultiplier: number; unlockFriends: number | null; premiumItem?: 'ufo' | 'orbit' | 'dragon' | 'carpet' | 'event'; immune?: boolean; immuneOcean?: boolean; immuneSnail?: boolean; immunePeek?: boolean; builtInShield?: boolean };
+const S = (speedKmh: number, motion: Spec['motion'], catchWindowMultiplier: number, unlockFriends: number | null, extra: Partial<Spec> = {}): Spec => ({ speedKmh, motion, catchWindowMultiplier, unlockFriends, ...extra });
+export const VEHICLES: Record<VehicleId, Spec> = {
+  walk: S(5, 'drift', 1.4, 0), jog: S(9, 'drift', 1.3, 1), run: S(16, 'straight', 1.2, 2), kick: S(15, 'straight', 1.2, 2), bike: S(25, 'straight', 1.1, 3),
+  pigeon: S(60, 'drift', 1.1, 4), seagull: S(70, 'drift', 1.1, 5), goose: S(80, 'straight', 1, 7), crane: S(85, 'drift', 1, 9), hawk: S(130, 'straight', 0.8, 12), eagle: S(150, 'straight', 0.9, 15, { immuneSnail: true }), albatross: S(140, 'straight', 1, 18),
+  horse: S(45, 'drift', 1, 6), camel: S(40, 'drift', 1.1, 8), dolphin: S(55, 'drift', 1, 10, { immuneOcean: true }), cheetah: S(110, 'straight', 0.9, 14),
+  scooter: S(60, 'straight', 1, 11), kei: S(90, 'straight', 1, 13), bus: S(80, 'straight', 1.3, 16), sedan: S(120, 'straight', 0.9, 19), truck: S(95, 'straight', 1, 21, { builtInShield: true }), sports: S(260, 'straight', 0.7, 25), train: S(160, 'straight', 0.9, 23), ktx: S(300, 'straight', 0.8, 30), maglev: S(430, 'straight', 0.8, 36),
+  sail: S(20, 'drift', 1.3, 5), speedboat: S(75, 'straight', 1, 12), cruise: S(45, 'drift', 1.4, 17, { builtInShield: true }), submarine: S(40, 'straight', 1.1, 22, { immuneOcean: true, immunePeek: true }), hover: S(90, 'drift', 1, 27),
+  balloon: S(30, 'drift', 1.6, 8), paraglider: S(40, 'drift', 1.3, 10), heli: S(250, 'straight', 1, 24), prop: S(350, 'straight', 0.9, 28), airliner: S(900, 'straight', 0.8, 40), fighter: S(2000, 'straight', 0.7, 50, { immuneSnail: true }), concorde: S(2200, 'straight', 0.7, 55),
+  rocket: S(6000, 'straight', 0.7, 60), satellite: S(28000, 'orbit', 1.5, null, { premiumItem: 'orbit' }), ufo: S(12000, 'zigzag', 2.2, null, { premiumItem: 'ufo' }),
+  carpet: S(800, 'drift', 1.2, null, { premiumItem: 'carpet', immunePeek: true }), unicorn: S(500, 'drift', 1.2, null, { premiumItem: 'event' }), dragon: S(2500, 'drift', 1.2, 80, { premiumItem: 'dragon', immune: true, immuneOcean: true, immuneSnail: true }),
 };
-export const PLAN_LIMITS = { free: { maxWaypoints: 1, unlockBoost: 0, dailyLetters: 5 }, plus: { maxWaypoints: 2, unlockBoost: 4, dailyLetters: 20 }, pro: { maxWaypoints: 3, unlockBoost: 10, dailyLetters: Infinity } } as const;
+export const OCEAN_SINK_MS = 3 * 3_600_000;
+export const PLAN_LIMITS = { free: { maxWaypoints: 1, unlockBoost: 0, dailyLetters: 5, dailyPeeks: 0, dailyPulls: 0, monthlyInstant: 0, acceptDelivery: 'normal' }, plus: { maxWaypoints: 2, unlockBoost: 4, dailyLetters: 20, dailyPeeks: 3, dailyPulls: 1, monthlyInstant: 0, acceptDelivery: 'fastest' }, pro: { maxWaypoints: 3, unlockBoost: 10, dailyLetters: Infinity, dailyPeeks: 10, dailyPulls: 3, monthlyInstant: 2, acceptDelivery: 'instant' } } as const;
 
 export type Route = { totalKm: number; at: (p: number) => LatLng; firstKm: number };
 
@@ -92,6 +90,20 @@ export function rerouteThrough(l: FlightDoc, now: number, newWaypoints: LatLng[]
   const totalMs = durationMs(route.totalKm, l.vehicle, timeScale);
   const departedAt = now - totalMs * (distanceKm(l.origin, here) / route.totalKm);
   return { waypoints, departedAt, arrivesAt: departedAt + totalMs, distanceKm: route.totalKm, penalty: null };
+}
+/** 끌어오기: 현재 위치 → target */
+export function pullTo(l: FlightDoc, now: number, target: LatLng, timeScale: number) {
+  const here = positionOf(l, now);
+  const waypoints = [here];
+  const route = buildRoute(l.origin, target, waypoints, l.vehicle);
+  const totalMs = durationMs(route.totalKm, l.vehicle, timeScale);
+  const departedAt = now - totalMs * (distanceKm(l.origin, here) / route.totalKm);
+  return { destination: target, waypoints, departedAt, arrivesAt: departedAt + totalMs, distanceKm: route.totalKm, penalty: null };
+}
+/** 침수 복귀 */
+export function resurface(l: FlightDoc & { sunkAt?: number }, now: number) {
+  const paused = Math.max(0, now - (l.sunkAt ?? now));
+  return { departedAt: l.departedAt + paused, arrivesAt: l.arrivesAt + paused, status: 'flying', sunkAt: null, sunkUntil: null };
 }
 export function applySnail(l: FlightDoc, now: number) {
   const until = Math.min(now + SNAIL.durationMs, l.arrivesAt + SNAIL.durationMs);

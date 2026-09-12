@@ -42,7 +42,8 @@ export function makeBots(): User[] {
       stats: { sent: Math.floor(r() * 60), caught: Math.floor(r() * 40), distanceKm: Math.floor(r() * 160_000), likes: Math.floor(r() * 300) },
       stamps: [],
       coins: 0,
-      inventory: { shield: 0, ufo: 0, orbit: 0 },
+      inventory: { shield: 0, ufo: 0, orbit: 0, peek: 0, pull: 0, instant: 0, carpet: 0 },
+      quota: { date: '', peeks: 0, pulls: 0, instant: 0 },
       plan,
       shieldMilestone: 0,
       createdAt: Date.now() - Math.floor(r() * 90 * 86_400_000),
@@ -104,3 +105,6 @@ export const BOT_POSTS = [
   '착륙한 편지를 집어갔더니 사진이 들어있었어요. 그 도시 야경.',
   '경로 바꾸기로 내 친구 머리 위로 보내줬어요. 잡았대요 ㅋㅋ',
 ];
+
+export const BOT_COMMENTS = ['여기 어디예요? 분위기 좋다', '저도 이 배달원 써봤는데 진짜 느려요 ㅋㅋ', '편지 보내도 돼요?', '몇 km 떨어져 있는지 보니까 꽤 머네요', '사진 예뻐요 📸', '다음 편지는 제 머리 위로 보내주세요', '좋아요 눌렀어요!', '이 도시 가보고 싶다'];
+export const BOT_ACCEPT_LETTERS = ['답장 고마워요. 프로필 보니 좋은 사람 같아서 수락할게요. 이 편지가 도착하면 확정해줘요!', '왕복 완료! 이제 실시간으로 얘기해요. 도착하면 확정 눌러줘요.', '당신 엽서도 봤어요. 친구 해요 — 확정 버튼은 그쪽 차례!'];

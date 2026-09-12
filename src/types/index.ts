@@ -2,115 +2,74 @@ export type LatLng = { lat: number; lng: number };
 export type Place = LatLng & { city: string; country: string };
 export type Gender = 'female' | 'male' | 'other' | 'private';
 export type PlanId = 'free' | 'plus' | 'pro';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type VehicleId =
-  | 'walk' | 'jog' | 'sprint' | 'bike' | 'horse' | 'scooter' | 'car' | 'train' | 'plane' | 'rocket'
-  | 'dragon' | 'ufo' | 'satellite';
+  | 'walk' | 'jog' | 'run' | 'kick' | 'bike'
+  | 'pigeon' | 'seagull' | 'goose' | 'crane' | 'hawk' | 'eagle' | 'albatross'
+  | 'horse' | 'camel' | 'dolphin' | 'cheetah'
+  | 'scooter' | 'kei' | 'bus' | 'sedan' | 'truck' | 'sports' | 'train' | 'ktx' | 'maglev'
+  | 'sail' | 'speedboat' | 'cruise' | 'submarine' | 'hover'
+  | 'balloon' | 'paraglider' | 'heli' | 'prop' | 'airliner' | 'fighter' | 'concorde'
+  | 'rocket' | 'satellite' | 'ufo'
+  | 'carpet' | 'unicorn' | 'dragon';
 
-export type Inventory = { shield: number; ufo: number; orbit: number };
+export type Inventory = { shield: number; ufo: number; orbit: number; peek: number; pull: number; instant: number; carpet: number };
+export type Quota = { date: string; peeks: number; pulls: number; instant: number };
 
 export type User = {
-  id: string;
-  nickname: string;
-  avatar: string;
-  bio: string;
-  field: string;
-  gender: Gender;
-  job: string;
-  hobbies: string[];
-  location: Place;
-  isBot: boolean;
-  lastActiveAt: number;
+  id: string; nickname: string; avatar: string; bio: string; photoUri?: string;
+  field: string; gender: Gender; job: string; hobbies: string[];
+  location: Place; isBot: boolean; lastActiveAt: number;
   stats: { sent: number; caught: number; distanceKm: number; likes: number };
-  stamps: string[];
-  coins: number;
-  inventory: Inventory;
-  plan: PlanId;
-  planExpiresAt?: number;
-  shieldMilestone: number; // 친구 5명 단위 방어권 지급 카운트
-  pushToken?: string;
-  createdAt: number;
+  stamps: string[]; coins: number; inventory: Inventory; quota: Quota;
+  plan: PlanId; planExpiresAt?: number; shieldMilestone: number; pushToken?: string; createdAt: number;
 };
 
 export type TargetFilter = { field?: string; gender?: Gender; job?: string; hobby?: string };
 
-export type LetterStatus =
-  | 'flying'     // 비행 중
-  | 'landed'     // 목적지 착륙(집어갈 사람 대기)
-  | 'delivered'  // 답장 편지가 수신자에게 도착(우편함)
-  | 'caught'     // 누군가 잡음
-  | 'approved'   // 답장 승인 → 채팅 시작
-  | 'declined'
-  | 'returned' | 'ocean' | 'space' | 'expired';
-
-export type LetterEventType =
-  | 'departed' | 'passby' | 'landed' | 'delivered' | 'caught' | 'approved' | 'declined'
-  | 'defended' | 'rerouted' | 'snail' | 'returned' | 'ocean' | 'space' | 'expired';
-
+export type LetterKind = 'letter' | 'reply' | 'accept';
+export type LetterStatus = 'flying' | 'sunk' | 'landed' | 'delivered' | 'caught' | 'approved' | 'declined' | 'returned' | 'space' | 'expired';
+export type LetterEventType = 'departed' | 'passby' | 'landed' | 'delivered' | 'caught' | 'approved' | 'declined' | 'defended' | 'rerouted' | 'pulled' | 'peeked' | 'snail' | 'returned' | 'sunk' | 'rescued' | 'resurfaced' | 'space' | 'expired';
 export type LetterEvent = { type: LetterEventType; at: number; by?: string; place?: string };
 
 export type Letter = {
-  id: string;
-  senderId: string;
-  recipientId?: string; // 답장(회수) 편지: 원 발신자에게 직행
-  replyToId?: string;   // 어떤 편지에 대한 답장인지
-  friendRequest?: boolean; // 답장에 친구 요청 포함
-  text: string;
-  imageUri?: string;
-  origin: Place;
-  destination: Place;
-  randomDestination: boolean;
-  waypoints: LatLng[];
-  vehicle: VehicleId;
-  shield: boolean;
-  target: TargetFilter;
-  isPublic: boolean; // 커뮤니티 엽서 공개
-  status: LetterStatus;
-  departedAt: number;
-  arrivesAt: number;
-  distanceKm: number;
-  penalty?: { from: number; until: number }; // 달팽이 벌칙 구간
-  redirects: number; // 지나가던 사람이 경로를 바꾼 횟수
-  landedAt?: number;
-  caughtBy?: string;
-  caughtAt?: number;
-  catchPlace?: string;
-  events: LetterEvent[];
-  stamp: string;
+  id: string; kind: LetterKind; senderId: string; recipientId?: string; replyToId?: string; friendRequest?: boolean;
+  text: string; imageUri?: string;
+  origin: Place; destination: Place; randomDestination: boolean; waypoints: LatLng[];
+  vehicle: VehicleId; shield: boolean; target: TargetFilter; isPublic: boolean;
+  status: LetterStatus; departedAt: number; arrivesAt: number; distanceKm: number;
+  penalty?: { from: number; until: number };
+  sunkAt?: number; sunkUntil?: number;
+  redirects: number; pulls: number; pulledBy?: string; peekedBy: string[];
+  trail: LatLng[]; // 실제 지나온 경로(샘플) — 경로 변경·침수 포함
+  landedAt?: number; caughtBy?: string; caughtAt?: number; catchPlace?: string;
+  events: LetterEvent[]; stamp: string;
 };
 
-export type PassbyResolution = 'caught' | 'rerouted' | 'snail' | 'returned' | 'ocean' | 'space' | 'missed' | 'defended';
-export type Passby = { id: string; letterId: string; at: number; expiresAt: number; canCatch: boolean; resolved?: PassbyResolution };
+export type PassbyResolution = 'caught' | 'rerouted' | 'pulled' | 'snail' | 'returned' | 'sunk' | 'space' | 'missed' | 'defended';
+export type Passby = { id: string; letterId: string; at: number; expiresAt: number; canCatch: boolean; peeked?: boolean; resolved?: PassbyResolution };
 
 export type ChatMessage = { id: string; senderId: string; text: string; at: number };
 export type Chat = { id: string; otherId: string; messages: ChatMessage[]; lastReadAt: number; since: number };
 
+export type Comment = { id: string; authorId: string; text: string; at: number };
 export type Post = {
-  id: string;
-  letterId?: string;
-  authorId: string;
-  text: string;
-  imageUri?: string;
-  city: string;
-  country: string;
-  stamp: string;
-  vehicle: VehicleId;
-  at: number;
-  likes: number;
-  likedByMe: boolean;
-  distanceKm: number;
+  id: string; letterId?: string; authorId: string; text: string; imageUri?: string;
+  city: string; country: string; stamp: string; vehicle: VehicleId; at: number;
+  likes: number; likedByMe: boolean; distanceKm: number; comments: Comment[]; shareToStory: boolean;
 };
 
-export type NotificationType = 'passby' | 'caught' | 'reply' | 'approved' | 'chat' | 'mischief' | 'defended' | 'landed' | 'reward' | 'like' | 'system';
+export type InstantRequest = { id: string; fromId: string; toId: string; status: 'pending' | 'accepted' | 'declined' | 'refunded'; at: number };
+
+export type NotificationType = 'passby' | 'caught' | 'reply' | 'accept' | 'approved' | 'chat' | 'mischief' | 'defended' | 'landed' | 'reward' | 'like' | 'comment' | 'sunk' | 'instant' | 'system';
 export type AppNotification = { id: string; type: NotificationType; title: string; body: string; at: number; read: boolean; route?: string };
 
 export type ScheduledEvent = {
-  id: string;
-  at: number;
-  type: 'bot_send' | 'bot_catch' | 'bot_reply' | 'bot_approve' | 'bot_chat' | 'bot_mischief' | 'bot_like' | 'bot_post';
+  id: string; at: number;
+  type: 'bot_send' | 'bot_catch' | 'bot_reply' | 'bot_accept' | 'bot_confirm' | 'bot_chat' | 'bot_mischief' | 'bot_like' | 'bot_post' | 'bot_comment' | 'bot_instant_answer' | 'bot_resurface';
   payload: Record<string, any>;
 };
 
-export type Settings = { timeScale: number; notifications: boolean; haptics: boolean; devMode: boolean; backgroundLocation: boolean };
-
+export type Settings = { timeScale: number; notifications: boolean; haptics: boolean; devMode: boolean; backgroundLocation: boolean; theme: ThemeMode };
 export type PermissionState = 'granted' | 'denied' | 'undetermined' | 'unavailable';

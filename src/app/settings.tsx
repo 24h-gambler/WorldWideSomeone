@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import { LocationPicker } from '@/components/location-picker';
 import { Button, Chip, Header, Icon, ListRow, Pill, Row, Screen, Section, T } from '@/components/ui';
 import { useStore } from '@/store';
-import { colors, spacing } from '@/theme';
+import { spacing, useColors } from '@/theme';
 import { getLocationPermission, requestBackgroundLocation, requestForegroundLocation, startBackgroundLocation, stopBackgroundLocation } from '@/services/location';
 import { getNotificationPermission, getPushToken, requestNotificationPermission } from '@/services/push';
 import { pushProfile, registerPushToken } from '@/services/sync';
@@ -14,15 +14,17 @@ import { firebaseEnabled } from '@/services/firebase';
 import { purchases } from '@/services/purchases';
 import type { PermissionState } from '@/types';
 
-const PERM_LABEL: Record<PermissionState, { label: string; color: string; bg: string }> = {
+const permLabel = (colors: ReturnType<typeof useColors>): Record<PermissionState, { label: string; color: string; bg: string }> => ({
   granted: { label: '허용됨', color: colors.green, bg: colors.greenSoft },
   denied: { label: '거부됨', color: colors.red, bg: colors.redSoft },
-  undetermined: { label: '요청 전', color: '#8A6D00', bg: colors.yellowSoft },
+  undetermined: { label: '요청 전', color: colors.yellowText, bg: colors.yellowSoft },
   unavailable: { label: '이 환경 미지원', color: colors.text2, bg: colors.bg3 },
-};
+});
 
 export default function Settings() {
   const router = useRouter();
+  const colors = useColors();
+  const PERM_LABEL = permLabel(colors);
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
   const me = useStore((s) => s.me);
@@ -55,13 +57,17 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Header title="설정" right={<Pill label={backend === 'firebase' ? 'Firebase 연결' : '로컬 시뮬'} color={backend === 'firebase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'firebase' ? colors.green : '#8A6D00'} />} />
+      <Header title="설정" right={<Pill label={backend === 'firebase' ? 'Firebase 연결' : '로컬 시뮬'} color={backend === 'firebase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'firebase' ? colors.green : colors.yellowText} />} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         <Section title="기기 권한 (실제 상태)" action={{ label: '새로고침', onPress: refresh }}>
           <PermRow title="위치 (앱 사용 중)" sub="편지 출발지 · 머리 위 통과 판정" state={perms.location} onRequest={async () => { const r = await requestForegroundLocation(); setPermissions({ location: r }); }} />
           <PermRow title="위치 (항상 · 백그라운드)" sub="앱을 닫아도 통과 알림을 받으려면 필요 · Expo Go 미지원(dev build)" state={perms.backgroundLocation} onRequest={async () => { const r = await requestBackgroundLocation(); setPermissions({ backgroundLocation: r }); }} />
           <PermRow title="알림" sub={perms.pushToken ? `푸시 토큰 등록됨 · ${perms.pushToken.slice(0, 22)}…` : '머리 위 통과 · 답장 도착 · 채팅 (Expo Go Android는 로컬 알림만)'} state={perms.notifications} onRequest={async () => { const r = await requestNotificationPermission(); setPermissions({ notifications: r }); const t = await getPushToken(); if (t) { setPermissions({ pushToken: t }); registerPushToken(t).catch(() => {}); } }} />
           <ListRow title="백그라운드 위치 업데이트" subtitle="2km 이동마다 서버에 10km 격자 위치 전송" right={<Switch value={settings.backgroundLocation} onValueChange={async (v) => { if (v) { const ok = await startBackgroundLocation(); setSettings({ backgroundLocation: ok }); if (!ok) refresh(); } else { await stopBackgroundLocation(); setSettings({ backgroundLocation: false }); } }} trackColor={{ true: colors.blue }} />} />
+        </Section>
+
+        <Section title="화면">
+          <ListRow title="테마" subtitle="시스템 · 라이트 · 다크 (인스타그램 다크 팔레트)" right={<Row>{(['system', 'light', 'dark'] as const).map((t) => <Chip key={t} label={t === 'system' ? '시스템' : t === 'light' ? '라이트' : '다크'} small selected={settings.theme === t} onPress={() => setSettings({ theme: t })} />)}</Row>} />
         </Section>
 
         <Section title="알림 · 햅틱">

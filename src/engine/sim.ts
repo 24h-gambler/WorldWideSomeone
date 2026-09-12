@@ -87,15 +87,19 @@ function effectiveElapsed(l: Letter, now: number): number {
   return e;
 }
 
-const STOPPED: Letter['status'][] = ['returned', 'ocean', 'space'];
+const STOPPED: Letter['status'][] = ['returned', 'space'];
 
 export function progressOf(l: Letter, now: number): number {
   if (l.status === 'flying') {
     const p = effectiveElapsed(l, now) / Math.max(1, l.arrivesAt - l.departedAt - penaltyExtra(l));
     return Math.min(1, Math.max(0, p));
   }
+  if (l.status === 'sunk' && l.sunkAt) {
+    const p = effectiveElapsed(l, l.sunkAt) / Math.max(1, l.arrivesAt - l.departedAt - penaltyExtra(l));
+    return Math.min(1, Math.max(0, p));
+  }
   if (STOPPED.includes(l.status)) {
-    const ev = l.events.find((e) => e.type === 'returned' || e.type === 'ocean' || e.type === 'space');
+    const ev = l.events.find((e) => e.type === 'returned' || e.type === 'space');
     if (!ev) return 1;
     const p = effectiveElapsed(l, ev.at) / Math.max(1, l.arrivesAt - l.departedAt - penaltyExtra(l));
     return Math.min(1, Math.max(0, p));
@@ -115,6 +119,39 @@ export function headingOf(l: Letter, now: number): number {
   const p = progressOf(l, now);
   const r = routeOf(l);
   return bearingDeg(r.at(Math.max(0, p - 0.002)), r.at(Math.min(1, p + 0.002)));
+}
+
+/** 지나온 경로: 기록된 trail + 현재 위치 */
+export function pastPath(l: Letter, now: number): LatLng[] {
+  const cur = positionOf(l, now);
+  const t = l.trail ?? [];
+  return t.length ? [...t, cur] : [l.origin, cur];
+}
+/** 남은 경로: 현재 진행률 → 목적지 (궤도는 마지막 바퀴만) */
+export function remainingPath(l: Letter, now: number, n = 48): LatLng[] {
+  const r = routeOf(l);
+  const p0 = progressOf(l, now);
+  const v = VEHICLE_MAP[l.vehicle];
+  const start = v.motion === 'orbit' ? Math.max(p0, 1 - (2 * Math.PI * EARTH_RADIUS_KM) / r.totalKm) : p0;
+  const out: LatLng[] = [];
+  for (let i = 0; i <= n; i++) out.push(r.at(start + ((1 - start) * i) / n));
+  return out;
+}
+/** trail 에 현재 위치를 추가할지(마지막 점에서 minKm 이상 이동) */
+export function appendTrail(l: Letter, now: number, minKm = 40, cap = 240): LatLng[] | null {
+  const cur = positionOf(l, now);
+  const t = l.trail ?? [];
+  const last = t[t.length - 1] ?? l.origin;
+  if (distanceKm(last, cur) < minKm) return null;
+  const next = [...t, cur];
+  return next.length > cap ? next.filter((_, i) => i % 2 === 0 || i === next.length - 1) : next;
+}
+/** 봇 편지처럼 중간부터 시작하는 경우 trail 을 origin→현재 로 채움 */
+export function seedTrail(origin: LatLng, dest: LatLng, waypoints: LatLng[], vehicle: VehicleId, p: number, n = 24): LatLng[] {
+  const r = buildRoute(origin, dest, waypoints, vehicle);
+  const out: LatLng[] = [];
+  for (let i = 0; i < n; i++) out.push(r.at((p * i) / n));
+  return out;
 }
 
 export function pathSamples(l: Letter, n = 72): LatLng[] {
@@ -152,6 +189,23 @@ export function rerouteThrough(l: Letter, now: number, newWaypoints: LatLng[], t
   const totalMs = Math.max(20_000, ((route.totalKm / v.speedKmh) * 3_600_000) / timeScale);
   const departedAt = now - totalMs * (doneKm / route.totalKm);
   return { waypoints, departedAt, arrivesAt: departedAt + totalMs, distanceKm: route.totalKm, penalty: undefined };
+}
+
+/** 끌어오기: 현재 위치에서 target(끌어온 사람 위치)으로 목적지 변경 */
+export function pullTo(l: Letter, now: number, target: LatLng, timeScale: number): Pick<Letter, 'waypoints' | 'departedAt' | 'arrivesAt' | 'distanceKm' | 'penalty'> & { destination: LatLng } {
+  const here = positionOf(l, now);
+  const v = VEHICLE_MAP[l.vehicle];
+  const waypoints = [here];
+  const route = buildRoute(l.origin, target, waypoints, l.vehicle);
+  const doneKm = distanceKm(l.origin, here);
+  const totalMs = Math.max(20_000, ((route.totalKm / v.speedKmh) * 3_600_000) / timeScale);
+  const departedAt = now - totalMs * (doneKm / route.totalKm);
+  return { destination: target, waypoints, departedAt, arrivesAt: departedAt + totalMs, distanceKm: route.totalKm, penalty: undefined };
+}
+/** 침수에서 복귀: 멈춰 있던 시간만큼 출발/도착을 뒤로 민다 */
+export function resurface(l: Letter, now: number): Pick<Letter, 'departedAt' | 'arrivesAt' | 'penalty'> {
+  const paused = Math.max(0, now - (l.sunkAt ?? now));
+  return { departedAt: l.departedAt + paused, arrivesAt: l.arrivesAt + paused, penalty: l.penalty ? { from: l.penalty.from + paused, until: l.penalty.until + paused } : undefined };
 }
 
 /** 달팽이 벌칙 적용: now부터 duration 동안 90% 느림 → 도착 시간 연장 */

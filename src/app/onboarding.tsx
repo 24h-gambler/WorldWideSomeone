@@ -9,18 +9,19 @@ import { Button, Header, Icon, Row, Screen, T, Wordmark, type FeatherName } from
 import { requestNotificationPermission } from '@/services/push';
 import { useStore } from '@/store';
 import type { Place } from '@/types';
-import { colors, radius, spacing } from '@/theme';
+import { radius, spacing, useColors } from '@/theme';
 import { success } from '@/engine/haptics';
 
 const STEPS = ['welcome', 'profile', 'location'] as const;
 const FEATURES: { icon: FeatherName; title: string; body: string }[] = [
-  { icon: 'send', title: '편지를 날려요', body: '걷는 배달원부터 시작. 친구가 늘면 자전거, 비행기, 로켓으로 빨라져요.' },
+  { icon: 'send', title: '편지를 날려요', body: '걷는 배달원부터 시작. 친구가 늘면 새, 자전거, 스포츠카, 비행기, 로켓으로 빨라져요.' },
   { icon: 'bell', title: '머리 위를 지나면 알림', body: '잡거나, 경로를 바꾸거나, 바다에 빠뜨리거나. 방어권으로 내 편지를 지켜요.' },
-  { icon: 'message-circle', title: '답장을 승인하면 실시간 채팅', body: '편지로 시작해 지구 반대편 누군가와 지연 없는 대화로.' },
+  { icon: 'message-circle', title: '편지가 한 번 왕복하면 친구', body: '답장을 받고 프로필을 본 뒤 수락 → 상대가 확정. 그때부터 지연 없는 채팅.' },
 ];
 
 export default function Onboarding() {
   const { width } = useWindowDimensions();
+  const colors = useColors();
   const complete = useStore((s) => s.completeOnboarding);
   const [step, setStep] = useState<(typeof STEPS)[number]>('welcome');
   const [draft, setDraft] = useState<ProfileDraft>({ nickname: '', avatar: '🦊', bio: '', field: 'IT/개발', gender: 'private', job: '학생', hobbies: [] });
@@ -30,7 +31,7 @@ export default function Onboarding() {
     return (
       <Screen>
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={['#F7FBFF', '#E3F1FF']} style={styles.hero}>
+          <LinearGradient colors={[...colors.sky] as any} style={styles.hero}>
             <Globe size={Math.min(width - 32, 300)} letters={[]} me={null} autoRotate fps={24} interactive={false} />
           </LinearGradient>
           <View style={{ paddingHorizontal: spacing.xl, alignItems: 'center', marginTop: spacing.xl }}>
@@ -40,7 +41,7 @@ export default function Onboarding() {
           <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xl, gap: spacing.lg }}>
             {FEATURES.map((f) => (
               <Row key={f.title} gap={14} style={{ alignItems: 'flex-start' }}>
-                <View style={styles.featureIcon}><Icon name={f.icon} size={20} color={colors.blue} /></View>
+                <View style={[styles.featureIcon, { backgroundColor: colors.blueSoft }]}><Icon name={f.icon} size={20} color={colors.blue} /></View>
                 <View style={{ flex: 1 }}>
                   <T t="bodyStrong">{f.title}</T>
                   <T t="small" color={colors.text2}>{f.body}</T>
@@ -66,7 +67,7 @@ export default function Onboarding() {
           <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
             <ProfileForm value={draft} onChange={setDraft} />
           </ScrollView>
-          <View style={styles.footer}><Button title="다음" size="lg" full disabled={!ok} onPress={() => setStep('location')} /></View>
+          <View style={[styles.footer, { backgroundColor: colors.bg, borderTopColor: colors.line }]}><Button title="다음" size="lg" full disabled={!ok} onPress={() => setStep('location')} /></View>
         </KeyboardAvoidingView>
       </Screen>
     );
@@ -78,7 +79,7 @@ export default function Onboarding() {
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <LocationPicker value={place} onChange={setPlace} compact />
       </ScrollView>
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.bg, borderTopColor: colors.line }]}>
         <Button
           title="지구로 들어가기"
           size="lg"
@@ -98,6 +99,6 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   hero: { alignItems: 'center', paddingVertical: 16, marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl },
-  featureIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, backgroundColor: colors.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  featureIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, paddingBottom: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth },
 });

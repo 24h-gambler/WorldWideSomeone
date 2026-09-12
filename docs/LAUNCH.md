@@ -45,8 +45,8 @@ eas build --profile development --platform android   # 또는 ios (Apple 계정 
 ## 3. RevenueCat (결제)
 1. https://app.revenuecat.com → 프로젝트 → iOS/Android 앱 추가 → 스토어 자격증명 연결
 2. 상품 생성 (App Store Connect / Play Console 에서 먼저 만든 뒤 RevenueCat 에 등록). ID 는 `src/data/plans.ts` 와 동일:
-   - 구독: `wws_plus_monthly`(₩4,900), `wws_pro_monthly`(₩9,900)
-   - 소모품: `wws_shield_5`, `wws_ufo_1`, `wws_orbit_1`, `wws_coins_300`, `wws_coins_1000`
+   - 구독: `wws_plus_monthly`(₩4,900), `wws_pro_monthly`(₩12,900)
+   - 소모품: `wws_shield_5`, `wws_peek_5`, `wws_pull_1`, `wws_instant_1`, `wws_ufo_1`, `wws_orbit_1`, `wws_coins_300`, `wws_coins_1000`
 3. Entitlements: `plus`, `pro` → Offering `default` 에 패키지 연결
 4. 앱: `npx expo install react-native-purchases` → `.env` 에 `EXPO_PUBLIC_RC_IOS_KEY`, `EXPO_PUBLIC_RC_ANDROID_KEY` → dev build 재빌드. `src/services/purchases.ts` 가 자동으로 RevenueCat 어댑터를 사용.
 5. 웹훅: RevenueCat → Integrations → Webhooks → URL `https://asia-northeast3-<PROJECT>.cloudfunctions.net/revenuecatWebhook`, Authorization `Bearer <REVENUECAT_WEBHOOK_SECRET>` → 서버가 플랜/아이템을 지급.

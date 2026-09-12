@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AVATARS, FIELDS, GENDERS, HOBBIES, JOBS } from '@/data/profile';
 import type { Gender } from '@/types';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { fontFamily, radius, spacing, useColors, useStyles, type ThemeColors } from '@/theme';
 import { Chip, T } from '@/components/ui';
 import { tap } from '@/engine/haptics';
 
@@ -11,6 +11,8 @@ export type ProfileDraft = { nickname: string; avatar: string; bio: string; fiel
 const noOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {};
 
 export function ProfileForm({ value, onChange }: { value: ProfileDraft; onChange: (v: ProfileDraft) => void }) {
+  const colors = useColors();
+  const styles = useStyles(makeStyles);
   const set = (patch: Partial<ProfileDraft>) => onChange({ ...value, ...patch });
   return (
     <View style={{ gap: spacing.xl }}>
@@ -42,6 +44,8 @@ export function ProfileForm({ value, onChange }: { value: ProfileDraft; onChange
 }
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  const colors = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <View>
       <T t="smallStrong" color={colors.text2} style={styles.label}>{label}</T>
@@ -50,7 +54,7 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   label: { marginBottom: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   avatarCell: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bg3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },

@@ -1,12 +1,12 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, useColorScheme } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel';
 
-import { colors } from '@/theme';
+import { ThemeProvider, palettes } from '@/theme';
 import { useStore } from '@/store';
 import { Wordmark } from '@/components/ui';
 import { getLocationPermission } from '@/services/location';
@@ -21,6 +21,10 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function RootLayout() {
   const router = useRouter();
   const onboarded = useStore((s) => s.onboarded);
+  const themeMode = useStore((s) => s.settings.theme);
+  const sys = useColorScheme();
+  const scheme = themeMode === 'system' ? (sys === 'dark' ? 'dark' : 'light') : themeMode;
+  const c = palettes[scheme];
   const setPermissions = useStore((s) => s.setPermissions);
   const [hydrated, setHydrated] = useState(useStore.persist.hasHydrated());
   const [fontsLoaded] = useFonts({ GrandHotel_400Regular });
@@ -60,16 +64,17 @@ export default function RootLayout() {
 
   if (!hydrated || !fontsLoaded) {
     return (
-      <View style={styles.splash}>
-        <Wordmark size={40} />
+      <View style={[styles.splash, { backgroundColor: c.bg }]}>
+        <Wordmark size={40} color={c.text} />
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: Platform.OS === 'web' ? 'none' : 'default' }}>
+    <ThemeProvider mode={themeMode}>
+    <View style={[styles.root, { backgroundColor: c.bg }]}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: Platform.OS === 'web' ? 'none' : 'default' }}>
         <Stack.Protected guard={!onboarded}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
@@ -84,13 +89,15 @@ export default function RootLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="profile-edit" options={{ presentation: 'modal' }} />
           <Stack.Screen name="user/[id]" />
+          <Stack.Screen name="post/[id]" />
         </Stack.Protected>
       </Stack>
     </View>
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  splash: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  root: { flex: 1 },
+  splash: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
