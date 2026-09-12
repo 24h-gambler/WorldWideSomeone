@@ -679,8 +679,9 @@ export const useStore = create<State>()(
         const s = get();
         const bot = pick(BOTS);
         const l = makeBotLetter(bot, s.me.location, s.settings.timeScale);
-        const pAtUser = Math.min(0.6, distanceKm(bot.location, s.me.location) / l.distanceKm); // 남은 비행 40% 이상 보장
-        const dur = l.arrivesAt - l.departedAt;
+        const pAtUser = Math.min(0.95, distanceKm(bot.location, s.me.location) / l.distanceKm);
+        // 4초 뒤 내 머리 위를 지나고, 지나간 뒤에도 최소 60초는 더 날도록(개발용 소환만) 비행 시간을 늘린다
+        const dur = Math.max(l.arrivesAt - l.departedAt, 60_000 / (1 - pAtUser));
         const departedAt = Date.now() + 4_000 - pAtUser * dur;
         set({ letters: [{ ...l, departedAt, arrivesAt: departedAt + dur, trail: seedTrail(bot.location, l.destination, [], l.vehicle, Math.max(0, (Date.now() - departedAt) / dur)) }, ...s.letters] });
       },
