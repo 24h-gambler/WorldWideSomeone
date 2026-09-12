@@ -63,6 +63,7 @@ export default function Catch() {
     if (r === 'immune') { warn(); finish({ title: '건드릴 수 없어요', body: `${v.name}은(는) 이 장난에 면역이에요`, icon: 'shield' }); }
     else if (r === 'defended') { warn(); finish({ title: '튕겨나갔어요!', body: '발신자가 방어권을 장착했어요. 편지는 무사히 갑니다', icon: 'shield' }); }
     else if (r === 'quota') { warn(); finish({ title: '한도를 다 썼어요', body: '플러스/프로 플랜이나 상점에서 더 얻을 수 있어요', icon: 'bag' }, () => router.push('/store'), 1400); }
+    else if (r === 'gone') { warn(); finish({ title: '이미 착륙했어요', body: '빠른 배달원은 지나가자마자 도착해요. 착륙한 편지는 잡기만 할 수 있어요', icon: 'pin' }); }
     else if (r === 'limit') { warn(); setResult({ title: '이미 한 번 끌려간 편지예요', body: '편지당 끌어오기는 1회만', icon: 'magnet' }); setTimeout(() => setResult(null), 1500); }
     else if (stay) { success(); setResult(done); setTimeout(() => setResult(null), 1400); }
     else { heavy(); finish(done); }

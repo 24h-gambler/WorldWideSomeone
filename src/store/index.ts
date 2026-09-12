@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS: Settings = { timeScale: 240, notifications: true, haptic
 
 export type ComposeInput = { text: string; imageUri?: string; destination?: LatLng; waypoints?: LatLng[]; vehicle: VehicleId; target: TargetFilter; useShield: boolean; isPublic: boolean; shareToStory?: boolean; replyToId?: string; recipientId?: string; friendRequest?: boolean; kind?: LetterKind };
 export type Permissions = { location: PermissionState; backgroundLocation: PermissionState; notifications: PermissionState; pushToken?: string };
-export type ActionResult = 'done' | 'defended' | 'immune' | 'limit' | 'quota' | 'nofunds';
+export type ActionResult = 'done' | 'defended' | 'immune' | 'limit' | 'quota' | 'nofunds' | 'gone';
 
 export type State = {
   onboarded: boolean; me: User; letters: Letter[]; friendIds: string[]; revealedIds: string[]; chats: Chat[]; posts: Post[];
@@ -229,7 +229,8 @@ export const useStore = create<State>()(
         const me = resetQuota(s.me);
         const l = s.letters.find((x) => x.id === letterId);
         const pb = s.passbys.find((p) => p.letterId === letterId && !p.resolved);
-        if (!l || !pb || l.status !== 'flying') return 'done';
+        if (!l || !pb) return 'done';
+        if (l.status !== 'flying') return 'gone';
         const v = VEHICLE_MAP[l.vehicle];
         const now = Date.now();
         if (v.immune) { set({ passbys: s.passbys.map((p) => (p.id === pb.id ? { ...p, resolved: 'defended' } : p)) }); return 'immune'; }
@@ -258,7 +259,8 @@ export const useStore = create<State>()(
       redirectLetter: (letterId, action) => {
         const s = get();
         const l = s.letters.find((x) => x.id === letterId);
-        if (!l || l.status !== 'flying') return 'done';
+        if (!l) return 'done';
+        if (l.status !== 'flying') return 'gone';
         const now = Date.now();
         const v = VEHICLE_MAP[l.vehicle];
         const resolvePb = (r: Passby['resolved']) => s.passbys.map((p) => (p.letterId === letterId ? { ...p, resolved: r } : p));
@@ -272,7 +274,8 @@ export const useStore = create<State>()(
       rerouteLetter: (letterId, waypoints) => {
         const s = get();
         const l = s.letters.find((x) => x.id === letterId);
-        if (!l || l.status !== 'flying') return 'done';
+        if (!l) return 'done';
+        if (l.status !== 'flying') return 'gone';
         if (waypoints.length < 1 || waypoints.length > PLAN_MAP[s.me.plan].maxWaypoints) return 'limit';
         const now = Date.now();
         const resolvePb = (r: Passby['resolved']) => s.passbys.map((p) => (p.letterId === letterId ? { ...p, resolved: r } : p));
@@ -286,7 +289,8 @@ export const useStore = create<State>()(
       snailLetter: (letterId) => {
         const s = get();
         const l = s.letters.find((x) => x.id === letterId);
-        if (!l || l.status !== 'flying') return 'done';
+        if (!l) return 'done';
+        if (l.status !== 'flying') return 'gone';
         const now = Date.now();
         const v = VEHICLE_MAP[l.vehicle];
         const resolvePb = (r: Passby['resolved']) => s.passbys.map((p) => (p.letterId === letterId ? { ...p, resolved: r } : p));
@@ -490,7 +494,8 @@ export const useStore = create<State>()(
             changed = true;
             const canCatch = matchesTarget(me, l.target);
             const v = VEHICLE_MAP[l.vehicle];
-            passbys = [{ id: uid(), letterId: l.id, at: now, expiresAt: now + catchWindowMs(l.vehicle), canCatch }, ...passbys];
+            // 빠른 배달원은 지나가자마자 착륙한다 → 창은 착륙 시각까지(최소 15초). 착륙 후엔 잡기만 되고 장난은 'gone'
+            passbys = [{ id: uid(), letterId: l.id, at: now, expiresAt: Math.max(now + 15_000, Math.min(now + catchWindowMs(l.vehicle), l.arrivesAt)), canCatch }, ...passbys];
             const title = `${v.name}이(가) 머리 위를 지나가요!`;
             const body = canCatch ? `${l.origin.city}에서 출발한 편지. 잡거나, 엿보거나, 끌어오세요` : '조건이 맞는 사람만 잡을 수 있어요 (엿보기·경로 변경은 가능)';
             nf(notif('passby', title, body, `/catch/${l.id}`));
@@ -674,7 +679,7 @@ export const useStore = create<State>()(
         const s = get();
         const bot = pick(BOTS);
         const l = makeBotLetter(bot, s.me.location, s.settings.timeScale);
-        const pAtUser = Math.min(0.95, distanceKm(bot.location, s.me.location) / l.distanceKm);
+        const pAtUser = Math.min(0.6, distanceKm(bot.location, s.me.location) / l.distanceKm); // 남은 비행 40% 이상 보장
         const dur = l.arrivesAt - l.departedAt;
         const departedAt = Date.now() + 4_000 - pAtUser * dur;
         set({ letters: [{ ...l, departedAt, arrivesAt: departedAt + dur, trail: seedTrail(bot.location, l.destination, [], l.vehicle, Math.max(0, (Date.now() - departedAt) / dur)) }, ...s.letters] });

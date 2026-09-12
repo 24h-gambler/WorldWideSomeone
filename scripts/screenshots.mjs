@@ -155,8 +155,8 @@ await step('34', '바다에 빠뜨리기 → 몇 시간 정지(주인은 건져�
   let outcome = '';
   for (let i = 0; i < 3 && outcome !== 'sunk'; i++) {
     await spawnPassby(); await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('바다에', { exact: true });
-    const t = await page.getByText(/풍덩|튕겨나갔어요|건드릴 수 없어요/).first().textContent({ timeout: 8000 });
-    outcome = t.includes('풍덩') ? 'sunk' : t.includes('튕겨') ? 'defended' : 'immune';
+    const t = await page.getByText(/풍덩|튕겨나갔어요|건드릴 수 없어요|이미 착륙했어요/).first().textContent({ timeout: 8000 });
+    outcome = t.includes('풍덩') ? 'sunk' : t.includes('튕겨') ? 'defended' : t.includes('착륙') ? 'gone' : 'immune';
     await shot(outcome === 'sunk' ? '34-catch-sunk' : `34-catch-${outcome}-${i}`); await page.waitForTimeout(1800);
   }
   const s = await state(); const sunk = s.letters.find((l) => l.status === 'sunk'); if (!sunk) throw new Error(`no sunk letter (last outcome ${outcome})`); await shot('34b-home-sunk'); return `sunkUntil in ${Math.round((sunk.sunkUntil - Date.now()) / 1000)}s`;
