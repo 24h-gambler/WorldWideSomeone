@@ -215,12 +215,13 @@ export const useStore = create<State>()(
         const inv: Inventory = { ...me.inventory };
         let coins = me.coins;
         if (input.direct && input.recipientId && s.letters.some((l) => l.senderId === ME_ID && l.direct && l.recipientId === input.recipientId && (l.status === 'flying' || l.status === 'delivered'))) return { error: '이 사람에게 보낸 직행 편지가 아직 가는 중이에요' };
-        // 대여: 잠긴 배달원을 코인으로 1회
-        const unlocked = vehicleUnlocked(v, s.friendIds.length, inv, me.plan);
+        // 대여: 잠긴 배달원을 코인으로 1회 (해금·대여 판정은 사용자가 고른 배달원 기준 — 답장 하한선은 무료)
+        const chosen = VEHICLE_MAP[input.vehicle];
+        const unlocked = vehicleUnlocked(chosen, s.friendIds.length, inv, me.plan);
         let rented = false;
         if (!unlocked) {
-          if (!input.rent || v.premiumItem === 'event') return { error: '아직 해금되지 않은 배달원이에요' };
-          const price = discounted(rentalCoins(v.speedKmh), me.plan);
+          if (!input.rent || chosen.premiumItem === 'event') return { error: '아직 해금되지 않은 배달원이에요' };
+          const price = discounted(rentalCoins(chosen.speedKmh), me.plan);
           if (coins < price) return { error: `대여에 ${price} SC가 필요해요` };
           coins -= price; rented = true;
         }
