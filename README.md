@@ -11,6 +11,8 @@
 - [`docs/DESIGN.md`](docs/DESIGN.md) — 하나의 흐름, 레퍼런스(인스타·젠리) 반영표, 배달원 43종 카탈로그, 엿보기/끌어오기/바다 규칙, 요금제, 커뮤니티 프라이버시, 데이터 모델
 - [`docs/ECONOMY.md`](docs/ECONOMY.md) — 썸원코인 팩·마진(≥70%)·아이템 가격·결제 유저 vs 친구 진행 타결안
 - [`docs/SCALE.md`](docs/SCALE.md) — GPS 수집·통과 판정 배치·푸시 한도·실시간·트래킹 파이프라인(대규모 대비)
+- [`docs/AUDIT.md`](docs/AUDIT.md) — 화면별 사용성·오류·경제/규모 상호관계 전수 점검과 결정 필요 항목
+- [`CLAUDE.md`](CLAUDE.md) — 계정·키·배포 절차를 한곳에 모은 작업 지침
 - [`docs/VERIFICATION.md`](docs/VERIFICATION.md) — 단계별 · 사용자 관점 검증 리포트(자동 주행 스크린샷 증거) + 실기기/서버 체크리스트
 - [`docs/LAUNCH.md`](docs/LAUNCH.md) — Firebase/GCP · EAS 빌드 · RevenueCat 결제 · 스토어 제출
 

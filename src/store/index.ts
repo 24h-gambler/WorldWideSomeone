@@ -17,6 +17,17 @@ import { pushLocal } from '@/engine/notify';
 import { LANDED_RADIUS_KM, LANDED_WINDOW_MS, PASSBY_RADIUS_KM, aimRouteAt, appendTrail, applySnail, catchWindowMs, closestProgress, minDistanceBetween, planFlight, positionOf, progressOf, pullTo, rerouteThrough, resurface, seedTrail, speedUp } from '@/engine/sim';
 import { track } from '@/services/analytics';
 
+/** Supabase 모드 브리지 — sync.ts 가 등록. 로컬 상태를 먼저 바꾸고(낙관적) 서버 액션을 뒤따라 호출한다. 로컬 모드에서는 비어 있다. */
+export type RemoteBridge = Partial<{
+  sendLetter: (input: ComposeInput, localId: string) => void; catchLetter: (letterId: string) => void;
+  redirect: (letterId: string, action: 'peek' | 'pull' | 'reroute' | 'snail' | 'sunk' | 'space', waypoints?: LatLng[]) => void;
+  rescue: (letterId: string) => void; approveReply: (letterId: string, accept: boolean) => void; boostReply: (letterId: string, tier: BoostTier) => void;
+  publishPost: (letterId: string, shareToStory: boolean) => void; likePost: (postId: string, on: boolean) => void; comment: (postId: string, text: string) => void;
+  setLocation: (p: Place) => void;
+}>;
+let bridge: RemoteBridge = {};
+export const registerRemote = (b: RemoteBridge) => { bridge = b; };
+
 export const BOTS: User[] = makeBots();
 const BOT_BY_ID: Record<string, User> = Object.fromEntries(BOTS.map((b) => [b.id, b]));
 export const ME_ID = 'me';
@@ -88,7 +99,10 @@ const fill = (s: string, bot: User) => s.replace('{city}', bot.location.city).re
 const botVehicles: VehicleId[] = ['walk', 'jog', 'run', 'kick', 'bike', 'pigeon', 'seagull', 'goose', 'crane', 'hawk', 'eagle', 'albatross', 'horse', 'camel', 'dolphin', 'cheetah', 'scooter', 'kei', 'bus', 'sedan', 'truck', 'sports', 'train', 'ktx', 'maglev', 'sail', 'speedboat', 'cruise', 'submarine', 'hover', 'balloon', 'paraglider', 'heli', 'prop', 'airliner', 'fighter', 'concorde', 'rocket', 'ufo', 'satellite', 'carpet', 'dragon'];
 const botVehicleFor = (): VehicleId => pick(botVehicles);
 /** 봇의 답장 배달원: 봇의 친구 수(=해금 수준)에 따라 느릴 수도 있다 — 그래서 받는 쪽이 가속을 산다 */
-const replyVehicleFor = (bot: User): VehicleId => bestVehicle(Math.floor((bot.stats.received + bot.stats.caught) / 4), { ufo: 0, orbit: 0 }, 'free');
+/** 답장은 자전거(25km/h)보다 느릴 수 없다 — 왕복이 며칠씩 걸려 이탈하는 것을 막는 하한. 받는 쪽은 그래도 SC 로 가속할 수 있다. */
+export const REPLY_MIN_VEHICLE: VehicleId = 'bike';
+const replyFloor = (v: VehicleId): VehicleId => (VEHICLE_MAP[v].speedKmh < VEHICLE_MAP[REPLY_MIN_VEHICLE].speedKmh ? REPLY_MIN_VEHICLE : v);
+const replyVehicleFor = (bot: User): VehicleId => replyFloor(bestVehicle(Math.floor((bot.stats.received + bot.stats.caught) / 4), { ufo: 0, orbit: 0 }, 'free'));
 const sunkMs = (v: VehicleId, timeScale: number) => { const base = v === 'camel' || v === 'sail' ? OCEAN_SINK_MS / 3 : OCEAN_SINK_MS; return Math.max(90_000, Math.min(base, base / (timeScale / 60))); };
 
 function baseLetter(partial: Partial<Letter> & Pick<Letter, 'senderId' | 'text' | 'origin' | 'destination' | 'vehicle' | 'departedAt' | 'arrivesAt' | 'distanceKm' | 'stamp'>): Letter {
@@ -179,7 +193,7 @@ export const useStore = create<State>()(
       },
       setTourDone: () => { set({ tourDone: true }); track('tour_done'); },
       updateProfile: (patch) => set((s) => ({ me: { ...s.me, ...patch } })),
-      setLocation: (p) => set((s) => ({ me: { ...s.me, location: p } })),
+      setLocation: (p) => { set((s) => ({ me: { ...s.me, location: p } })); bridge.setLocation?.(p); },
       setSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
       setFocusLetter: (id) => set({ focusLetterId: id, focusPoint: null }),
       setFocusPoint: (p) => set({ focusPoint: p, focusLetterId: null }),
@@ -196,9 +210,11 @@ export const useStore = create<State>()(
           const sentToday = s.letters.filter((l) => l.senderId === ME_ID && l.kind === 'letter' && new Date(l.departedAt).toDateString() === today()).length;
           if (sentToday >= plan.dailyLetters) return { error: `오늘 편지 ${plan.dailyLetters}통을 다 썼어요. 플러스로 업그레이드하면 더 보낼 수 있어요.` };
         }
-        const v = VEHICLE_MAP[input.vehicle];
+        const vehicleId: VehicleId = kind === 'reply' ? replyFloor(input.vehicle) : input.vehicle;
+        const v = VEHICLE_MAP[vehicleId];
         const inv: Inventory = { ...me.inventory };
         let coins = me.coins;
+        if (input.direct && input.recipientId && s.letters.some((l) => l.senderId === ME_ID && l.direct && l.recipientId === input.recipientId && (l.status === 'flying' || l.status === 'delivered'))) return { error: '이 사람에게 보낸 직행 편지가 아직 가는 중이에요' };
         // 대여: 잠긴 배달원을 코인으로 1회
         const unlocked = vehicleUnlocked(v, s.friendIds.length, inv, me.plan);
         let rented = false;
@@ -221,7 +237,7 @@ export const useStore = create<State>()(
         const destPt = input.direct && recipient ? recipient.location : input.destination ?? randomLandPoint();
         const destination = describePlace(destPt);
         const waypoints = input.direct ? [] : input.waypoints ?? [];
-        const fl = planFlight(me.location, destPt, waypoints, input.vehicle, ts);
+        const fl = planFlight(me.location, destPt, waypoints, vehicleId, ts);
         const now = Date.now();
         const shield = v.builtInShield || input.direct || (input.useShield && inv.shield > 0);
         if (!v.builtInShield && !input.direct && shield) inv.shield -= 1;
@@ -230,7 +246,7 @@ export const useStore = create<State>()(
           if (v.premiumItem === 'orbit') inv.orbit = Math.max(0, inv.orbit - 1);
           if (v.premiumItem === 'carpet' && me.plan !== 'pro') inv.carpet = Math.max(0, inv.carpet - 1);
         }
-        const letter = baseLetter({ kind, senderId: ME_ID, recipientId: input.recipientId, replyToId: input.replyToId, friendRequest: input.friendRequest, direct: input.direct || undefined, rented: rented || undefined, text: input.text, imageUri: input.imageUri, origin: me.location, destination, randomDestination: !input.destination && !input.direct, waypoints, vehicle: input.vehicle, shield, target: input.direct ? {} : input.target, isPublic: input.isPublic, departedAt: now, arrivesAt: now + fl.durationMs, distanceKm: fl.distanceKm, stamp: me.location.city,
+        const letter = baseLetter({ kind, senderId: ME_ID, recipientId: input.recipientId, replyToId: input.replyToId, friendRequest: input.friendRequest, direct: input.direct || undefined, rented: rented || undefined, text: input.text, imageUri: input.imageUri, origin: me.location, destination, randomDestination: !input.destination && !input.direct, waypoints, vehicle: vehicleId, shield, target: input.direct ? {} : input.target, isPublic: input.isPublic, departedAt: now, arrivesAt: now + fl.durationMs, distanceKm: fl.distanceKm, stamp: me.location.city,
           events: [{ type: 'departed', at: now, place: me.location.city }, ...(rented ? [{ type: 'rented' as const, at: now, by: ME_ID }] : [])] });
         const sched: ScheduledEvent[] = [];
         if (kind === 'letter' && !input.direct) {
@@ -242,13 +258,14 @@ export const useStore = create<State>()(
         }
         let posts = s.posts;
         if (input.isPublic && kind === 'letter' && !input.direct) {
-          posts = [{ id: uid(), letterId: letter.id, authorId: ME_ID, text: input.text, imageUri: input.imageUri, city: me.location.city, country: me.location.country, stamp: me.location.city, vehicle: input.vehicle, at: now, likes: 0, likedByMe: false, distanceKm: Math.round(fl.distanceKm), comments: [], shareToStory: !!input.shareToStory }, ...s.posts];
+          posts = [{ id: uid(), letterId: letter.id, authorId: ME_ID, text: input.text, imageUri: input.imageUri, city: me.location.city, country: me.location.country, stamp: me.location.city, vehicle: vehicleId, at: now, likes: 0, likedByMe: false, distanceKm: Math.round(fl.distanceKm), comments: [], shareToStory: !!input.shareToStory }, ...s.posts];
           sched.push({ id: uid(), at: now + rand(20_000, 90_000), type: 'bot_like', payload: { postId: posts[0].id } });
           if (Math.random() < 0.7) sched.push({ id: uid(), at: now + rand(40_000, 120_000), type: 'bot_comment', payload: { postId: posts[0].id } });
         }
         me = earn({ ...me, inventory: inv, coins, stats: { ...me.stats, sent: me.stats.sent + 1, distanceKm: me.stats.distanceKm + Math.round(fl.distanceKm) } }, COIN_REWARDS.send);
         set({ letters: [letter, ...s.letters], scheduled: [...s.scheduled, ...sched], posts, me, focusLetterId: letter.id, revealedIds: input.direct && input.recipientId && !s.revealedIds.includes(input.recipientId) ? [...s.revealedIds, input.recipientId] : s.revealedIds });
         track('letter_send', { kind, vehicle: input.vehicle, direct: !!input.direct, rented, km: Math.round(fl.distanceKm), shield });
+        bridge.sendLetter?.(input, letter.id);
         return letter;
       },
 
@@ -269,6 +286,7 @@ export const useStore = create<State>()(
           notifications: [notif('reward', `+${COIN_REWARDS.catch} SC`, `${letter.stamp}에서 온 편지를 잡았어요. 보낸 사람의 프로필을 보고 답장해보세요`, `/letter/${letter.id}`), ...s.notifications],
         });
         track('letter_catch', { vehicle: letter.vehicle, from: letter.origin.country });
+        bridge.catchLetter?.(letterId);
         return updated;
       },
 
@@ -289,6 +307,7 @@ export const useStore = create<State>()(
         else return 'quota';
         set({ me: { ...me, inventory: inv, quota }, passbys: s.passbys.map((p) => (p.id === pb.id ? { ...p, peeked: true } : p)), letters: s.letters.map((x) => (x.id === letterId ? { ...x, peekedBy: [...x.peekedBy, ME_ID], events: [...x.events, { type: 'peeked', at: Date.now(), by: ME_ID, place: me.location.city }] } : x)) });
         track('letter_peek', { vehicle: l.vehicle });
+        bridge.redirect?.(letterId, 'peek');
         return 'done';
       },
 
@@ -322,6 +341,7 @@ export const useStore = create<State>()(
           notifications: [notif('system', '🧲 편지를 끌어왔어요', '내 위치에 도착하면 알림이 와요. 그때 집어가세요', `/letter/${letterId}`), ...s.notifications],
         });
         track('letter_pull', { vehicle: l.vehicle });
+        bridge.redirect?.(letterId, 'pull');
         return 'done';
       },
 
@@ -338,6 +358,7 @@ export const useStore = create<State>()(
         const patch: Partial<Letter> = action === 'sunk' ? { status: 'sunk', sunkAt: now, sunkUntil: now + sunkMs(l.vehicle, s.settings.timeScale) } : { status: action };
         set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...patch, events: [...x.events, { type: action, at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb(action), me: earn(s.me, COIN_REWARDS.mischief) });
         track('letter_mischief', { action, vehicle: l.vehicle });
+        bridge.redirect?.(letterId, action);
         return 'done';
       },
 
@@ -354,6 +375,7 @@ export const useStore = create<State>()(
         const patch = rerouteThrough(l, now, waypoints, s.settings.timeScale);
         set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...patch, redirects: x.redirects + 1, events: [...x.events, { type: 'rerouted', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('rerouted'), me: earn(s.me, COIN_REWARDS.mischief), focusLetterId: letterId });
         track('letter_mischief', { action: 'rerouted', waypoints: waypoints.length });
+        bridge.redirect?.(letterId, 'reroute', waypoints);
         return 'done';
       },
 
@@ -369,6 +391,7 @@ export const useStore = create<State>()(
         if (l.shield) { set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, shield: false, events: [...x.events, { type: 'defended', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('defended') }); return 'defended'; }
         set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...applySnail(x, now), events: [...x.events, { type: 'snail', at: now, by: ME_ID, place: s.me.location.city }] } : x)), passbys: resolvePb('snail'), me: earn(s.me, COIN_REWARDS.mischief) });
         track('letter_mischief', { action: 'snail' });
+        bridge.redirect?.(letterId, 'snail');
         return 'done';
       },
 
@@ -380,6 +403,7 @@ export const useStore = create<State>()(
         const now = Date.now();
         set({ me: { ...s.me, coins: s.me.coins - OCEAN_RESCUE_COINS }, letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...resurface(x, now), status: 'flying', sunkAt: undefined, sunkUntil: undefined, events: [...x.events, { type: 'rescued', at: now, by: ME_ID }] } : x)), focusLetterId: letterId });
         track('coin_spend', { on: 'rescue', coins: OCEAN_RESCUE_COINS });
+        bridge.rescue?.(letterId);
         return 'done';
       },
 
@@ -396,6 +420,7 @@ export const useStore = create<State>()(
         set({ me: { ...s.me, coins: s.me.coins - price }, letters: s.letters.map((x) => (x.id === letterId ? { ...x, ...speedUp(x, now, remaining), boost: tier, events: [...x.events, { type: 'boosted', at: now, by: ME_ID }] } : x)), focusLetterId: letterId,
           notifications: [notif('boost', tier === 'instant' ? '⚡ 답장이 1분 안에 도착해요' : '⚡ 답장이 4배 빨라졌어요', `${price} SC 사용`, `/letter/${letterId}`), ...s.notifications] });
         track('coin_spend', { on: `boost_${tier}`, coins: price });
+        bridge.boostReply?.(letterId, tier);
         return 'done';
       },
 
@@ -414,8 +439,9 @@ export const useStore = create<State>()(
         if (granted) noti.push(notif('reward', `🛡️ 방어권 +${granted}`, `친구 ${friendIds.length}명 달성 보너스`));
         set({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'approved', events: [...x.events, { type: 'approved', at: now, by: ME_ID }] } : x)), friendIds, chats, me, notifications: [...noti, ...s.notifications] });
         track('reply_approve', { friends: friendIds.length });
+        bridge.approveReply?.(letterId, true);
       },
-      declineLetter: (letterId) => { set((s) => ({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'declined', events: [...x.events, { type: 'declined', at: Date.now(), by: ME_ID }] } : x)) })); track('reply_decline'); },
+      declineLetter: (letterId) => { set((s) => ({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'declined', events: [...x.events, { type: 'declined', at: Date.now(), by: ME_ID }] } : x)) })); track('reply_decline'); bridge.approveReply?.(letterId, false); },
 
       sendMessage: (otherId, text) => {
         const s = get();
@@ -431,7 +457,7 @@ export const useStore = create<State>()(
       markChatRead: (otherId) => set((s) => ({ chats: s.chats.map((c) => (c.otherId === otherId ? { ...c, lastReadAt: Date.now() } : c)) })),
       markNotificationsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
 
-      likePost: (postId) => { set((s) => ({ posts: s.posts.map((p) => (p.id === postId ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) } : p)) })); track('post_like'); },
+      likePost: (postId) => { const on = !get().posts.find((p) => p.id === postId)?.likedByMe; set((s) => ({ posts: s.posts.map((p) => (p.id === postId ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) } : p)) })); track('post_like'); bridge.likePost?.(postId, on); },
       commentPost: (postId, text) => {
         const s = get();
         const post = s.posts.find((p) => p.id === postId);
@@ -439,6 +465,7 @@ export const useStore = create<State>()(
         const sched = post.authorId !== ME_ID && Math.random() < 0.6 ? [...s.scheduled, { id: uid(), at: Date.now() + rand(8_000, 40_000), type: 'bot_comment' as const, payload: { postId, botId: post.authorId } }] : s.scheduled;
         set({ posts: s.posts.map((p) => (p.id === postId ? { ...p, comments: [...p.comments, { id: uid(), authorId: ME_ID, text: text.trim(), at: Date.now() }] } : p)), scheduled: sched, me: earn(s.me, COIN_REWARDS.comment) });
         track('post_comment');
+        bridge.comment?.(postId, text.trim());
       },
       publishPost: (letterId, shareToStory) => {
         const s = get();
@@ -447,6 +474,7 @@ export const useStore = create<State>()(
         const post: Post = { id: uid(), letterId, authorId: l.senderId, text: l.text, imageUri: l.imageUri, city: l.origin.city, country: l.origin.country, stamp: l.stamp, vehicle: l.vehicle, at: Date.now(), likes: 0, likedByMe: false, distanceKm: Math.round(l.distanceKm), comments: [], shareToStory };
         set({ posts: [post, ...s.posts], letters: s.letters.map((x) => (x.id === letterId ? { ...x, isPublic: true } : x)), scheduled: [...s.scheduled, { id: uid(), at: Date.now() + rand(15_000, 60_000), type: 'bot_like', payload: { postId: post.id } }] });
         track('post_publish', { story: shareToStory });
+        bridge.publishPost?.(letterId, shareToStory);
       },
       setPostStory: (postId, on) => set((s) => ({ posts: s.posts.map((p) => (p.id === postId ? { ...p, shareToStory: on } : p)) })),
 

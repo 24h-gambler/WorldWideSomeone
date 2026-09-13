@@ -45,7 +45,7 @@ export default function RootLayout() {
     const st = useStore.getState();
     configureAnalytics({ deviceId: st.deviceId, userId: st.signedIn ? st.me.id : undefined, guest: !st.signedIn });
   }, [hydrated]);
-  useEffect(() => { setAnalyticsUser(signedIn ? 'me' : undefined, !signedIn); }, [signedIn]);
+  useEffect(() => { setAnalyticsUser(signedIn ? 'me' : undefined, !signedIn); if (hydrated && signedIn && supabaseEnabled) startSync().catch(() => {}); }, [signedIn, hydrated]);
   useEffect(() => { if (hydrated && pathname) trackScreen(pathname); }, [hydrated, pathname]);
 
   // 1초 게임 틱 (로컬 모드: 봇 세계 / Supabase 모드: 도착·통과 로컬 보조 판정)

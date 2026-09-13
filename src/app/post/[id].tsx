@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
 import { PostcardThumb } from '@/components/postcard-thumb';
+import { useGate } from '@/hooks/use-gate';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,6 +27,7 @@ export default function PostScreen() {
   const post = useStore((s) => s.posts.find((p) => p.id === id));
   const likePost = useStore((s) => s.likePost);
   const commentPost = useStore((s) => s.commentPost);
+  const gate = useGate();
   const [text, setText] = useState('');
   if (!post) return <Screen><Header title="엽서" /><T style={{ padding: spacing.lg }}>엽서를 찾을 수 없어요</T></Screen>;
   const rev = { me, friendIds, revealedIds };
@@ -77,7 +79,7 @@ export default function PostScreen() {
         <Row style={{ paddingHorizontal: spacing.lg, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: 0.5, borderTopColor: c.line }} gap={8}>
           <Avatar emoji={me.avatar} size={32} />
           <TextInput value={text} onChangeText={setText} placeholder="댓글 달기…" placeholderTextColor={c.text3} style={[{ flex: 1, color: c.text, fontFamily, fontSize: 14, height: 40 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} onSubmitEditing={() => { commentPost(post.id, text); setText(''); }} />
-          <Pressable disabled={!text.trim()} onPress={() => { tap(); commentPost(post.id, text); setText(''); }}><T t="bodyStrong" color={text.trim() ? c.blue : c.text3}>게시</T></Pressable>
+          <Pressable disabled={!text.trim()} testID="btn:post:comment" onPress={() => { tap(); gate('comment', () => { commentPost(post.id, text); setText(''); }); }}><T t="bodyStrong" color={text.trim() ? c.blue : c.text3}>게시</T></Pressable>
         </Row>
       </KeyboardAvoidingView>
     </Screen>

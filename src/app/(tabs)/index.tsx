@@ -108,7 +108,7 @@ export default function Home() {
             <View style={{ marginTop: 10, gap: 4 }}>
               <ProgressBar value={progressOf(focus, now)} color={focus.status === 'sunk' ? c.red : focus.senderId === ME_ID || focus.recipientId === ME_ID ? c.pink : VEHICLE_MAP[focus.vehicle].color} />
               <Row style={{ justifyContent: 'space-between' }}>
-                <T t="caption" color={c.text3}>{focus.status === 'sunk' ? `🌊 침수 · ${formatDuration((focus.sunkUntil ?? now) - now)} 뒤 떠오름` : focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(focus, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · 나와 ${formatKm(incomingStatus(focus, me.location, now, settings.timeScale).distanceKm)}`}</T>
+                <T t="caption" color={c.text3}>{focus.status === 'sunk' ? `🌊 침수 · ${formatDuration((focus.sunkUntil ?? now) - now)} 뒤 떠오름` : focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(focus, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · ${focus.senderId === ME_ID ? `남은 ${formatKm(Math.max(0, focus.distanceKm * (1 - progressOf(focus, now))))}` : `나와 ${formatKm(incomingStatus(focus, me.location, now, settings.timeScale).distanceKm)}`}`}</T>
                 <Row gap={12}>
                   {focus.status === 'sunk' && focus.senderId === ME_ID ? <Pressable onPress={() => { tap(); rescue(focus.id); }}><T t="smallStrong" color={c.blue}>🛟 건져내기 {OCEAN_RESCUE_COINS} SC</T></Pressable> : null}
                   <Pressable onPress={() => { tap(); router.push(`/letter/${focus.id}`); }}><T t="smallStrong" color={c.blue}>자세히</T></Pressable>

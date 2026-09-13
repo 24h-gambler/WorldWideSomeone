@@ -90,7 +90,7 @@ export default function Compose() {
   const stepTitles = isReply ? ['답장 쓰기', '배달원', '확인'] : isDirect ? ['내용', '받는 사람', '배달원'] : ['내용', '목적지', '배달원 · 조건'];
   const VehiclePicker = (
     <View>
-      <T t="bodyStrong" style={{ marginBottom: 8 }}>배달원 <T t="small" color={c.text2}>· 친구 수로 해금 · 느린 것부터 빠른 것까지</T></T>
+      <T t="bodyStrong" style={{ marginBottom: 8 }}>배달원 <T t="small" color={c.text2}>· 친구 수로 해금 · 느린 것부터 빠른 것까지{isReply ? ' · 답장은 자전거 이상으로 가요' : ''}</T></T>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 8 }}>{FAMILIES.map((f) => <Chip key={f} label={FAMILY_LABEL[f]} small selected={family === f} onPress={() => setFamily(f)} />)}</ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
         {VEHICLES.filter((v) => v.family === family).map((v) => { const ok = vehicleUnlocked(v, friendIds.length, me.inventory, me.plan); const on = vehicle === v.id; return (

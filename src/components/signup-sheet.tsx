@@ -57,7 +57,6 @@ export function SignupHost() {
             <T t="body" color={c.text2}>10초면 돼요. 둘러본 건 그대로 남아요.</T>
             <View style={{ gap: 10, marginTop: 8 }}>
               <Button title="Google로 계속" icon="chrome" variant="secondary" size="lg" full loading={busy} onPress={() => choose('google')} track="signup:google" />
-              {Platform.OS === 'ios' ? <Button title="Apple로 계속" icon="smartphone" variant="dark" size="lg" full loading={busy} onPress={() => choose('apple')} track="signup:apple" /> : null}
               <Pressable onPress={() => choose('kakao')} testID="btn:signup:kakao" style={({ pressed }) => [{ height: 50, borderRadius: radius.sm, backgroundColor: '#FEE500', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, opacity: pressed ? 0.8 : 1 }]}>
                 <Icon name="message-circle" size={18} color="#191919" /><T style={{ fontWeight: '600', color: '#191919', fontSize: 15 }}>카카오로 계속</T>
               </Pressable>

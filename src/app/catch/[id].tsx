@@ -78,8 +78,8 @@ export default function Catch() {
   const pullPrice = ITEM_MAP.pull1;
 
   const ACTIONS = [
-    { key: 'peek', icon: 'lens' as ItemId, label: peeked ? '엿봤음' : '엿보기', sub: peekLeft > 0 ? `남은 ${peekLeft}회` : `${peekPrice.coins} SC`, onPress: doPeek, disabled: peeked },
-    { key: 'pull', icon: 'magnet' as ItemId, label: '끌어오기', sub: pullLeft > 0 ? `남은 ${pullLeft}회` : `${pullPrice.coins} SC`, onPress: doPull },
+    { key: 'peek', icon: 'lens' as ItemId, label: peeked ? '엿봤음' : '엿보기', sub: peekLeft > 0 ? `남은 ${peekLeft}회` : `렌즈 5개 ${peekPrice.coins} SC`, onPress: doPeek, disabled: peeked },
+    { key: 'pull', icon: 'magnet' as ItemId, label: '끌어오기', sub: pullLeft > 0 ? `남은 ${pullLeft}회` : `1회 ${pullPrice.coins} SC`, onPress: doPull },
     { key: 'reroute', icon: 'compass' as ItemId, label: '경로 바꾸기', sub: `경유지 ${plan.maxWaypoints}개`, onPress: () => setMode('reroute') },
     { key: 'snail', icon: 'snail' as ItemId, label: '달팽이', sub: '5분 느리게', onPress: doSnail },
     { key: 'sunk', icon: 'wave' as ItemId, label: '침수', sub: '몇 시간 정지', onPress: () => doRedirect('sunk') },

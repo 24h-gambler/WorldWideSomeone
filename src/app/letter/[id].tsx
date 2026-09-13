@@ -82,7 +82,7 @@ export default function LetterScreen() {
             <Globe size={Math.min(width, 360)} letters={[letter]} me={me.location} meAvatar={me.avatar} focusLetterId={letter.id} fps={24} showRoutes="focus" />
             <View style={{ width: '100%', paddingHorizontal: spacing.lg, gap: 4, marginTop: -8 }}>
               <ProgressBar value={p} color={sunk ? c.red : mine || toMe ? c.pink : v.color} track={c.bubble} />
-              <Row style={{ justifyContent: 'space-between' }}><T t="caption" color={c.text2}>{Math.round(p * 100)}%{snail ? ' · 🐌 달팽이 벌칙 중' : ''}{letter.redirects ? ` · 경로변경 ${letter.redirects}회` : ''}{letter.pulls ? ' · 🧲 끌려감' : ''}</T><T t="caption" color={c.text2}>{sunk ? `🌊 ${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : letter.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(letter, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · 나와 ${formatKm(incomingStatus(letter, me.location, now, settings.timeScale).distanceKm)}`}</T></Row>
+              <Row style={{ justifyContent: 'space-between' }}><T t="caption" color={c.text2}>{Math.round(p * 100)}%{snail ? ' · 🐌 달팽이 벌칙 중' : ''}{letter.redirects ? ` · 경로변경 ${letter.redirects}회` : ''}{letter.pulls ? ' · 🧲 끌려감' : ''}</T><T t="caption" color={c.text2}>{sunk ? `🌊 ${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : letter.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(letter, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · ${mine ? `남은 ${formatKm(Math.max(0, letter.distanceKm * (1 - p)))}` : `나와 ${formatKm(incomingStatus(letter, me.location, now, settings.timeScale).distanceKm)}`}`}</T></Row>
             </View>
           </LinearGradient>
         )}

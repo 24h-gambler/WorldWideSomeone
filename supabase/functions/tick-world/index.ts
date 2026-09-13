@@ -57,13 +57,14 @@ Deno.serve(async (req) => {
     let users = cand ?? [];
     if ((count ?? 0) > RULES.HOT_CELL_USERS) users = users.sort(() => Math.random() - 0.5).slice(0, RULES.HOT_CELL_SAMPLE); // 핫셀 샘플링
     let made = 0;
-    for (const u of users) {
-      if (made >= RULES.PASSBY_PER_LETTER_PER_TICK) break;
-      if (u.user_id === l.sender_id || !u.lat) continue;
-      if (minDistanceBetween(flight, prev, now, { lat: u.lat, lng: u.lng }) > PASSBY_RADIUS_KM) continue;
+    // 정밀 판정 → 후보만 모아 사용자 행을 한 번에 조회 (N+1 제거)
+    const hits = users.filter((u) => u.user_id !== l.sender_id && u.lat && minDistanceBetween(flight, prev, now, { lat: u.lat, lng: u.lng }) <= PASSBY_RADIUS_KM).slice(0, RULES.PASSBY_PER_LETTER_PER_TICK);
+    const { data: hitUsers } = hits.length ? await db.from('users').select('*').in('id', hits.map((h) => h.user_id)) : { data: [] };
+    const U = new Map((hitUsers ?? []).map((x) => [x.id, x]));
+    for (const u of hits) {
       const { data: ins, error } = await db.from('passbys').insert({ user_id: u.user_id, letter_id: l.id, at: nowIso, expires_at: new Date(Math.max(now + 15_000, Math.min(now + catchWindowMs(l.vehicle), flight.arrivesAt))).toISOString(), can_catch: true }).select('id').single();
       if (error || !ins) continue; // unique → 이미 통과한 사람
-      const me = await getUser(db, u.user_id);
+      const me = U.get(u.user_id); if (!me) continue;
       const canCatch = matchesTarget(me, l.target);
       if (!canCatch) await db.from('passbys').update({ can_catch: false }).eq('id', ins.id);
       const vname = l.vehicle;

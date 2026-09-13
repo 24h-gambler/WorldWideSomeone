@@ -21,6 +21,10 @@ let screenEnteredAt = 0;
 let sink: ((events: AnalyticsEvent[]) => Promise<boolean>) | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let listeners: ((e: AnalyticsEvent) => void)[] = [];
+/** 대규모 운영 시 tap/scroll 을 샘플링(0~1). 핵심 이벤트(가입·결제·게임 액션)는 항상 100%. docs/SCALE.md §6 */
+export let sampleRate = 1;
+export const setSampleRate = (r: number) => { sampleRate = Math.max(0, Math.min(1, r)); };
+const SAMPLED = new Set(['tap', 'scroll', 'screen_end']);
 
 export function configureAnalytics(opts: { deviceId: string; userId?: string; guest: boolean; sink?: typeof sink }) {
   device = opts.deviceId; user = opts.userId; guest = opts.guest; if (opts.sink !== undefined) sink = opts.sink;
@@ -34,6 +38,7 @@ export const setAnalyticsUser = (userId?: string, isGuest = !userId) => { user =
 export const onEvent = (fn: (e: AnalyticsEvent) => void) => { listeners.push(fn); return () => { listeners = listeners.filter((f) => f !== fn); }; };
 
 export function track(name: string, props?: Record<string, unknown>) {
+  if (sampleRate < 1 && SAMPLED.has(name) && Math.random() > sampleRate) return;
   const e: AnalyticsEvent = { name, props, at: Date.now(), screen: currentScreen || undefined, session, device, user, guest };
   queue.push(e);
   for (const l of listeners) l(e);

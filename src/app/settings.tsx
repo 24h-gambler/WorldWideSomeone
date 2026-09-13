@@ -9,7 +9,9 @@ import { useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 import { getLocationPermission, requestBackgroundLocation, requestForegroundLocation, startBackgroundLocation, stopBackgroundLocation } from '@/services/location';
 import { getNotificationPermission, getPushToken, requestNotificationPermission } from '@/services/push';
-import { pushProfile, registerPushToken } from '@/services/sync';
+import { pushProfile, registerPushToken, stopSync } from '@/services/sync';
+import { signOut } from '@/services/auth';
+import { openSignup } from '@/components/signup-sheet';
 import { supabaseEnabled } from '@/services/supabase';
 import { purchases } from '@/services/purchases';
 import type { PermissionState } from '@/types';
@@ -37,6 +39,8 @@ export default function Settings() {
   const spawnReply = useStore((s) => s.devSpawnReply);
   const update = useStore((s) => s.updateProfile);
   const reset = useStore((s) => s.resetAll);
+  const signedIn = useStore((s) => s.signedIn);
+  const confirmAsync = (title: string, body: string, fn: () => Promise<void>) => { if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${body}`)) void fn(); return; } Alert.alert(title, body, [{ text: '취소', style: 'cancel' }, { text: title, style: 'destructive', onPress: () => void fn() }]); };
   const [showLoc, setShowLoc] = useState(false);
 
   const refresh = async () => {
@@ -81,6 +85,7 @@ export default function Settings() {
         </Section>
 
         <Section title="계정 · 결제">
+          <ListRow title={signedIn ? `${me.nickname} · ${me.auth?.provider === 'kakao' ? '카카오' : 'Google'} 로그인` : '비회원으로 둘러보는 중'} subtitle={signedIn ? (me.auth?.email ?? '가입됨') : '보내기·좋아요·댓글 때 가입 시트가 떠요'} right={signedIn ? <Button title="로그아웃" size="sm" variant="secondary" track="settings:logout" onPress={() => confirmAsync('로그아웃', '이 기기에서 로그아웃해요. 편지와 친구는 계정에 남아요.', async () => { stopSync(); await signOut(); reset(); })} /> : <Button title="가입" size="sm" track="settings:signup" onPress={() => openSignup('send')} />} />
           <ListRow title={`플랜: ${me.plan.toUpperCase()}`} subtitle={me.planExpiresAt ? `갱신 ${new Date(me.planExpiresAt).toLocaleDateString('ko-KR')}` : '무료'} right={<Button title="상점" size="sm" variant="secondary" onPress={() => router.push('/store')} />} />
           <ListRow title="결제 제공자" subtitle={purchases.name === 'revenuecat' ? 'RevenueCat (스토어 결제)' : 'Mock (테스트) · dev build + RevenueCat 키 설정 시 실결제'} />
           <ListRow title="백엔드" subtitle={supabaseEnabled ? 'Supabase (Auth · Postgres · Realtime · Edge Functions)' : 'EXPO_PUBLIC_SUPABASE_* 미설정 → 로컬 봇 시뮬레이션'} />
@@ -106,6 +111,7 @@ export default function Settings() {
         </Section>
 
         <Section title="데이터">
+          {signedIn ? <ListRow title="계정 삭제" subtitle="편지·친구·엽서·코인이 모두 지워져요 (되돌릴 수 없음)" right={<Button title="삭제" size="sm" variant="danger" track="settings:delete-account" onPress={() => confirmAsync('계정 삭제', '정말 삭제할까요? 모든 데이터가 지워지고 되돌릴 수 없어요.', async () => { stopSync(); await signOut(); reset(); })} />} /> : null}
           <View style={{ paddingHorizontal: spacing.lg }}><Button title="모든 데이터 초기화" variant="danger" onPress={confirmReset} /></View>
         </Section>
         <T t="caption" color={colors.text3} style={{ textAlign: 'center', marginTop: spacing.xl }}>WorldWideSomeone {Constants.expoConfig?.version ?? ''} · {Platform.OS} · {Constants.appOwnership ?? 'standalone'}</T>
