@@ -8,7 +8,7 @@
 ## 0. Supabase 셋업 (10분)
 
 1. https://supabase.com/dashboard → New project (리전 **ap-northeast-2 Seoul**, DB 비밀번호 저장) → Settings → API 에서 `Project URL`·`anon key` 복사.
-2. Authentication → Providers: **Google · Kakao** 켜기 (Apple 은 iOS 심사 시 요구될 수 있음 — docs/AUDIT.md §4) (각 콘솔의 client id/secret) · Redirect URL 에 `wws://auth`, `http://localhost:8081`.
+2. Authentication → Providers: **Apple · Google · Kakao** 켜기 (각 콘솔의 client id/secret — 브라우저 단계는 `docs/BROWSER-SETUP.md`) · Redirect URL 에 `wws://auth`, `http://localhost:8081`.
 3. 터미널: `npm i -g supabase && supabase login` → `npm run supabase:setup -- <project-ref>` (스키마 push · Edge Functions 배포 · pg_cron 스케줄 등록).
 4. `supabase secrets set REVENUECAT_WEBHOOK_SECRET=...` · RevenueCat 웹훅 URL: `https://<ref>.functions.supabase.co/purchase-webhook` (Authorization: Bearer 같은 값).
 5. `.env`: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` → 앱이 자동으로 Supabase 모드.

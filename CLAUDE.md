@@ -9,7 +9,7 @@ Expo(React Native) 앱. 편지를 배달원(43종)이 지구 위로 실어 나�
 - 원화(₩)는 상점의 코인 팩·플랜에서만. 나머지 가격은 전부 썸원코인(SC).
 - 도착 예상 시간은 어디에도 표시하지 않는다(속도 km/h · 거리 km 만).
 - 친구는 왕복(내 편지 → 상대 답장 → 수락)으로만. 직행 편지는 환불 없음.
-- 비회원으로 시작. 가입(Google·Kakao 만, Apple 없음)은 보내기·좋아요·댓글·채팅·결제 순간에만.
+- 비회원으로 시작. 가입(Apple·Google·Kakao)은 보내기·좋아요·댓글·채팅·결제 순간에만. 애플 버튼은 iOS·웹에만 노출(심사 지침 4.8).
 - 착륙한 편지는 남에게 보이지 않는다. 되돌리기 기능은 없다. 바다는 "침수".
 - SNS 에는 받은 편지 수만(보낸 수 표시 금지).
 
@@ -21,6 +21,7 @@ Expo(React Native) 앱. 편지를 배달원(43종)이 지구 위로 실어 나�
 | Supabase **service_role key** | Edge Function 호출(cron) · 서버 전용 | 대시보드 → Settings → API. **저장소에 절대 커밋 금지**. `supabase secrets` 와 cron 등록에만 사용 | 사용자(대시보드) |
 | Supabase **DB 비밀번호 / 액세스 토큰** | `supabase link`, `db push` | `supabase login`(브라우저) 또는 `SUPABASE_ACCESS_TOKEN` 환경변수 | 사용자 |
 | **Google Cloud** OAuth 클라이언트 | Google 로그인 | console.cloud.google.com → APIs → Credentials → OAuth 2.0 Client (Web) · 승인된 리디렉션 URI: `https://ppyuaezzdndvphsindug.supabase.co/auth/v1/callback` → client id/secret 을 Supabase Auth → Providers → Google 에 입력 | 사용자 |
+| **Apple Developer** (Sign in with Apple) | 애플 로그인 | developer.apple.com → Identifiers: App ID(`com.worldwidesomeone.app`)에 Sign In with Apple 체크 · Services ID `com.worldwidesomeone.web` 생성(Return URL 은 Supabase 콜백) · Keys 에서 Sign in with Apple 키(.p8) 발급 → Supabase Auth → Providers → Apple 에 입력 | 사용자 |
 | **Kakao Developers** 앱 | 카카오 로그인 | developers.kakao.com → 앱 생성 → 카카오 로그인 활성화 · Redirect URI 위와 동일 · REST API 키/Client Secret 을 Supabase Auth → Providers → Kakao 에 입력 · 동의항목: 닉네임·프로필 이미지·이메일 | 사용자 |
 | **Firebase** (2id.kimdan) | Android 푸시(FCM V1)만 | console.firebase.google.com → 프로젝트 → 서비스 계정 → 비공개 키(json) → `eas credentials` 에 업로드. Firestore/Functions 는 쓰지 않는다 | 사용자 |
 | **Expo / EAS** | 빌드 · 푸시 토큰 | `eas login` · `app.json` 의 `extra.eas.projectId` · iOS APNs 키는 EAS 가 생성 | 사용자(로그인) → Claude(빌드 명령) |
@@ -43,7 +44,8 @@ npm i -g supabase && supabase login              # 브라우저 로그인 1회
 npm run supabase:setup -- ppyuaezzdndvphsindug    # 스키마·RLS·트리거 push, Edge Functions 13개 배포, pg_cron 등록
 supabase secrets set REVENUECAT_WEBHOOK_SECRET=<임의의 긴 문자열>
 ```
-그다음 대시보드에서 Auth → Providers 에 Google·Kakao 키 입력, Redirect URL 에 `wws://auth` 추가. 검증: `supabase/tests/rls.sql` 을 SQL 에디터에서 실행.
+그다음 대시보드에서 Auth → Providers 에 Apple·Google·Kakao 키 입력, Redirect URL 에 `wws://auth` 추가.
+브라우저에서 직접 해야 하는 콘솔 작업은 **`docs/BROWSER-SETUP.md` 에 순서대로** 적어 두었다(브라우저를 조작하는 에이전트에게 그대로 시킬 수 있는 형식). 검증: `supabase/tests/rls.sql` 을 SQL 에디터에서 실행.
 Claude 에게 서버 작업을 시키려면 `SUPABASE_ACCESS_TOKEN`(개인 액세스 토큰)과 DB 비밀번호를 세션 환경변수로 주고, supabase.co 네트워크를 허용해야 한다.
 
 ## 4. 개발 명령

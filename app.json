@@ -12,8 +12,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.worldwidesomeone.app",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
-      }
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.worldwidesomeone.app",
@@ -57,7 +60,8 @@
         {
           "color": "#FF5C8A"
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

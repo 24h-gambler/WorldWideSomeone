@@ -63,7 +63,9 @@ await step('12', '편지 쓰기 3단계(비회원 가능) · 배달원 카드에
   await tap('다음', { exact: true }); await see('육지 어딘가'); await tap('📍 직접'); await tap('🇯🇵 도쿄'); await page.waitForTimeout(700); await tap('다음', { exact: true }); await see('느린 것부터 빠른 것까지'); await see('대여'); await noKrw('compose'); await shot('12b-compose-vehicle');
 });
 await step('13', '보내기 → 가입 게이트(SNS) → "나중에" → 다시 보내기 → Google → 프로필 → 발송', async () => {
-  await page.getByText('보내기', { exact: true }).last().click(); await see('편지를 보내려면 계정이 필요해요'); await shot('13-gate'); await tap('나중에', { exact: true }); await page.waitForTimeout(500);
+  await page.getByText('보내기', { exact: true }).last().click(); await see('편지를 보내려면 계정이 필요해요');
+  for (const p of ['Apple로 계속', 'Google로 계속', '카카오로 계속']) await page.getByText(p, { exact: true }).last().waitFor({ state: 'visible', timeout: 8000 });
+  await shot('13-gate'); await tap('나중에', { exact: true }); await page.waitForTimeout(500);
   await page.getByText('보내기', { exact: true }).last().click(); await see('편지를 보내려면 계정이 필요해요'); await signup('dan');
   await page.waitForTimeout(600); await shot('13b-launch'); await page.waitForTimeout(2200); await see('자세히'); await see('내 편지'); await see('km/h'); await noKrw('home'); await shot('13c-home-after-send');
   const s = await state(); if (!s.signedIn || s.me.nickname !== 'dan') throw new Error('signup failed'); if (!s.letters.some((l) => l.senderId === 'me')) throw new Error('letter not sent');

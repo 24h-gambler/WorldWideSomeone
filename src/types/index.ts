@@ -17,7 +17,7 @@ export type VehicleId =
 export type Inventory = { shield: number; ufo: number; orbit: number; peek: number; pull: number; direct: number; carpet: number };
 /** 일일 한도(엿보기·끌어오기·무료 코인 획득) + 월 한도(직행 편지) */
 export type Quota = { date: string; peeks: number; pulls: number; earned: number; month: string; direct: number };
-export type AuthProvider = 'guest' | 'google' | 'kakao';
+export type AuthProvider = 'guest' | 'google' | 'apple' | 'kakao';
 export type Auth = { provider: AuthProvider; email?: string; signedUpAt?: number };
 
 export type User = {

@@ -11,6 +11,10 @@ additional_redirect_urls = ["wws://auth", "http://localhost:8081"]
 enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
+[auth.external.apple]
+enabled = true
+client_id = "env(APPLE_CLIENT_ID)"   # Services ID (웹·안드로이드) + iOS 번들 ID 를 쉼표로 함께
+secret = "env(APPLE_SECRET)"          # Apple 키(.p8)로 만든 client secret JWT
 [auth.external.kakao]
 enabled = true
 client_id = "env(KAKAO_CLIENT_ID)"

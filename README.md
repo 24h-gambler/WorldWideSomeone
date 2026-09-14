@@ -14,6 +14,7 @@
 - [`docs/AUDIT.md`](docs/AUDIT.md) — 화면별 사용성·오류·경제/규모 상호관계 전수 점검과 결정 필요 항목
 - [`CLAUDE.md`](CLAUDE.md) — 계정·키·배포 절차를 한곳에 모은 작업 지침
 - [`docs/VERIFICATION.md`](docs/VERIFICATION.md) — 단계별 · 사용자 관점 검증 리포트(자동 주행 스크린샷 증거) + 실기기/서버 체크리스트
+- [`docs/BROWSER-SETUP.md`](docs/BROWSER-SETUP.md) — 브라우저에서 사람이 직접 해야 하는 콘솔 작업 순서(애플·구글·카카오 로그인, Supabase, Firebase, RevenueCat, 스토어)
 - [`docs/LAUNCH.md`](docs/LAUNCH.md) — Firebase/GCP · EAS 빌드 · RevenueCat 결제 · 스토어 제출
 
 ## 흐름
