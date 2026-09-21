@@ -123,6 +123,20 @@ catch { console.log('⏭️ visual-check SKIPPED — @playwright/test 없음 (np
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'ko-KR', hasTouch: true, isMobile: true });
 const page = await ctx.newPage();
+// 프라이밍: cold deep-link는 웰컴 게이트가 가로채 전 라우트가 같은 화면으로 찍힌다.
+// 실사용자처럼 웰컴→위치→지구 진입 후 순회해야 라우트별 화면이 나온다.
+{
+  const tap = async (text) => {
+    const l = page.getByText(text, { exact: false }).first();
+    await l.waitFor({ state: 'visible', timeout: 15000 });
+    await l.click();
+  };
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await tap('둘러보기');
+  await tap('🇰🇷 서울');
+  await tap('지구로 들어가기');
+  await page.waitForTimeout(1500);
+}
 const results = [];
 for (const route of app.routes) {
   const id = route === '/' ? 'root' : route.replace(/\//g, '_').replace(/^_/, '');
@@ -153,7 +167,7 @@ for (const route of app.routes) {
     const cur = decodePNG(fs.readFileSync(tmp));
     if (!fs.existsSync(base) || UPDATE) {
       fs.writeFileSync(base, encodePNG(cur.w, cur.h, cur.data));
-      if (UPDATE) fs.copyFileSync(tmp, path.join(BASEDIR, `${id}.raw.png`)); // 사람 눈확인용 원본
+      if (UPDATE) fs.copyFileSync(tmp, path.join(ROOT, 'reports', `visual-raw-${id}.png`)); // 사람 눈확인용 원본 (아티팩트용, git 제외)
       entry.notes.push(UPDATE || !fs.existsSync(base) ? 'baseline 저장' : '');
       entry.updated = true;
     } else {
