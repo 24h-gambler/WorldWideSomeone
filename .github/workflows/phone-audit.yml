@@ -1,10 +1,10 @@
 name: Phone Audit (Maestro · 실기기 화면)
 
 # 실폰 화면 주행: debug APK를 Android 에뮬레이터에 깔고 Maestro로 탭·입력.
-# 에뮬 빌드 비용 때문에 매일 1회(06 KST) + 수동. 4시간 web 회귀와 분리.
+# 주간(일 06 KST) + 수동. 4시간 web 회귀와 분리 (에뮬 빌드 비용).
 on:
   schedule:
-    - cron: "0 21 * * *"
+    - cron: "0 21 * * 0"
   workflow_dispatch:
 
 concurrency:
