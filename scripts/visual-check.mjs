@@ -135,6 +135,8 @@ const page = await ctx.newPage();
   await tap('둘러보기');
   await tap('🇰🇷 서울');
   await tap('지구로 들어가기');
+  // 홈 준비 대기 (지구 초기화 전 이동하면 다음 라우트가 깨진다 — smoke도 '편지 쓰기'를 기다린다)
+  await page.getByText('편지 쓰기', { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 });
   await page.waitForTimeout(1500);
 }
 const results = [];
