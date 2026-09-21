@@ -1,10 +1,10 @@
 name: WWS 4H Health (BE+FE+LiveLike)
 
-# 4시간 자동화: 코드검정 + 백엔드생존 + 실앱사용성(LiveLike) + 디자인(병렬)
-# cron 0 */4 * * * (UTC) · 수동 실행도 가능 (full=32단계, update_baseline=베이스라인 재생성)
+# 4시간→12시간 자동화: 코드검정 + 백엔드생존 + 실앱사용성(LiveLike) + 디자인(병렬)
+# cron 0 */12 * * * (UTC) · 무료 한도(월 2000분) 내 운영. push은 변경 때마다 그대로.
 on:
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 */12 * * *"
   workflow_dispatch:
     inputs:
       full:

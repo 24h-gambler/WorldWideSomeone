@@ -15,11 +15,14 @@
 
 설정: `design.apps.json` (`APP` env로 선택, 기본 worldwidesomeone).
 
-## 주기 판단 (2026-09-21)
+## 주기 판단 (2026-09-21, 무료 한도 내)
 
-- 4시간 유지: WWS health/design, LiveLike, Astream web 루프 (1~4분/회, 저렴 + push가 커밋마다 이미 검사 + cron은 외부 드리프트 감시)
-- 주간(일): 폰감사 3앱 (에뮬 빌드 20~40분이라 주간)
+private repo 월 2,000분 무료. 4시간 주기는 4개 앱 합산 한도 초과라 전부 연장:
+
+- web 루프 12시간 (`0 */12 * * *`): WWS health/design, LiveLike, Astream, Beff — push는 변경 때마다 그대로 ( drift 감시용)
+- 폰감사 월간 (`0 21 1 * *`): 3앱 (에뮬 1회 30~60분이라 월간)
 - 수동: full 32단계, 베이스라인 재생성
+- 월 예상: web 약 600분 + 폰 약 150분 = 750분 내외
 
 ## 접근 부여 (둘 다 private 확인됨 — 2026-09-21)
 
