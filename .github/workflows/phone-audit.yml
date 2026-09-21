@@ -36,6 +36,7 @@ jobs:
       - name: Prebuild + debug APK
         run: |
           npx expo prebuild --platform android --non-interactive --no-install
+          chmod +x android/gradlew
           ./android/gradlew -p android assembleDebug --no-daemon
 
       - name: Install Maestro
@@ -50,6 +51,9 @@ jobs:
           target: google_apis
           arch: x86_64
           ram-size: 4096M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          disk-size: 6G
           script: maestro test --app android/app/build/outputs/apk/debug/app-debug.apk .maestro/
 
       - name: Upload maestro results
