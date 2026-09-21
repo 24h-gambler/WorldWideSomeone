@@ -117,6 +117,7 @@ jobs:
 
       - name: 디자인 정적 검정 (D1–D5)
         run: |
+          mkdir -p reports
           node scripts/design-check.mjs | tee reports/design-warns.txt
           echo "DESIGN_EXIT=${PIPESTATUS[0]}" >> $GITHUB_ENV
 
