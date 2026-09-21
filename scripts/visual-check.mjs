@@ -132,7 +132,16 @@ for (const route of app.routes) {
     const errs = [];
     page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 150)));
     await page.goto(BASE + route, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1500);
+    // 스플래시/빈 화면 캡처 방지: 본문 텍스트가 찰 때까지 대기 (고정 1.5s로는 로딩 화면이 찍힌다)
+    const textLen = await page.evaluate(() => new Promise((res) => {
+      const t0 = Date.now();
+      const iv = setInterval(() => {
+        const n = (document.body ? document.body.innerText.length : 0);
+        if (n > 100 || Date.now() - t0 > 20000) { clearInterval(iv); res(n); }
+      }, 250);
+    }));
+    if (textLen <= 100) throw new Error('빈 화면 (렌더 실패 — 베이스라인 저장 안 함)');
+    await page.waitForTimeout(1200);
     const tmp = path.join(os.tmpdir(), `wws-vis-${id}.png`);
     await page.screenshot({ path: tmp, animations: 'disabled' });
     const cur = decodePNG(fs.readFileSync(tmp));
