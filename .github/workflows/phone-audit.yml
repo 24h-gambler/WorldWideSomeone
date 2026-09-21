@@ -28,7 +28,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # 러너 내장 Android SDK 사용 (setup-android@v3는 node24 강제런타임에서 죽음)
 
       - name: Install
         run: npm ci
