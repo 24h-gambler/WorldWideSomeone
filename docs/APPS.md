@@ -6,8 +6,8 @@
 |---|---|---|---|---|---|
 | WorldWideSomeone | `24h-gambler/WorldWideSomeone` | 젠리·인스타 | Expo RN + Supabase | ✅ 가동 (health-4h + design + phone) | web smoke/full + Maestro 에뮬(매일) |
 | LiveLike | `24h-gambler/LiveLlike` | 제타 | 단일 index.html + Capacitor + Supabase · Vercel 배포 | ✅ CI 초록 (run #3, 3m04s: test 5/5·walk 26/26·native 31/31·shots clean) | ✅ 배포 사이트 주행 완료 (카탈로그→삶 상세, 에러 0) |
-| Astream | `24h-gambler/Astream` | 스푼 | Next.js 16 + Capacitor + Supabase | ⏳ 투입 예정 (CI 없음, 스크립트는 있음: typecheck·lint·build·test:e2e) | 미주행 |
-| Beff | `minseong-oh/BEFF` | 젠리·제타 | FastAPI + Flutter + Supabase · Oracle VM(beff.life) | ⏳ 투입 문서 준비 (`docs/BOOT-BEFF.md`) — CI 일부 있음(analyze/test/build/deploy) | ✅ 랜딩 주행 완료 (에러 0) · API 200 확인 |
+| Astream | `24h-gambler/Astream` | 스푼 | Next.js 16 + Capacitor + Supabase | ✅ CI 초록 (run #2, 1m20s: typecheck·lint·build) | 미주행 |
+| Beff | `minseong-oh/BEFF` | 젠리·제타 | FastAPI + Flutter + Supabase · Oracle VM(beff.life) | ⏳ PR #89 오픈 (`beff-4h.yml`, BE 생존만 — 기존 CI와 중복 없음). **Actions 탭 없음=비활성 상태. minseong-oh가 Settings → Actions → General에서 Allow all actions 켜야 실행됨** | ✅ 랜딩 주행 완료 (에러 0) · API 200 확인 |
 
 레퍼런스 전수조사: 2026-09-21 크롬 실확인 — 스푼(★3.4)·제타(★3.9·500만DL)·범프(★4.8·Zenly팀)·인스타(★4.65).
 결과: `docs/REFS-LIVELIKE.md` · `docs/REFS-BEFF.md` · `docs/REFS-WWS.md`.
