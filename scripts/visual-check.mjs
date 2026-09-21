@@ -154,7 +154,13 @@ const results = [];
 for (const route of app.routes) {
   const id = route === '/' ? 'root' : route.replace(/\//g, '_').replace(/^_/, '');
   const base = path.join(BASEDIR, `${id}.png`);
-  const entry = { route, ok: true, notes: [] };
+  const entry = { route, ok: true, notes: [], warns: [] };
+  // --update 모드에서는 깨짐 탐지를 경고로 격하한다 (베이스라인 확정 우선.
+  // 다음 일반 실행에서 같은 깨짐이 FAIL로 뜬다). pageerror·렌더실패·회귀는 항상 FAIL.
+  const soft = (msg) => {
+    if (UPDATE) { entry.warns.push(msg); console.log('   ⚠️', msg); }
+    else { entry.ok = false; entry.error = (entry.error ? entry.error + ' | ' : '') + msg; }
+  };
   try {
     const errs = [];
     page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 150)));
@@ -202,7 +208,7 @@ for (const route of app.routes) {
       }
       return out;
     });
-    if (overflow.length) { entry.ok = false; entry.error = (entry.error ? entry.error + ' | ' : '') + '가로 넘침: ' + overflow.slice(0, 4).join(', '); }
+    if (overflow.length) soft('가로 넘침: ' + overflow.slice(0, 4).join(', '));
     // 탭타겟: 24px 미만 양축 → FAIL, 24~44 → note
     const small = await page.evaluate(() => {
       const bad = [], tiny = [];
@@ -215,7 +221,7 @@ for (const route of app.routes) {
       }
       return { bad: bad.slice(0, 6), tiny };
     });
-    if (small.bad.length) { entry.ok = false; entry.error = (entry.error ? entry.error + ' | ' : '') + '탭타겟 미달: ' + small.bad.join(', '); }
+    if (small.bad.length) soft('탭타겟 미달: ' + small.bad.join(', '));
     if (small.tiny.length) entry.notes.push('44px 미만: ' + small.tiny.join(', '));
     console.log(`${entry.ok ? '✅' : '❌'} VIS ${route}${entry.diffRatio !== undefined ? ` diff ${(entry.diffRatio * 100).toFixed(2)}%` : ''}${entry.error ? ' — ' + entry.error : ''}`);
   } catch (e) { entry.ok = false; entry.error = String(e.message).slice(0, 200); console.log(`❌ VIS ${route} — ${entry.error}`); }
