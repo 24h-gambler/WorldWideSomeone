@@ -5,8 +5,8 @@
 | 앱 | repo | 참고앱 | 스택 (실측) | 자동화 상태 | 실앱 주행 |
 |---|---|---|---|---|---|
 | WorldWideSomeone | `24h-gambler/WorldWideSomeone` | 젠리·인스타 | Expo RN + Supabase | ✅ 정상궤도 (health+design 초록, 베이스라인 6종, 폰감사 주간) | web smoke/full + Maestro 에뮬(주간) |
-| LiveLike | `24h-gambler/LiveLlike` | 제타 | 단일 index.html + Capacitor + Supabase · Vercel 배포 | ✅ CI 초록 + 승인플로우 + 제안 #31–#33 + Maestro 주간 | ✅ 배포 사이트 주행 완료 |
-| Astream | `24h-gambler/Astream` | 스푼 | Next.js 16 + Capacitor + Supabase | ✅ CI 초록 + 승인플로우 + Maestro 주간 | 미주행 |
+| LiveLike | `24h-gambler/LiveLlike` | 제타 | 단일 index.html + Capacitor + Supabase · Vercel 배포 | ✅ CI 초록 + 승인플로우 + 제안 #31–#33 + Maestro 주간(검증 중) | ✅ 배포 사이트 주행 완료 |
+| Astream | `24h-gambler/Astream` | 스푼 | Next.js 16 + Capacitor + Supabase | ✅ CI 초록 + 승인플로우 + Maestro 주간(검증 중) | 미주행 |
 | Beff | `minseong-oh/BEFF` | 젠리·제타 | FastAPI + Flutter + Supabase · Oracle VM(beff.life) | ✅ PR #89 머지됨. ⏳ BEFF 4H 첫 실행 대기 (minseong-oh 계정 결제 실패로 Actions 차단 중 — 복구되면 스케줄 시작) | ✅ 랜딩 주행 완료 (에러 0) · API 200 확인 |
 
 레퍼런스 전수조사: 2026-09-21 크롬 실확인 — 스푼(★3.4)·제타(★3.9·500만DL)·범프(★4.8·Zenly팀)·인스타(★4.65).
@@ -14,6 +14,12 @@
 참고: 원조 Zenly는 2023년 종료 → 젠리 자리는 범프(amo, Zenly팀)가 대체. 제타=Scatter Lab AI 채팅.
 
 설정: `design.apps.json` (`APP` env로 선택, 기본 worldwidesomeone).
+
+## 주기 판단 (2026-09-21)
+
+- 4시간 유지: WWS health/design, LiveLike, Astream web 루프 (1~4분/회, 저렴 + push가 커밋마다 이미 검사 + cron은 외부 드리프트 감시)
+- 주간(일): 폰감사 3앱 (에뮬 빌드 20~40분이라 주간)
+- 수동: full 32단계, 베이스라인 재생성
 
 ## 접근 부여 (둘 다 private 확인됨 — 2026-09-21)
 
