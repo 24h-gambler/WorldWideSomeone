@@ -58,7 +58,9 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           disk-size: 6G
-          script: maestro test --app android/app/build/outputs/apk/debug/app-debug.apk .maestro/
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test .maestro/
 
       - name: Upload maestro results
         if: always()
