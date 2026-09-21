@@ -4,7 +4,7 @@
 
 | 앱 | repo | 참고앱 | 스택 (실측) | 자동화 상태 | 실앱 주행 |
 |---|---|---|---|---|---|
-| WorldWideSomeone | `24h-gambler/WorldWideSomeone` | 젠리·인스타 | Expo RN + Supabase | ✅ health 초록·design-check 5/5·visual 6/6. **남은 것: Workflow permissions → Read and write (현재 read-only라 베이스라인 커밋 push 128 + 이슈생성 실패). 켜면 update_baseline 1회 디스패치** | web smoke/full + Maestro 에뮬(매일) |
+| WorldWideSomeone | `24h-gambler/WorldWideSomeone` | 젠리·인스타 | Expo RN + Supabase | ✅ 정상궤도 (health+design 초록, 베이스라인 6종 `f99826c`, 이슈 #1–#6 정리완료). 다음 4h부터 감시 모드. 단 `/` 가로 넘침 1건은 실발견 → 다음 실행에서 재등록 예정 | web smoke/full + Maestro 에뮬(매일) |
 | LiveLike | `24h-gambler/LiveLlike` | 제타 | 단일 index.html + Capacitor + Supabase · Vercel 배포 | ✅ CI 초록 (run #3, 3m04s: test 5/5·walk 26/26·native 31/31·shots clean) | ✅ 배포 사이트 주행 완료 (카탈로그→삶 상세, 에러 0) |
 | Astream | `24h-gambler/Astream` | 스푼 | Next.js 16 + Capacitor + Supabase | ✅ CI 초록 (run #2, 1m20s: typecheck·lint·build) | 미주행 |
 | Beff | `minseong-oh/BEFF` | 젠리·제타 | FastAPI + Flutter + Supabase · Oracle VM(beff.life) | ⏳ PR #89 오픈+병합가능. **실행 조건 (minseong-oh 오너만 가능 — 현 세션은 admin 없음 확인): Settings → Actions → General → Allow all actions and reusable workflows → Save** | ✅ 랜딩 주행 완료 (에러 0) · API 200 확인 |
