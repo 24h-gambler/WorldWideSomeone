@@ -1,0 +1,30 @@
+name: Notify
+
+# 이슈가 열리면 담당자에게 확실히 알린다.
+# 배경: 에이전트가 사용자 세션으로 여는 제안 이슈는 "본인 글"이라 GitHub이 알림을 안 보낸다.
+# 그래서 봇 댓글 멘션(구독자에게 울림) + 텔레그램(즉시)을 걸어 둔다.
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  ping:
+    if: contains(github.event.issue.labels.*.name, 'design-proposal') || contains(github.event.issue.labels.*.name, 'auto-fix')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Comment ping
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "@24h-gambler 새 디자인 이슈가 열렸습니다: **${{ github.event.issue.title }}** — proposal은 \`/승인\` 또는 \`/반려 사유\`, auto-fix는 다음 세션에서 바로 반영됩니다."
+
+      - name: Telegram ping
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then echo "telegram skipped (secrets 없음)"; exit 0; fi
+          curl -fsS -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+            --data-urlencode "text=🎨 ${{ github.event.issue.title }}%0A${{ github.event.issue.html_url }}%0A/승인 또는 /반려" > /dev/null && echo "telegram sent" || echo "telegram failed"

@@ -72,9 +72,17 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           TITLE="📱 phone audit 실패 (${{ github.run_number }})"
           EXIST=$(gh issue list --search "$TITLE" --state open --json number --jq length)
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "$EXIST" = "0" ]; then
-            gh issue create --title "$TITLE" --label "auto-fix" --body "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} — Maestro 실기기 주행 실패. 아티팩트 wws-phone-${{ github.run_number }} 확인."
+            gh issue create --title "$TITLE" --label "auto-fix" --assignee 24h-gambler --body "@24h-gambler run: $URL — Maestro 실기기 주행 실패. 아티팩트 wws-phone-${{ github.run_number }} 확인."
           fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -fsS -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+              --data-urlencode "text=📱 $TITLE%0A$URL" > /dev/null && echo "telegram sent" || echo "telegram failed"
+          else echo "telegram skipped (secrets 없음)"; fi

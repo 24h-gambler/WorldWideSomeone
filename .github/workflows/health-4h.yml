@@ -94,12 +94,20 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           TITLE="🚨 4H health 실패 (${{ github.run_number }})"
           EXIST=$(gh issue list --search "$TITLE" --state open --json number --jq length)
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "$EXIST" = "0" ]; then
-            gh issue create --title "$TITLE" --body "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} — code-check/BE/LiveLike 중 실패. 아티팩트 wws-4h-${{ github.run_number }} 확인."
+            gh issue create --title "$TITLE" --assignee 24h-gambler --body "@24h-gambler run: $URL — code-check/BE/LiveLike 중 실패. 아티팩트 wws-4h-${{ github.run_number }} 확인."
           fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -fsS -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+              --data-urlencode "text=🚨 $TITLE%0A$URL" > /dev/null && echo "telegram sent" || echo "telegram failed"
+          else echo "telegram skipped (secrets 없음)"; fi
 
   design:
     runs-on: ubuntu-latest
@@ -171,10 +179,18 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           gh label create "auto-fix" --description "승인 없이 바로 반영하는 깨짐·가독성·에러" --color "d73a4a" 2>/dev/null || true
           TITLE="🎨 design auto-fix (run ${{ github.run_number }})"
           EXIST=$(gh issue list --search "$TITLE" --state open --json number --jq length)
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "$EXIST" = "0" ]; then
-            gh issue create --title "$TITLE" --label "auto-fix" --body "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} — 깨짐·가독성·에러 클래스. 승인 없이 다음 세션에서 바로 반영. 아티팩트 wws-design-${{ github.run_number }} 확인."
+            gh issue create --title "$TITLE" --label "auto-fix" --assignee 24h-gambler --body "@24h-gambler run: $URL — 깨짐·가독성·에러 클래스. 승인 없이 다음 세션에서 바로 반영. 아티팩트 wws-design-${{ github.run_number }} 확인."
           fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -fsS -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+              --data-urlencode "text=🎨 $TITLE%0A$URL" > /dev/null && echo "telegram sent" || echo "telegram failed"
+          else echo "telegram skipped (secrets 없음)"; fi
