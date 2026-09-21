@@ -139,6 +139,17 @@ const page = await ctx.newPage();
   await page.getByText('편지 쓰기', { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 });
   await page.waitForTimeout(1500);
 }
+
+// 라우트별 준비 신호 — smoke와 같은 텍스트를 같은 타임아웃으로 기다린다.
+// (옛 settle 방식은 라이브 영역 때문에 안정 조건을 못 맞췄고, smoke와 결과가 엇갈렸다)
+const READY_TEXT = {
+  '/': '편지 쓰기',
+  '/letters': '아직 보낸 편지가 없어요',
+  '/community': 'km',
+  '/store': '썸원코인 충전',
+  '/settings': '기기 권한',
+};
+const READY_PLACEHOLDER = { '/compose': '지금 이 편지를 읽는 당신에게…' };
 const results = [];
 for (const route of app.routes) {
   const id = route === '/' ? 'root' : route.replace(/\//g, '_').replace(/^_/, '');
@@ -148,21 +159,16 @@ for (const route of app.routes) {
     const errs = [];
     page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 150)));
     await page.goto(BASE + route, { waitUntil: 'networkidle' });
-    // 앱 부팅 리다이렉트(딥링크 hard-load 시 웰컴→해당 라우트로 이동) 때문에
-    // 텍스트가 안정될 때까지 대기. 고정 대기만으로는 전 라우트가 같은 화면으로 찍힌다.
-    const settled = await page.evaluate(() => new Promise((res) => {
-      const t0 = Date.now();
-      let last = '', stable = 0;
-      const iv = setInterval(() => {
-        const cur = (document.body ? document.body.innerText : '').slice(0, 400);
-        if (cur === last && cur.length > 100) stable++;
-        else stable = 0;
-        last = cur;
-        if (stable >= 2 || Date.now() - t0 > 25000) { clearInterval(iv); res({ len: cur.length, head: cur.slice(0, 60) }); }
-      }, 500);
-    }));
+    // 준비 신호 대기 (smoke와 동일) — 없으면 렌더 실패로 기록 (smoke도 실패하므로 신호가 일치한다)
+    if (READY_PLACEHOLDER[route]) {
+      await page.getByPlaceholder(READY_PLACEHOLDER[route]).first().waitFor({ state: 'visible', timeout: 15000 });
+    } else if (READY_TEXT[route]) {
+      await page.getByText(READY_TEXT[route], { exact: false }).first().waitFor({ state: 'visible', timeout: 15000 });
+    } else {
+      await page.waitForTimeout(2000);
+    }
+    const settled = await page.evaluate(() => ({ len: (document.body ? document.body.innerText.length : 0) }));
     entry.settledLen = settled.len;
-    if (settled.len <= 100) throw new Error('빈 화면 (렌더 실패 — 베이스라인 저장 안 함)');
     await page.waitForTimeout(800);
     const tmp = path.join(os.tmpdir(), `wws-vis-${id}.png`);
     await page.screenshot({ path: tmp, animations: 'disabled' });
