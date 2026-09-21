@@ -1,0 +1,12 @@
+appId: com.worldwidesomeone.app
+---
+- launchApp:
+    clearState: true
+# 상점 규칙: 원화는 팩·플랜에서만, 나머지는 SC
+- tapOn: 둘러보기
+- tapOn: 🇰🇷 서울
+- tapOn: 지구로 들어가기
+- openLink: wws://store
+- assertVisible: 썸원코인 충전
+- assertVisible: ₩3,900
+- assertVisible: 아이템 \(SC\)

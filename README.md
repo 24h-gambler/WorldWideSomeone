@@ -51,6 +51,19 @@ npm run export:web && npx serve dist -l 8081 -s      # 터미널 1
 BASE=http://localhost:8081 CHROMIUM_PATH=/opt/pw-browsers/chromium npm run shots && npm run report   # 터미널 2
 ```
 
+### 4시간 자동화 (BE + FE + LiveLike + 디자인)
+```bash
+npm run check:4h        # 전체 (스모크 6단계)
+npm run check:4h:full   # 전체 (32단계 + visual 회귀)
+npm run check:design    # 디자인 정적만
+```
+### 폰 화면 주행 (Maestro · 매일 + 수동)
+```bash
+# CI에서: debug APK 빌드 → Android 에뮬 → .maestro/ 3개 플로우
+# 플로우 추가는 .maestro/*.yaml 로 (guest-enter · compose-gate · store-rules)
+```
+상세: [`docs/AUTO-4H.md`](docs/AUTO-4H.md) · 디자인 운영 [`docs/DESIGN-AUTO.md`](docs/DESIGN-AUTO.md) · 3앱 판 [`docs/APPS.md`](docs/APPS.md) · 레퍼런스 `docs/REFS-*.md` — GitHub Actions(4h web+design · 매일 phone) + 로컬 스케줄러.
+
 ## 구조
 ```
 src/app/            expo-router 화면 (onboarding · (tabs) · compose · catch · letter · post · chat · user · store · settings · notifications)

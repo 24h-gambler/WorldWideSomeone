@@ -1,0 +1,179 @@
+name: WWS 4H Health (BE+FE+LiveLike)
+
+# 4시간 자동화: 코드검정 + 백엔드생존 + 실앱사용성(LiveLike) + 디자인(병렬)
+# cron 0 */4 * * * (UTC) · 수동 실행도 가능 (full=32단계, update_baseline=베이스라인 재생성)
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "LiveLike 32단계 전체 실행 (기본 스모크 6단계)"
+        type: boolean
+        default: false
+      update_baseline:
+        description: "visual 베이스라인 재생성 (의도적 디자인 변경 후)"
+        type: boolean
+        default: false
+  push:
+    branches: ["dan/nice-ritchie-0i2t4r"]
+    paths: ["src/**", "supabase/**", "scripts/**", "package.json", "design.apps.json", "docs/**", ".github/**"]
+
+concurrency:
+  group: wws-4h
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      LIVE_URL: ${{ secrets.LIVE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck (app + functions)
+        run: npm run typecheck && npm run typecheck:functions
+
+      - name: 코드 검정 (FE 제품규칙 12항)
+        run: node scripts/code-check.mjs
+
+      - name: 백엔드 생존 (BE — secrets 없으면 skipped)
+        run: node scripts/backend-check.mjs
+
+      - name: 크로스 repo 접근 (3앱 병렬 관문 — 토큰 없으면 skipped)
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: node scripts/cross-repo-check.mjs
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Web export + serve (LiveLike 대상)
+        run: |
+          npm run export:web
+          (npx serve dist -l 8081 -s > reports/serve.log 2>&1 &) 
+          sleep 8
+          curl -fsS http://localhost:8081/ > /dev/null
+
+      - name: LiveLike 실앱 (smoke 6단계 / full 32단계)
+        env:
+          BASE: http://localhost:8081
+        run: |
+          if [ "${{ inputs.full }}" = "true" ]; then
+            node scripts/livelike-check.mjs --full
+          else
+            node scripts/livelike-check.mjs --smoke
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wws-4h-${{ github.run_number }}
+          path: |
+            reports/
+            docs/screenshots/livelike-*.png
+            docs/screenshots/livelike-results.json
+            docs/screenshots/results.json
+          if-no-files-found: warn
+
+      - name: Open issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="🚨 4H health 실패 (${{ github.run_number }})"
+          EXIST=$(gh issue list --search "$TITLE" --state open --json number --jq length)
+          if [ "$EXIST" = "0" ]; then
+            gh issue create --title "$TITLE" --body "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} — code-check/BE/LiveLike 중 실패. 아티팩트 wws-4h-${{ github.run_number }} 확인."
+          fi
+
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: 디자인 정적 검정 (D1–D5)
+        run: |
+          node scripts/design-check.mjs | tee reports/design-warns.txt
+          echo "DESIGN_EXIT=${PIPESTATUS[0]}" >> $GITHUB_ENV
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Web export + serve (visual 대상)
+        run: |
+          mkdir -p reports
+          npm run export:web
+          (npx serve dist -l 8082 -s > reports/serve-visual.log 2>&1 &)
+          sleep 8
+          curl -fsS http://localhost:8082/ > /dev/null
+
+      - name: Visual 체크 (베이스라인 회귀 + 깨짐 탐지)
+        env:
+          BASE: http://localhost:8082
+        run: |
+          if [ "${{ inputs.update_baseline }}" = "true" ]; then
+            node scripts/visual-check.mjs --update
+          else
+            node scripts/visual-check.mjs
+          fi
+
+      - name: Upload visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wws-design-${{ github.run_number }}
+          path: |
+            reports/visual-check.json
+            reports/design-warns.txt
+            docs/screenshots/baseline/
+          if-no-files-found: warn
+
+      - name: Commit updated baselines
+        if: ${{ inputs.update_baseline == true }}
+        run: |
+          git config user.name "dan"
+          git config user.email "worldwidesomething25@gmail.com"
+          git add docs/screenshots/baseline/
+          git diff --cached --quiet || git commit -m "design: 베이스라인 재생성 (run ${{ github.run_number }})"
+          git push origin dan/nice-ritchie-0i2t4r
+
+      - name: Gate (정적 FAIL이면 실패 처리)
+        if: always()
+        run: |
+          if [ "${DESIGN_EXIT:-0}" != "0" ]; then echo "design-check FAIL"; exit 1; fi
+
+      - name: Open auto-fix issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "auto-fix" --description "승인 없이 바로 반영하는 깨짐·가독성·에러" --color "d73a4a" 2>/dev/null || true
+          TITLE="🎨 design auto-fix (run ${{ github.run_number }})"
+          EXIST=$(gh issue list --search "$TITLE" --state open --json number --jq length)
+          if [ "$EXIST" = "0" ]; then
+            gh issue create --title "$TITLE" --label "auto-fix" --body "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} — 깨짐·가독성·에러 클래스. 승인 없이 다음 세션에서 바로 반영. 아티팩트 wws-design-${{ github.run_number }} 확인."
+          fi

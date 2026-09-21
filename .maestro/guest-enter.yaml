@@ -1,0 +1,11 @@
+appId: com.worldwidesomeone.app
+---
+- launchApp:
+    clearState: true
+# 비회원 진입 → 위치 → 지구 (web smoke L1·L2와 동일 경로를 실기기에서)
+- assertVisible: 둘러보기
+- tapOn: 둘러보기
+- assertVisible: 어디에서 볼까요?
+- tapOn: 🇰🇷 서울
+- tapOn: 지구로 들어가기
+- assertVisible: 편지 쓰기

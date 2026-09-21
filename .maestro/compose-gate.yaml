@@ -1,0 +1,18 @@
+appId: com.worldwidesomeone.app
+---
+- launchApp:
+    clearState: true
+# 작성 게이트: 비회원이 편지 다 쓰고 보내기 → 가입 시트가 뜨는지
+- tapOn: 둘러보기
+- tapOn: 🇰🇷 서울
+- tapOn: 지구로 들어가기
+- tapOn: 편지 쓰기
+- tapOn: 지금 이 편지를 읽는 당신에게…
+- inputText: 스모크 테스트 편지예요. 오늘 하늘은 어떤 색인가요?
+- tapOn: 다음
+- tapOn: 📍 직접
+- tapOn: 🇯🇵 도쿄
+- tapOn: 다음
+- assertVisible: 느린 것부터 빠른 것까지
+# 원화 노출 금지 (상점 외) — 화면에 ₩ 있으면 실패
+- assertNotVisible: ₩

@@ -1,0 +1,36 @@
+{
+  "apps": [
+    {
+      "id": "worldwidesomeone",
+      "repo": "24h-gambler/WorldWideSomeone",
+      "refs": ["zenly", "instagram"],
+      "status": "active",
+      "routes": ["/", "/letters", "/community", "/store", "/settings", "/compose"],
+      "threshold": 0.005
+    },
+    {
+      "id": "livelike",
+      "repo": "24h-gambler/LiveLlike",
+      "refs": ["zeta"],
+      "status": "booted",
+      "routes": ["/"],
+      "threshold": 0.005
+    },
+    {
+      "id": "astream",
+      "repo": "24h-gambler/Astream",
+      "refs": ["spoon"],
+      "status": "pending-boot",
+      "routes": ["/", "/explore", "/ranking"],
+      "threshold": 0.005
+    },
+    {
+      "id": "beff",
+      "repo": "minseong-oh/BEFF",
+      "refs": ["zenly", "zeta"],
+      "status": "pending-boot",
+      "routes": ["/"],
+      "threshold": 0.005
+    }
+  ]
+}

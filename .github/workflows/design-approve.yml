@@ -1,0 +1,37 @@
+name: Design Approve
+
+# design-proposal 이슈에 /승인 또는 /반려 댓글 → 라벨 처리
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  triage:
+    if: contains(github.event.issue.labels.*.name, 'design-proposal')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "design-proposal" --description "완성도 개선 제안 (승인 필요)" --color "a2eeef" 2>/dev/null || true
+          gh label create "approved" --description "승인됨 — 다음 세션에서 적용" --color "0e8a16" 2>/dev/null || true
+          gh label create "rejected" --description "반려됨" --color "ededed" 2>/dev/null || true
+          gh label create "auto-fix" --description "승인 없이 바로 반영" --color "d73a4a" 2>/dev/null || true
+      - name: Approve or reject
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT: ${{ github.event.comment.body }}
+          AUTHOR_ASSOC: ${{ github.event.comment.author_association }}
+        run: |
+          NUM="${{ github.event.issue.number }}"
+          case "$AUTHOR_ASSOC" in OWNER|COLLABORATOR|MEMBER) ;; *) echo "권한 없음 ($AUTHOR_ASSOC)"; exit 0;; esac
+          if [ "${COMMENT#/승인}" != "$COMMENT" ]; then
+            gh issue edit "$NUM" --add-label "approved" --remove-label "design-proposal"
+            gh issue comment "$NUM" --body "✅ 승인됨 — 다음 에이전트 세션에서 적용됩니다. (by @${{ github.event.comment.user.login }})"
+          elif [ "${COMMENT#/반려}" != "$COMMENT" ]; then
+            REASON="${COMMENT#/반려}"
+            gh issue edit "$NUM" --add-label "rejected" --remove-label "design-proposal"
+            gh issue close "$NUM" --reason "not planned"
+            gh issue comment "$NUM" --body "🚫 반려됨:$REASON"
+          fi
