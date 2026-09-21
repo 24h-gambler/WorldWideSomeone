@@ -65,7 +65,10 @@ catch {
 }
 
 const browser = await playwright.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', hasTouch: true, isMobile: true });
+// 모션 증거용 영상: 스모크 전 과정을 webm으로 저장 (reports/videos/ → 아티팩트).
+// 미학(예쁜지)은 사람이 영상으로 판단, 기계는 전환 시간+깨짐만 본다.
+fs.mkdirSync('reports/videos', { recursive: true });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ko-KR', hasTouch: true, isMobile: true, recordVideo: { dir: 'reports/videos', size: { width: 390, height: 844 } } });
 const page = await ctx.newPage();
 const consoleErrors = [], pageErrors = [];
 page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200)); });
@@ -114,6 +117,7 @@ await step('L6', '성능·오류 (pageerror 0)', async () => {
   return `load ${loadMs}ms · console.err ${consoleErrors.length}`;
 });
 
+await ctx.close(); // 영상 파일 flush (close 전에 저장 안 됨)
 await browser.close();
 const passed = steps.filter((s) => s.ok).length;
 const summary = { at: new Date().toISOString(), mode: 'smoke', base: BASE, pass: passed, total: steps.length, loadMs, consoleErrors: consoleErrors.length, pageErrors, steps };

@@ -166,6 +166,8 @@ for (const route of app.routes) {
     page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 150)));
     await page.goto(BASE + route, { waitUntil: 'networkidle' });
     // 준비 신호 대기 (smoke와 동일) — 없으면 렌더 실패로 기록 (smoke도 실패하므로 신호가 일치한다)
+    // 전환 시간 측정: readyMs가 전이(transition) 검증 지표. 8초↑ 경고, 15초 타임아웃=FAIL.
+    const tReady0 = Date.now();
     if (READY_PLACEHOLDER[route]) {
       await page.getByPlaceholder(READY_PLACEHOLDER[route]).first().waitFor({ state: 'visible', timeout: 15000 });
     } else if (READY_TEXT[route]) {
@@ -173,6 +175,8 @@ for (const route of app.routes) {
     } else {
       await page.waitForTimeout(2000);
     }
+    entry.readyMs = Date.now() - tReady0;
+    if (entry.readyMs > 8000) entry.notes.push(`전환 느림 ${entry.readyMs}ms (8초↑)`);
     const settled = await page.evaluate(() => ({ len: (document.body ? document.body.innerText.length : 0) }));
     entry.settledLen = settled.len;
     await page.waitForTimeout(800);
