@@ -132,21 +132,28 @@ for (const route of app.routes) {
     const errs = [];
     page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 150)));
     await page.goto(BASE + route, { waitUntil: 'networkidle' });
-    // 스플래시/빈 화면 캡처 방지: 본문 텍스트가 찰 때까지 대기 (고정 1.5s로는 로딩 화면이 찍힌다)
-    const textLen = await page.evaluate(() => new Promise((res) => {
+    // 앱 부팅 리다이렉트(딥링크 hard-load 시 웰컴→해당 라우트로 이동) 때문에
+    // 텍스트가 안정될 때까지 대기. 고정 대기만으로는 전 라우트가 같은 화면으로 찍힌다.
+    const settled = await page.evaluate(() => new Promise((res) => {
       const t0 = Date.now();
+      let last = '', stable = 0;
       const iv = setInterval(() => {
-        const n = (document.body ? document.body.innerText.length : 0);
-        if (n > 100 || Date.now() - t0 > 20000) { clearInterval(iv); res(n); }
-      }, 250);
+        const cur = (document.body ? document.body.innerText : '').slice(0, 400);
+        if (cur === last && cur.length > 100) stable++;
+        else stable = 0;
+        last = cur;
+        if (stable >= 2 || Date.now() - t0 > 25000) { clearInterval(iv); res({ len: cur.length, head: cur.slice(0, 60) }); }
+      }, 500);
     }));
-    if (textLen <= 100) throw new Error('빈 화면 (렌더 실패 — 베이스라인 저장 안 함)');
-    await page.waitForTimeout(1200);
+    entry.settledLen = settled.len;
+    if (settled.len <= 100) throw new Error('빈 화면 (렌더 실패 — 베이스라인 저장 안 함)');
+    await page.waitForTimeout(800);
     const tmp = path.join(os.tmpdir(), `wws-vis-${id}.png`);
     await page.screenshot({ path: tmp, animations: 'disabled' });
     const cur = decodePNG(fs.readFileSync(tmp));
     if (!fs.existsSync(base) || UPDATE) {
       fs.writeFileSync(base, encodePNG(cur.w, cur.h, cur.data));
+      if (UPDATE) fs.copyFileSync(tmp, path.join(BASEDIR, `${id}.raw.png`)); // 사람 눈확인용 원본
       entry.notes.push(UPDATE || !fs.existsSync(base) ? 'baseline 저장' : '');
       entry.updated = true;
     } else {
