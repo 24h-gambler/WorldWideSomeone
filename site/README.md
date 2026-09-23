@@ -5,12 +5,15 @@
 - `privacy.html` — 개인정보처리방침 (스토어·OAuth 공용)
 - `terms.html` — 이용약관
 
-## 권장 주소 (worldwidesomeone.app 하위 도메인)
+## 확정 주소 (wws.worldwidesomething.com — CNAME 푸시됨, DNS 대기)
 | 용도 | URL |
 |---|---|
-| 소개 랜딩 | `https://app.worldwidesomeone.app/` (또는 `letter.`) |
-| 개인정보처리방침 | `https://app.worldwidesomeone.app/privacy.html` |
-| 이용약관 | `https://app.worldwidesomeone.app/terms.html` |
+| 소개 랜딩 | `https://wws.worldwidesomething.com/` (gh-pages 브랜치) |
+| 개인정보처리방침 | `https://wws.worldwidesomething.com/privacy.html` |
+| 이용약관 | `https://wws.worldwidesomething.com/terms.html` |
+| 회사사이트 삽입 | `site/company-insert.html` (리스트 li + 상세 카피, Next.js 소스에 붙여넣기)
+
+※ DNS에 `wws` CNAME 등록 전까지 사이트 접속 불가. 등록은 도메인 관리사에서.
 
 위 URL이 확정되면 아래에 그대로 입력 (OAuth·스토어 공용):
 - Google 브랜딩: 홈페이지·개인정보처리방침·약관 링크
