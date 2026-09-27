@@ -109,7 +109,7 @@ export default function Letters() {
           </View>
         ) : null}
         {list.length === 0 && !(tab === 'inbox' && (incoming.length || delivered.length)) ? (
-          tab === 'sent' ? <Empty icon="send" title="아직 보낸 편지가 없어요" body={`지금은 ${VEHICLE_MAP.walk.name}이 편지를 들고 가요. 친구가 늘면 빨라져요.`} action={<Button title="첫 편지 쓰기" onPress={() => router.push('/compose')} track="letters:empty:compose" />} />
+          tab === 'sent' ? <Empty icon="send" title="아직 보낸 편지가 없어요" body={`지금은 ${VEHICLE_MAP.walk.name}이 들고 가요. 친구가 늘면 빨라져요.`} action={<Button title="첫 편지 쓰기" onPress={() => router.push('/compose')} track="letters:empty:compose" />} />
           : tab === 'inbox' ? <Empty icon="inbox" title="우편함이 비어 있어요" body="내 편지에 온 답장과 직행 편지가 여기에 도착해요." />
           : tab === 'caught' ? <Empty icon="download" title="아직 잡은 편지가 없어요" body="머리 위로 편지가 지나가면 알림이 와요" />
           : <Empty icon="wind" title="하늘이 조용해요" body="곧 누군가의 편지가 날아올 거예요" />

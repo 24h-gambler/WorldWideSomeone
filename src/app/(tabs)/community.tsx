@@ -123,7 +123,7 @@ export default function Community() {
                   <T t="caption" color={c.text2} style={{ marginTop: 6 }}>받은 편지 {b.stats.received} · 친구 {botFriendCount(b)} · {timeAgo(b.lastActiveAt)} 활동</T>
                   <Row style={{ marginTop: 8 }} gap={6}>
                     <Button title={isFriend ? '채팅' : '편지'} size="sm" variant={isFriend ? 'secondary' : 'primary'} style={{ flex: 1 }} onPress={() => (isFriend ? router.push(`/chat/${b.id}`) : router.push({ pathname: '/compose', params: { toId: b.id, field: b.field, job: b.job } } as any))} />
-                    {!isFriend ? <Button title={`⚡`} size="sm" variant="gradient" onPress={() => router.push(`/user/${b.id}`)} /> : null}
+                    {!isFriend ? <Button title={`⚡`} a11yLabel="직행 편지 보내기" track="community:direct" size="sm" variant="gradient" onPress={() => router.push(`/user/${b.id}`)} /> : null}
                   </Row>
                 </Pressable>
               ); })}

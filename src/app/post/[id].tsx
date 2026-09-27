@@ -63,7 +63,8 @@ export default function PostScreen() {
             <IconButton name="heart" color={post.likedByMe ? c.red : c.text} onPress={() => likePost(post.id)} />
             <T t="bodyStrong">좋아요 {post.likes}개</T>
             <View style={{ flex: 1 }} />
-            <VehicleIcon id={post.vehicle} size={30} bubble />
+            {/* 어떤 배달원이 옮겼는지 — 아이콘만 두면 뜻이 없어서 이름을 붙인다 */}
+            <Row gap={6}><VehicleIcon id={post.vehicle} size={26} bubble /><T t="caption" color={c.text2}>{VEHICLE_MAP[post.vehicle].name} 배달</T></Row>
           </Row>
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, gap: 10 }}>
             <T t="h2">댓글 {post.comments.length}</T>

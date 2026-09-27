@@ -51,7 +51,7 @@ export function Header({ title, subtitle, right, left, back = true, onBack, cent
   );
 }
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'gradient' | 'dark';
-export function Button({ title, onPress, variant = 'primary', size = 'md', disabled, loading, icon, style, full, track }: { title: string; onPress?: () => void; variant?: BtnVariant; size?: 'sm' | 'md' | 'lg'; disabled?: boolean; loading?: boolean; icon?: FeatherName | string; style?: StyleProp<ViewStyle>; track?: string; full?: boolean }) {
+export function Button({ title, onPress, variant = 'primary', size = 'md', disabled, loading, icon, style, full, track, a11yLabel }: { title: string; onPress?: () => void; variant?: BtnVariant; size?: 'sm' | 'md' | 'lg'; disabled?: boolean; loading?: boolean; icon?: FeatherName | string; style?: StyleProp<ViewStyle>; track?: string; full?: boolean; a11yLabel?: string }) {
   const c = useColors();
   const h = size === 'lg' ? 50 : size === 'sm' ? 32 : 44;
   const fs = size === 'lg' ? 15 : size === 'sm' ? 13 : 14;
@@ -64,7 +64,7 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', disab
     </View>
   );
   return (
-    <Pressable disabled={disabled || loading} testID={`btn:${track ?? title}`} accessibilityRole="button" accessibilityLabel={title} onPress={() => { tap(); trackTap(track ?? `btn:${title}`); onPress?.(); }} style={({ pressed }) => [{ borderRadius: radius.sm, overflow: 'hidden', opacity: disabled ? 0.4 : pressed ? 0.75 : 1 }, full && { alignSelf: 'stretch' }, variant === 'ghost' && { borderWidth: 1, borderColor: c.line }, style]}>
+    <Pressable disabled={disabled || loading} testID={`btn:${track ?? title}`} accessibilityRole="button" accessibilityLabel={a11yLabel ?? title} onPress={() => { tap(); trackTap(track ?? `btn:${title}`); onPress?.(); }} style={({ pressed }) => [{ borderRadius: radius.sm, overflow: 'hidden', opacity: disabled ? 0.4 : pressed ? 0.75 : 1 }, full && { alignSelf: 'stretch' }, variant === 'ghost' && { borderWidth: 1, borderColor: c.line }, style]}>
       {variant === 'gradient' ? <LinearGradient colors={[...gradients.ig3]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>{inner}</LinearGradient> : <View style={{ backgroundColor: bg }}>{inner}</View>}
     </Pressable>
   );

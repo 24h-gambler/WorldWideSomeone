@@ -78,7 +78,7 @@ export default function Store() {
               </View>
             </View>
           ))}
-          <View style={[styles.item, { borderBottomColor: c.lineSoft }]}><View style={[styles.itemIcon, { backgroundColor: c.bg3 }]}><ItemIcon id="lifebuoy" size={34} /></View><View style={{ flex: 1 }}><T t="bodyStrong">침수 구조</T><T t="small" color={c.text2}>침수된 내 편지를 기다리지 않고 바로 건져요 · 편지 상세에서 {OCEAN_RESCUE_COINS} SC</T></View></View>
+          <View style={[styles.item, { borderBottomColor: c.lineSoft }]}><View style={[styles.itemIcon, { backgroundColor: c.bg3 }]}><ItemIcon id="lifebuoy" size={34} /></View><View style={{ flex: 1 }}><T t="bodyStrong">침수 구조</T><T t="small" color={c.text2}>침수된 내 편지를 기다리지 않고 바로 건져요</T></View><Pill label={`편지 상세에서 ${OCEAN_RESCUE_COINS} SC`} /></View>
         </Section>
 
         <Section title="플랜" right={<T t="caption" color={c.text2}>매월 코인 + 한도 + 할인</T>}>

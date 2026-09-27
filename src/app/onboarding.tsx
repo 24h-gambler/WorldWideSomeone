@@ -17,9 +17,9 @@ import { success } from '@/engine/haptics';
 import { track } from '@/services/analytics';
 
 const FEATURES: { icon: FeatherName; title: string; body: string }[] = [
-  { icon: 'send', title: '편지를 날려요', body: '걷는 배달원부터. 친구가 늘면 새, 자전거, 스포츠카, 비행기, 로켓.' },
-  { icon: 'bell', title: '머리 위를 지나면 알림', body: '잡거나, 엿보거나, 경로를 바꾸거나. 방어권으로 내 편지를 지켜요.' },
-  { icon: 'message-circle', title: '편지가 왕복하면 친구', body: '내 편지에 답장이 오고, 수락하면 그때부터 실시간 채팅.' },
+  { icon: 'send', title: '편지를 날려요', body: '걷는 배달원부터. 친구가 늘수록 새·자전거·비행기·로켓까지.' },
+  { icon: 'bell', title: '머리 위를 지나면 알림', body: '잡거나, 엿보거나, 경로를 바꿔요. 방어권으로 막을 수도 있어요.' },
+  { icon: 'message-circle', title: '편지가 왕복하면 친구', body: '답장이 오고 수락하면 그때부터 지연 없는 실시간 채팅.' },
 ];
 
 export default function Onboarding() {
@@ -49,7 +49,7 @@ export default function Onboarding() {
           </LinearGradient>
           <View style={{ paddingHorizontal: spacing.xl, alignItems: 'center', marginTop: spacing.xl }}>
             <Wordmark size={44} />
-            <T t="body" color={colors.text2} style={{ textAlign: 'center', marginTop: 4 }}>전 세계 누군가에게 편지를 날리고, 잡고, 친구가 되는 곳</T>
+            <T t="body" color={colors.text2} style={{ textAlign: 'center', marginTop: 4 }}>전 세계 누군가에게 편지를 날리고, 잡고, 친구가 돼요</T>
           </View>
           <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xl, gap: spacing.lg }}>
             {FEATURES.map((f) => (

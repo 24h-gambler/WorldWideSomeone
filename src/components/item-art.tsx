@@ -163,4 +163,4 @@ export function ItemShapes({ id, x, y, size }: { id: ItemId; x: number; y: numbe
 }
 
 /** 상품 id → 아이콘 */
-export const PRODUCT_ICON: Record<string, ItemId> = { shield5: 'shield', peek5: 'lens', pull1: 'magnet', instant1: 'bolt', ufo1: 'ufo', orbit1: 'satellite', coins300: 'coin', coins1000: 'coins' };
+export const PRODUCT_ICON: Record<string, ItemId> = { shield5: 'shield', peek5: 'lens', pull1: 'magnet', direct1: 'bolt', ufo1: 'ufo', orbit1: 'satellite', coins300: 'coin', coins1000: 'coins' };

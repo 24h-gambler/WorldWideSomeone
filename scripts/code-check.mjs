@@ -180,6 +180,19 @@ try {
   else fail('C12', '답장 속도 하한', 'compose 답장 모드 하한 확인 필요 (AUDIT 1절)');
 } catch (e) { fail('C12', '답장 속도 하한', String(e.message)); }
 
+// ── C13 상점 상품 아이콘 매핑 (빈 동그라미 방지) ──
+try {
+  const plans = read('src/data/plans.ts');
+  const ids = [...plans.matchAll(/\{\s*id:\s*'([a-z0-9]+)',\s*name:/g)].map((m) => m[1]);
+  const art = read('src/components/item-art.tsx');
+  const mapBlock = art.slice(art.indexOf('PRODUCT_ICON'));
+  const mapped = new Set([...mapBlock.matchAll(/(\w+):\s*'([a-z]+)'/g)].map((m) => m[1]));
+  const itemIds = ids.filter((id) => /^(shield|peek|pull|direct|ufo|orbit)/.test(id));
+  const missing = itemIds.filter((id) => !mapped.has(id));
+  if (!missing.length) ok('C13', '상점 상품 아이콘 매핑', `${itemIds.length}개 상품 전부 아이콘 있음`);
+  else fail('C13', '상점 상품 아이콘 매핑', `아이콘 없는 상품: ${missing.join(', ')}`);
+} catch (e) { fail('C13', '상점 상품 아이콘 매핑', String(e.message)); }
+
 // ── 출력 ──
 const failed = checks.filter((c) => !c.ok);
 if (process.argv.includes('--json')) {
