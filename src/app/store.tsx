@@ -12,7 +12,7 @@ import { COIN, COIN_PACKS, ITEMS, OCEAN_RESCUE_COINS, PLANS, REPLY_BOOST, SHIELD
 import { purchases } from '@/services/purchases';
 import { useGate } from '@/hooks/use-gate';
 import { useStore } from '@/store';
-import { radius, spacing, useColors } from '@/theme';
+import { gradients, radius, spacing, useColors } from '@/theme';
 import { success, warn } from '@/engine/haptics';
 
 export default function Store() {
@@ -35,11 +35,11 @@ export default function Store() {
     <Screen>
       <Header title="상점" subtitle={`결제: ${purchases.name === 'revenuecat' ? 'App Store / Google Play' : '테스트 모드 (Expo Go)'}`} right={<Coin amount={me.coins} />} />
       <TrackedScrollView id="store" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-        {msg ? <View style={[styles.flash, { backgroundColor: c.greenSoft }]}><T t="small" color={c.green}>{msg}</T></View> : null}
+        {msg ? <View style={[styles.flash, { backgroundColor: c.greenSoft }]}><T t="small" color={c.greenText}>{msg}</T></View> : null}
         <View style={[styles.two, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
-          <View style={{ flex: 1, gap: 4 }}><T t="bodyStrong">🤝 친구를 많이 만들거나</T><T t="small" color={c.text2}>친구 {SHIELD_PER_FRIENDS}명마다 방어권 +1 · 친구 수로 배달원 영구 해금 · 지금 {friendIds.length}명</T></View>
+          <View style={{ flex: 1, gap: 4 }}><T t="bodyStrong" numberOfLines={1}>🤝 친구로</T><T t="small" color={c.text2}>친구 {SHIELD_PER_FRIENDS}명마다 방어권 +1 · 친구 수로 배달원 영구 해금 · 지금 {friendIds.length}명</T></View>
           <View style={{ width: 1, backgroundColor: c.line }} />
-          <View style={{ flex: 1, gap: 4 }}><T t="bodyStrong">🪙 {COIN.name}으로</T><T t="small" color={c.text2}>배달원 1회 대여 · 답장 가속 · 엿보기·끌어오기·직행 편지 · 매월 코인 지급 플랜</T></View>
+          <View style={{ flex: 1, gap: 4 }}><T t="bodyStrong" numberOfLines={1}>🪙 {COIN.name}으로</T><T t="small" color={c.text2}>배달원 1회 대여 · 답장 가속 · 엿보기·끌어오기·직행 편지 · 매월 코인 지급 플랜</T></View>
         </View>
 
         <View style={[styles.quota, { backgroundColor: c.blueSoft }]}>
@@ -53,7 +53,7 @@ export default function Store() {
           <T t="caption" color={c.text2}>가속·대여 할인 {Math.round(plan.boostDiscount * 100)}% · 답장 가속 {REPLY_BOOST.fast.coins}/{REPLY_BOOST.instant.coins} SC · 침수 구조 {OCEAN_RESCUE_COINS} SC</T>
         </View>
 
-        <Section title="썸원코인 충전" right={<T t="caption" color={c.text3}>많이 살수록 SC 단가가 내려가요</T>}>
+        <Section title="썸원코인 충전" right={<T t="caption" color={c.text2}>많이 살수록 SC 단가가 내려가요</T>}>
           <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
             {COIN_PACKS.map((p) => (
               <View key={p.id} style={[styles.pack, { borderColor: p.tag ? c.blue : c.line, backgroundColor: c.bg }]}>
@@ -81,7 +81,7 @@ export default function Store() {
           <View style={[styles.item, { borderBottomColor: c.lineSoft }]}><View style={[styles.itemIcon, { backgroundColor: c.bg3 }]}><ItemIcon id="lifebuoy" size={34} /></View><View style={{ flex: 1 }}><T t="bodyStrong">침수 구조</T><T t="small" color={c.text2}>침수된 내 편지를 기다리지 않고 바로 건져요 · 편지 상세에서 {OCEAN_RESCUE_COINS} SC</T></View></View>
         </Section>
 
-        <Section title="플랜" right={<T t="caption" color={c.text3}>매월 코인 + 한도 + 할인</T>}>
+        <Section title="플랜" right={<T t="caption" color={c.text2}>매월 코인 + 한도 + 할인</T>}>
           <TrackedScrollView id="store-plans" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}>
             {PLANS.map((p) => {
               const current = me.plan === p.id;
@@ -98,12 +98,12 @@ export default function Store() {
               );
               return (
                 <View key={p.id} style={[styles.plan, { borderColor: hi ? 'transparent' : c.line, backgroundColor: c.bg }]}>
-                  {hi ? <LinearGradient colors={['#0095F6', '#4F5BD5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>{inner}</LinearGradient> : inner}
+                  {hi ? <LinearGradient colors={[c.blue, gradients.ig[4]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>{inner}</LinearGradient> : inner}
                 </View>
               );
             })}
           </TrackedScrollView>
-          <T t="caption" color={c.text3} style={{ paddingHorizontal: spacing.lg, marginTop: 8 }}>월 구독 · 언제든 해지 · 스토어 결제는 dev build에서 RevenueCat으로 처리돼요</T>
+          <T t="caption" color={c.text2} style={{ paddingHorizontal: spacing.lg, marginTop: 8 }}>월 구독 · 언제든 해지 · 스토어 결제는 dev build에서 RevenueCat으로 처리돼요</T>
         </Section>
 
         <Section title="코인 얻는 법 (하루 60 SC까지)">

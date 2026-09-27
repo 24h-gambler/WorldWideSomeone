@@ -43,7 +43,7 @@ export default function Profile() {
         </View>
         <Row style={{ paddingHorizontal: spacing.lg, marginTop: 12 }}>
           {signedIn ? <Button title="프로필 편집" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => router.push('/profile-edit')} track="profile:edit" /> : <Button title="가입하고 편지 보내기" size="sm" style={{ flex: 1 }} onPress={() => openSignup('send', () => router.push('/compose'))} track="profile:signup" />}
-          <Button title={me.plan === 'free' ? '플러스 시작' : `${plan.name} 이용 중`} size="sm" variant={me.plan === 'free' ? 'gradient' : 'secondary'} style={{ flex: 1 }} onPress={() => router.push('/store')} />
+          <Button title={me.plan === 'free' ? '플랜 보기' : `${plan.name} 이용 중`} size="sm" variant={me.plan === 'free' && signedIn ? 'gradient' : 'secondary'} style={{ flex: 1 }} onPress={() => router.push('/store')} track="profile:plan" />
         </Row>
         <Row style={{ paddingHorizontal: spacing.lg, marginTop: 16, justifyContent: 'space-around' }}>
           {([['shield', '방어권', me.inventory.shield], ['lens', '엿보기', me.inventory.peek], ['magnet', '끌어오기', me.inventory.pull], ['bolt', '직행', me.inventory.direct], ['coin', 'SC', me.coins]] as [ItemId, string, number][]).map(([e, n, v]) => (
@@ -60,7 +60,7 @@ export default function Profile() {
                   <VehicleIcon id={v.id} size={48} bubble />
                   <T t="smallStrong" style={{ marginTop: 6 }} numberOfLines={1}>{v.name}</T>
                   <T t="caption" color={c.text2}>{v.speedKmh.toLocaleString()} km/h</T>
-                  <T t="caption" color={ok ? c.green : c.text3}>{ok ? '보유' : v.premiumItem === 'event' ? '이벤트' : v.premiumItem === 'dragon' ? `친구 ${v.unlockFriends} / 프로` : v.premiumItem ? '상점 · 프로' : `친구 ${v.unlockFriends}`}</T>
+                  <T t="caption" color={ok ? c.greenText : c.text2} numberOfLines={1}>{ok ? '보유' : v.premiumItem === 'event' ? '이벤트' : v.premiumItem === 'dragon' ? `친구 ${v.unlockFriends} / 프로` : v.premiumItem ? '상점 · 프로' : `친구 ${v.unlockFriends}`}</T>
                 </View>
               ); })}
             </View>

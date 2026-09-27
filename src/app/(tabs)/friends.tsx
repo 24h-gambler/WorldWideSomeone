@@ -68,7 +68,7 @@ export default function Friends() {
         ) : null}
 
         <Section title="메시지">
-          {friendIds.length === 0 ? <Empty icon="message-circle" title="아직 친구가 없어요" body="편지가 한 번 왕복하면 친구. 그때부터 지연 없는 채팅." action={<Button title="편지 쓰기" onPress={() => router.push('/compose')} track="friends:empty:compose" />} /> : null}
+          {friendIds.length === 0 ? <Empty icon="message-circle" title="아직 친구가 없어요" body="편지가 한 번 왕복하면 친구. 그때부터 지연 없는 채팅." action={<Button title="편지 쓰기" onPress={() => router.push('/compose')} track="friends:empty:compose" />} fill={false} /> : null}
           {friendIds.map((id) => {
             const u = getUser({ me }, id); if (!u) return null;
             const chat = chats.find((x) => x.otherId === id);
@@ -76,7 +76,7 @@ export default function Friends() {
             const unread = !!chat && chat.messages.some((m) => m.senderId !== ME_ID && m.at > chat.lastReadAt);
             return (
               <ListRow key={id} left={<Avatar emoji={u.avatar} size={52} ring={unread ? 'ig' : 'none'} />}
-                title={<Row style={{ justifyContent: 'space-between' }}><T t={unread ? 'bodyStrong' : 'body'}>{u.nickname}</T><T t="caption" color={c.text3}>{last ? timeAgo(last.at) : ''}</T></Row>}
+                title={<Row style={{ justifyContent: 'space-between' }}><T t={unread ? 'bodyStrong' : 'body'}>{u.nickname}</T><T t="caption" color={c.text2}>{last ? timeAgo(last.at) : ''}</T></Row>}
                 subtitle={<Row style={{ justifyContent: 'space-between' }}><T t="small" color={unread ? c.text : c.text2} numberOfLines={1} style={{ flex: 1 }}>{last ? `${last.senderId === ME_ID ? '나: ' : ''}${last.text}` : `${u.location.city} 근처 · ${formatKm(0)}~50km`}</T>{unread ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.blue, marginLeft: 8 }} /> : null}</Row>}
                 onPress={() => router.push(`/chat/${id}`)} track="friends:chat" />
             );

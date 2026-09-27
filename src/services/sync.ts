@@ -82,7 +82,9 @@ export async function startSync(): Promise<void> {
   configureAnalytics({ deviceId: st.deviceId, userId: uid ?? undefined, guest: !uid, sink: async (events: AnalyticsEvent[]) => { try { await call('track-events', { events }); return true; } catch { return false; } } });
   if (!uid) return; // 비회원: 읽기만(공개 뷰) — 구독 없음
   await pushProfile();
+  useStore.setState({ remoteLoading: true });
   await loadMine(uid).catch(() => {});
+  useStore.setState({ remoteLoading: false });
   channel?.unsubscribe();
   channel = supabase.channel(`user:${uid}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, (p) => { const n = p.new as any; useStore.setState((s) => ({ notifications: [{ id: n.id, type: n.type, title: n.title, body: n.body, at: new Date(n.at).getTime(), read: false, route: n.route ?? undefined }, ...s.notifications] })); })

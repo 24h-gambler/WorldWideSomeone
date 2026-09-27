@@ -99,11 +99,25 @@ await step('20', '코인 부족 → 상점 안내 · +코인 → "1분 안에" �
 });
 await step('21', '실시간 채팅 · 보내기 → 봇 응답', async () => { await page.getByPlaceholder('메시지 보내기…').fill('안녕! 드디어 실시간이네 ✈️'); await tap('보내기', { exact: true }); await page.waitForTimeout(400); await page.waitForTimeout(9000); await shot('21-chat-reply'); });
 await step('22', '내 답장 도착 → 상대 수락(봇) → 친구 2명 · 홈 친구 50km 원', async () => {
-  const myReply = (s) => s.letters.find((l) => l.senderId === 'me' && l.kind === 'reply');
-  await ffUntil((s) => myReply(s)?.status !== 'flying', 40);
-  await waitState((s) => s.friendIds.length >= 2 || myReply(s)?.status === 'declined', 70000);
-  const s = await state(); if (s.friendIds.length < 2) throw new Error('bot declined the reply (10%) — rerun');
-  await go('/friends'); await see('메시지', 8000, true); await shot('22-friends'); await go('/'); await page.waitForTimeout(1500); await shot('22b-home-friend-disc'); return `friends=${s.friendIds.length}`;
+  // 상대가 답장을 거절할 확률이 10% 있다(제품 사양). 거절되면 사용자가 하듯 답장을 다시 보내고 기다린다.
+  const myReplies = (s) => s.letters.filter((l) => l.senderId === 'me' && l.kind === 'reply');
+  const latest = (s) => myReplies(s).sort((a, b) => b.departedAt - a.departedAt)[0];
+  let declined = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await ffUntil((s) => latest(s)?.status !== 'flying', 40);
+    await waitState((s) => s.friendIds.length >= 2 || latest(s)?.status === 'declined', 70000);
+    const s = await state();
+    if (s.friendIds.length >= 2) {
+      await go('/friends'); await see('메시지', 8000, true); await shot('22-friends'); await go('/'); await page.waitForTimeout(1500); await shot('22b-home-friend-disc');
+      return `friends=${s.friendIds.length}${declined ? `, 거절 후 재발송 ${declined}회` : ''}`;
+    }
+    declined++;
+    await go('/letters'); await tap('잡은', { exact: true }); await page.waitForTimeout(400);
+    await tap('답장 편지 쓰기'); await page.getByPlaceholder('편지 잘 받았어요…').fill('한 번 더 보내볼게요. 친구 해요 🙌');
+    await tap('다음', { exact: true }); await see('느린 것부터 빠른 것까지'); await tap('다음', { exact: true }); await see('친구 요청 포함');
+    await page.getByText('보내기', { exact: true }).last().click(); await page.waitForTimeout(2600);
+  }
+  throw new Error(`reply declined ${declined}x in a row`);
 });
 
 // ── 6. 커뮤니티 · 스토리 · 좋아요/댓글 · 직행 편지 ───
@@ -111,7 +125,10 @@ await step('23', '내 편지 엽서 공개 → 피드 거리만 → 홈 스토�
   const s = await state(); const mine = s.letters.find((l) => l.senderId === 'me' && l.kind === 'letter');
   await go(`/letter/${mine.id}`); await tap('커뮤니티에 엽서로 공개'); await page.waitForTimeout(500); await go('/community'); await see('dan'); await shot('23-community-my-post'); await go('/'); await page.waitForTimeout(1200); await see('내 나라'); await shot('23b-home-story-mine');
 });
-await step('24', '스토리 탭 → 엽서 상세에서 국가 공개 · 댓글', async () => { await tap('어딘가', { exact: true }); await page.waitForTimeout(800); await see('댓글'); await page.getByPlaceholder('댓글 달기…').fill('사진 너무 좋아요. 그곳의 밤은 어때요?'); await tap('게시', { exact: true }); await page.waitForTimeout(500); await see('사진 너무 좋아요'); await shot('24-post-comment'); });
+await step('24', '스토리 탭 → 엽서 상세에서 국가 공개 · 댓글', async () => {
+  // 스토리 라벨은 배달원 이름(국가는 열어야 공개) → 내 엽서·내 나라가 아닌 첫 스토리를 연다
+  const story = page.locator('[data-testid^="story:"]').filter({ hasNotText: '내 엽서' }).filter({ hasNotText: '내 나라' }).first();
+  await story.waitFor({ state: 'visible', timeout: 8000 }); await story.click(); await page.waitForTimeout(800); await see('댓글'); await page.getByPlaceholder('댓글 달기…').fill('사진 너무 좋아요. 그곳의 밤은 어때요?'); await tap('게시', { exact: true }); await page.waitForTimeout(500); await see('사진 너무 좋아요'); await shot('24-post-comment'); });
 await step('25', '⚡ 직행 편지(300 SC · 환불 없음) → 작성 → "직행 보내기" → 친구 탭 진행 중', async () => {
   await addCoins(3); await go('/community'); await tap('사람', { exact: true }); await page.getByText('⚡', { exact: true }).first().click(); await page.waitForTimeout(700); await see('직행 편지', 8000, true); await noKrw('user'); await shot('25-user-direct');
   await page.getByTestId('btn:user:direct').click(); await page.waitForTimeout(800); await see('직행 편지 · ???'); await page.getByPlaceholder('지금 이 편지를 읽는 당신에게…').fill('직행으로 보냅니다. 답장은 마음대로!'); await tap('다음', { exact: true }); await see('받는 사람: ???'); await tap('다음', { exact: true }); await see('도착 보장'); await shot('25b-compose-direct'); await tap('직행 보내기'); await page.waitForTimeout(2600);
@@ -159,6 +176,22 @@ await step('31', '트래킹 · 화면/버튼/스크롤/게이트/가입 이벤�
   const missing = need.filter((n) => !names.has(n)); if (missing.length) throw new Error(`missing events: ${missing.join(',')}`);
   const guestEvents = ev.filter((e) => e.guest).length; if (!guestEvents) throw new Error('no guest events');
   return `${ev.length} buffered · ${names.size} kinds · guest ${guestEvents}`;
+});
+
+// ── 9. 계정 수명주기: 로그아웃 → 비회원 → 재가입 ────
+await step('33', '로그아웃 → 비회원으로 돌아감 → 게이트 재등장 → 재가입까지 정상', async () => {
+  await go('/settings'); await page.getByText('로그아웃', { exact: true }).first().click(); await page.waitForTimeout(1200);
+  const s1 = await state(); if (s1.signedIn) throw new Error('logout did not clear session');
+  if (s1.letters.length || s1.friendIds.length) throw new Error('logout left personal data on device');
+  await go('/'); await page.waitForTimeout(1200); await shot('33-after-logout');
+  await go('/compose'); await page.getByPlaceholder('지금 이 편지를 읽는 당신에게…').fill('로그아웃 후 다시 가입해서 보냅니다');
+  await tap('다음', { exact: true }); await tap('다음', { exact: true });
+  await page.getByText('보내기', { exact: true }).last().click();
+  await see('편지를 보내려면 계정이 필요해요'); await shot('33b-gate-again');
+  await signup('dan2'); await page.waitForTimeout(2000);
+  const s2 = await state(); if (!s2.signedIn || s2.me.nickname !== 'dan2') throw new Error('re-signup failed');
+  if (!s2.letters.some((l) => l.senderId === 'me')) throw new Error('letter not sent after re-signup');
+  await shot('33c-home-after-resignup'); return `재가입 후 편지 ${s2.letters.length}통`;
 });
 
 // ── 9. 통과 신뢰성 ───────────────────────────────────

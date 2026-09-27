@@ -70,7 +70,7 @@ export default function PostScreen() {
             {post.comments.map((cm) => (
               <Row key={cm.id} style={{ alignItems: 'flex-start' }} gap={10}>
                 <Avatar anonymous={!isRevealed(rev, cm.authorId)} emoji={cm.authorId === ME_ID ? me.avatar : BOTS.find((b) => b.id === cm.authorId)?.avatar} size={30} />
-                <View style={{ flex: 1 }}><T t="small"><T t="smallStrong">{displayName(rev, cm.authorId)}</T>  {cm.text}</T><T t="caption" color={c.text3}>{timeAgo(cm.at)}</T></View>
+                <View style={{ flex: 1 }}><T t="small"><T t="smallStrong">{displayName(rev, cm.authorId)}</T>  {cm.text}</T><T t="caption" color={c.text2}>{timeAgo(cm.at)}</T></View>
               </Row>
             ))}
             {!mine ? <Button title="이 사람에게 편지 보내기" variant="secondary" size="sm" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: post.authorId } } as any)} /> : null}
@@ -79,7 +79,7 @@ export default function PostScreen() {
         <Row style={{ paddingHorizontal: spacing.lg, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: 0.5, borderTopColor: c.line }} gap={8}>
           <Avatar emoji={me.avatar} size={32} />
           <TextInput value={text} onChangeText={setText} placeholder="댓글 달기…" placeholderTextColor={c.text3} style={[{ flex: 1, color: c.text, fontFamily, fontSize: 14, height: 40 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} onSubmitEditing={() => { commentPost(post.id, text); setText(''); }} />
-          <Pressable disabled={!text.trim()} testID="btn:post:comment" onPress={() => { tap(); gate('comment', () => { commentPost(post.id, text); setText(''); }); }}><T t="bodyStrong" color={text.trim() ? c.blue : c.text3}>게시</T></Pressable>
+          <Pressable disabled={!text.trim()} testID="btn:post:comment" onPress={() => { tap(); gate('comment', () => { commentPost(post.id, text); setText(''); }); }}><T t="bodyStrong" color={text.trim() ? c.blueText : c.text3}>게시</T></Pressable>
         </Row>
       </KeyboardAvoidingView>
     </Screen>

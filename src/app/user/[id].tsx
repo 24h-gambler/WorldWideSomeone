@@ -53,7 +53,7 @@ export default function UserScreen() {
           <T t="bodyStrong">{displayName(rev, u.id)} {PLAN_MAP[u.plan].badge ?? ''} <T t="small" color={c.text2}>· {formatKm(distanceKm(me.location, u.location))} 떨어짐</T></T>
           <T t="body">{shown ? u.bio || '소개가 없어요' : '편지를 주고받으면 닉네임·소개·도시가 보여요'}</T>
           <Row style={{ flexWrap: 'wrap', marginTop: 4 }} gap={4}><Pill label={u.field} /><Pill label={u.gender === 'private' ? '비공개' : u.gender === 'female' ? '여성' : u.gender === 'male' ? '남성' : '기타'} /><Pill label={u.job} />{u.hobbies.map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blue} />)}</Row>
-          <Row style={{ marginTop: 6 }}><Pill label={`컨택 가능성 ${pct}%`} color={pct >= 60 ? c.greenSoft : c.yellowSoft} textColor={pct >= 60 ? c.green : c.yellowText} icon="📡" /><T t="caption" color={c.text3}>{timeAgo(u.lastActiveAt)} 활동</T></Row>
+          <Row style={{ marginTop: 6 }}><Pill label={`컨택 가능성 ${pct}%`} color={pct >= 60 ? c.greenSoft : c.yellowSoft} textColor={pct >= 60 ? c.green : c.yellowText} icon="📡" /><T t="caption" color={c.text2}>{timeAgo(u.lastActiveAt)} 활동</T></Row>
         </View>
         <Row style={{ paddingHorizontal: spacing.lg, marginTop: 14 }}>
           {isFriend ? <Button title="채팅" style={{ flex: 1 }} icon="message-circle" onPress={() => router.push(`/chat/${u.id}`)} track="user:chat" /> : null}

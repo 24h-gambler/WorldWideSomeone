@@ -75,10 +75,24 @@ const L = cols(lightSrc), D = cols(darkSrc);
     check(s, 'text3', 'bg', 3.0); check(s, 'text3', 'bg2', 3.0);
     check(s, 'paperMuted', 'paper', 3.0);
     check(s, 'yellowText', 'yellowSoft', 4.5);
-    check(s, 'blue', 'bg', 4.5); check(s, 'red', 'bg', 4.5); check(s, 'green', 'bg', 4.5);
+    // 글자에 쓰는 강조색(*Text)은 본문 기준 4.5. 진한 원색(blue/red/green/orange)은 면·아이콘 전용이라 제외.
+    for (const t of ['blueText', 'greenText', 'redText', 'orangeText']) { check(s, t, 'bg', 4.5); check(s, t, 'bg2', 4.5); }
   }
   ok('D2', '보조·강조 명도 스캔', list.length ? 'WARN ' + list.length + '건' : '위반 없음');
   for (const m of list) warn('D2 ' + m + ' → 링크/대형 전용 유지 또는 토큰 조정 제안');
+}
+
+// ── D6 글자색 토큰 규칙 (FAIL) — <T>에 원색을 직접 쓰면 본문 대비가 깨진다 ──
+{
+  const bad = [];
+  for (const f of [...walk(R('src/app')), ...walk(R('src/components'))]) {
+    const r = rel(f);
+    if (r.endsWith('vehicle-art.tsx') || r.endsWith('item-art.tsx') || r.includes('/globe/')) continue;
+    const t = fs.readFileSync(f, 'utf8');
+    for (const m of t.matchAll(/<T\b[^>]*?color=\{[^}]*?\bc\.(blue|red|green|orange)\b[^}]*?\}/g)) bad.push(`${r}:${m[1]}`);
+  }
+  if (!bad.length) ok('D6', '글자색은 *Text 토큰', '<T>에 원색 직접 사용 없음');
+  else fail('D6', '글자색은 *Text 토큰', bad.slice(0, 8).join(', '));
 }
 
 // ── D3 폰트 크기 (FAIL <10 · WARN =10) ──
@@ -113,7 +127,7 @@ const L = cols(lightSrc), D = cols(darkSrc);
 
 // ── D5 하드코딩 색상 (WARN — 토큰 사용 권장, 아트 제외) ──
 {
-  const skip = new Set(['src/theme/index.ts', 'src/components/vehicle-art.tsx', 'src/components/item-art.tsx']);
+  const skip = new Set(['src/theme/index.ts', 'src/components/vehicle-art.tsx', 'src/components/item-art.tsx', 'src/components/postcard-thumb.tsx']);  // 일러스트 아트는 장면 색이라 토큰화 대상이 아니다
   const hits = [];
   for (const f of [...walk(R('src/app')), ...walk(R('src/components'))]) {
     const r = rel(f);

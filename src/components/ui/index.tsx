@@ -95,7 +95,7 @@ export function StoryItem({ label, children, onPress, sub, track }: { label: str
     <Pressable testID={`story:${track ?? label}`} onPress={onPress ? () => { tap(); trackTap(track ?? `story:${label}`); onPress(); } : undefined} style={{ alignItems: 'center', width: 74, gap: 4 }}>
       {children}
       <T t="caption" numberOfLines={1} style={{ maxWidth: 72 }}>{label}</T>
-      {sub ? <T t="caption" color={c.text3} numberOfLines={1} style={{ marginTop: -3 }}>{sub}</T> : null}
+      {sub ? <T t="caption" color={c.text2} numberOfLines={1} style={{ marginTop: -3 }}>{sub}</T> : null}
     </Pressable>
   );
 }
@@ -105,8 +105,8 @@ export function UnderlineTabs<K extends string>({ tabs, value, onChange }: { tab
     <View style={{ flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line }}>
       {tabs.map((tb) => { const on = tb.key === value; return (
         <Pressable key={tb.key} onPress={() => { tap(); onChange(tb.key); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1.5, borderBottomColor: on ? c.text : 'transparent', flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
-          {tb.icon ? <Icon name={tb.icon} size={16} color={on ? c.text : c.text3} /> : null}
-          <T t="bodyStrong" color={on ? c.text : c.text3}>{tb.label}</T>
+          {tb.icon ? <Icon name={tb.icon} size={16} color={on ? c.text : c.text2} /> : null}
+          <T t="bodyStrong" color={on ? c.text : c.text2}>{tb.label}</T>
         </Pressable>
       ); })}
     </View>
@@ -145,27 +145,64 @@ export function Section({ title, right, children, style, action }: { title: stri
   return (
     <View style={[{ marginTop: spacing.xl }, style]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md, paddingHorizontal: spacing.lg }}>
-        <T t="h2">{title}</T>{right}{action ? <Pressable onPress={() => { tap(); action.onPress(); }}><T t="bodyStrong" color={c.blue}>{action.label}</T></Pressable> : null}
+        <T t="h2">{title}</T>{right}{action ? <Pressable onPress={() => { tap(); action.onPress(); }}><T t="bodyStrong" color={c.blueText}>{action.label}</T></Pressable> : null}
       </View>
       {children}
     </View>
   );
 }
-export function Empty({ icon, emoji, title, body, action }: { icon?: FeatherName; emoji?: string; title: string; body?: string; action?: React.ReactNode }) {
+export function Empty({ icon, emoji, title, body, action, fill = true }: { icon?: FeatherName; emoji?: string; title: string; body?: string; action?: React.ReactNode; fill?: boolean }) {
   const c = useColors();
   return (
-    <View style={{ alignItems: 'center', paddingVertical: spacing.xxl, gap: 8, paddingHorizontal: spacing.xl }}>
-      {icon ? <View style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, borderColor: c.text, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={30} /></View> : <T style={{ fontSize: 40 }}>{emoji}</T>}
+    <View style={[{ alignItems: 'center', paddingVertical: spacing.xxl, gap: 10, paddingHorizontal: spacing.xl }, fill && { flex: 1, justifyContent: 'center', paddingBottom: spacing.xxxl }]}>
+      {icon ? <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: c.bg3, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={30} color={c.text2} /></View> : <T style={{ fontSize: 40 }}>{emoji}</T>}
       <T t="title" style={{ textAlign: 'center' }}>{title}</T>
-      {body ? <T t="body" color={c.text2} style={{ textAlign: 'center' }}>{body}</T> : null}
-      {action}
+      {body ? <T t="body" color={c.text2} style={{ textAlign: 'center', maxWidth: 300 }}>{body}</T> : null}
+      {action ? <View style={{ marginTop: 6 }}>{action}</View> : null}
     </View>
+  );
+}
+
+/** 스켈레톤 — 목록이 그려지기 전 자리를 잡아 체감 속도를 올린다(움직임 없음: 정적 회색 면). */
+export function Skeleton({ width, height = 12, radius: r = 6, style }: { width?: number | `${number}%`; height?: number; radius?: number; style?: StyleProp<ViewStyle> }) {
+  const c = useColors();
+  return <View style={[{ width: width ?? '100%', height, borderRadius: r, backgroundColor: c.bg3 }, style]} />;
+}
+/** 피드 카드 한 장 분량의 스켈레톤 */
+export function SkeletonPost() {
+  const c = useColors();
+  return (
+    <View style={{ paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.lineSoft }} accessibilityLabel="불러오는 중">
+      <Row style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }} gap={10}>
+        <Skeleton width={38} height={38} radius={19} />
+        <View style={{ flex: 1, gap: 6 }}><Skeleton width="55%" height={11} /><Skeleton width="35%" height={10} /></View>
+      </Row>
+      <Skeleton height={220} radius={0} />
+      <Row style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md }} gap={14}><Skeleton width={22} height={22} radius={11} /><Skeleton width={22} height={22} radius={11} /><Skeleton width={22} height={22} radius={11} /></Row>
+    </View>
+  );
+}
+
+/** 토글 — 웹·iOS·안드로이드에서 같은 모양으로 보이는 스위치(플랫폼 기본 스위치는 색·크기가 제각각) */
+export function Toggle({ value, onValueChange, label, track: trackId }: { value: boolean; onValueChange: (v: boolean) => void; label?: string; track?: string }) {
+  const c = useColors();
+  return (
+    <Pressable
+      testID={`toggle:${trackId ?? label ?? 'switch'}`}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={label}
+      onPress={() => { tap(); trackTap(trackId ?? `toggle:${label ?? ''}`, { on: !value }); onValueChange(!value); }}
+      style={({ pressed }) => ({ width: 46, height: 28, borderRadius: 14, padding: 3, backgroundColor: value ? c.blue : c.bg3, borderWidth: value ? 0 : StyleSheet.hairlineWidth, borderColor: c.line, opacity: pressed ? 0.8 : 1 })}
+    >
+      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.onDark, alignSelf: value ? 'flex-end' : 'flex-start', ...shadow.card }} />
+    </Pressable>
   );
 }
 export function Badge({ count, color }: { count: number; color?: string }) {
   const c = useColors();
   if (!count) return null;
-  return <View style={{ position: 'absolute', top: -6, right: -8, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: color ?? c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: c.bg }}><T style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{count > 99 ? '99+' : count}</T></View>;
+  return <View style={{ position: 'absolute', top: -6, right: -8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: color ?? c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: c.bg }}><T style={{ color: '#fff', fontSize: 11, lineHeight: 13, fontWeight: '700' }}>{count > 99 ? '99+' : count}</T></View>;
 }
 export function Row({ children, style, gap = spacing.sm }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; gap?: number }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap }, style]}>{children}</View>;

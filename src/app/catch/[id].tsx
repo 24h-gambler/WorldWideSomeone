@@ -18,6 +18,7 @@ import { useStore, type ActionResult } from '@/store';
 import type { LatLng } from '@/types';
 import { radius, shadow, spacing, useColors } from '@/theme';
 import { heavy, success, warn } from '@/engine/haptics';
+import { withJosa } from '@/engine/korean';
 
 type Result = { title: string; body: string; icon: ItemId };
 
@@ -61,7 +62,7 @@ export default function Catch() {
   const finish = (r: Result, next?: () => void, delay = 1500) => { setResult(r); setTimeout(() => (next ? next() : router.back()), delay); };
   const doCatch = () => { heavy(); catchLetter(letter.id); success(); finish({ title: '잡았다!', body: `${letter.origin.city}에서 온 편지. 보낸 사람의 프로필이 공개돼요`, icon: 'catch' }, () => router.replace({ pathname: '/letter/[id]', params: { id: letter.id, reveal: '1' } } as any), 1100); };
   const outcome = (r: ActionResult, done: Result, stay = false) => {
-    if (r === 'immune') { warn(); finish({ title: '건드릴 수 없어요', body: `${v.name}은(는) 이 장난에 면역이에요`, icon: 'shield' }); }
+    if (r === 'immune') { warn(); finish({ title: '건드릴 수 없어요', body: `${withJosa(v.name, '은/는')} 이 장난에 면역이에요`, icon: 'shield' }); }
     else if (r === 'defended') { warn(); finish({ title: '튕겨나갔어요!', body: '발신자가 방어권을 장착했어요. 편지는 무사히 갑니다', icon: 'shield' }); }
     else if (r === 'quota') { warn(); finish({ title: '한도를 다 썼어요', body: '플러스/프로 플랜이나 상점에서 더 얻을 수 있어요', icon: 'bag' }, () => router.push('/store'), 1400); }
     else if (r === 'gone') { warn(); finish({ title: '이미 착륙했어요', body: '빠른 배달원은 지나가자마자 도착해요. 착륙한 편지는 잡기만 할 수 있어요', icon: 'pin' }); }
@@ -95,7 +96,7 @@ export default function Catch() {
           <View style={{ marginTop: -70, alignItems: 'center', justifyContent: 'center', width: R * 2 + 16, height: R * 2 + 16 }}>
             <Svg width={R * 2 + 16} height={R * 2 + 16} style={{ position: 'absolute' }}><Circle cx={R + 8} cy={R + 8} r={R} stroke={c.line} strokeWidth={6} fill="none" opacity={0.5} /><Circle cx={R + 8} cy={R + 8} r={R} stroke={frac > 0.3 ? c.blue : c.red} strokeWidth={6} fill="none" strokeDasharray={`${C}`} strokeDashoffset={C * (1 - frac)} strokeLinecap="round" transform={`rotate(-90 ${R + 8} ${R + 8})`} /></Svg>
             <Animated.View style={{ transform: [{ translateY: wobble.interpolate({ inputRange: [0, 1], outputRange: [-6, 6] }) }, { rotate: wobble.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '6deg'] }) }] }}><VehicleIcon id={letter.vehicle} size={100} bubble snail={!!letter.penalty && now < letter.penalty.until} /></Animated.View>
-            <View style={[styles.timer, { backgroundColor: c.bg, borderColor: c.line }]}><T t="bodyStrong" color={frac > 0.3 ? c.text : c.red}>{Math.ceil(remain / 1000)}s</T></View>
+            <View style={[styles.timer, { backgroundColor: c.bg, borderColor: c.line }]}><T t="bodyStrong" color={frac > 0.3 ? c.text : c.redText}>{Math.ceil(remain / 1000)}s</T></View>
           </View>
           {letter.shield ? <Pill label="방어권 장착 · 장난이 튕겨나가요" icon={<ItemIcon id="shield" size={12} />} color={c.bubble} /> : v.trait ? <Pill label={v.trait} color={c.bubble} /> : null}
         </LinearGradient>
@@ -114,7 +115,7 @@ export default function Catch() {
             <View style={styles.grid}>
               {ACTIONS.map((a) => (
                 <Pressable key={a.key} disabled={!active || a.disabled} onPress={a.onPress} style={({ pressed }) => [styles.action, { borderColor: c.line }, (!active || a.disabled) && { opacity: 0.4 }, pressed && { backgroundColor: c.bg3 }, (a.key === 'peek' || a.key === 'pull') && { borderColor: c.purple, backgroundColor: c.purpleSoft }]}>
-                  <ItemIcon id={a.icon} size={32} /><T t="smallStrong">{a.label}</T><T t="caption" color={c.text3}>{a.sub}</T>
+                  <ItemIcon id={a.icon} size={32} /><T t="smallStrong">{a.label}</T><T t="caption" color={c.text2}>{a.sub}</T>
                 </Pressable>
               ))}
             </View>

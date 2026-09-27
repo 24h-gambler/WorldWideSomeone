@@ -11,7 +11,7 @@ export const statusLabel = (c: ThemeColors): Record<LetterStatus, { label: strin
   approved: { label: '친구됨', color: c.green, bg: c.greenSoft, icon: 'heart' },
   declined: { label: '거절됨', color: c.text2, bg: c.bg3, icon: 'lock' },
   space: { label: '우주로', color: c.purple, bg: c.purpleSoft, icon: 'planet' },
-  expired: { label: '만료', color: c.text3, bg: c.bg3, icon: 'clock' },
+  expired: { label: '만료', color: c.text2, bg: c.bg3, icon: 'clock' },
 });
 export const EVENT_LABEL: Record<string, string> = {
   departed: '출발', passby: '누군가의 머리 위 통과', landed: '착륙', delivered: '우편함 도착', caught: '잡힘', approved: '수락/확정', declined: '거절',

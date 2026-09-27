@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, Switch, View } from 'react-native';
+import { Alert, Linking, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 
 import { LocationPicker } from '@/components/location-picker';
-import { Button, Chip, Header, Icon, ListRow, Pill, Row, Screen, Section, T } from '@/components/ui';
+import { Button, Chip, Header, Icon, ListRow, Pill, Row, Screen, Section, T, Toggle } from '@/components/ui';
 import { useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 import { getLocationPermission, requestBackgroundLocation, requestForegroundLocation, startBackgroundLocation, stopBackgroundLocation } from '@/services/location';
@@ -41,6 +41,7 @@ export default function Settings() {
   const spawnReply = useStore((s) => s.devSpawnReply);
   const update = useStore((s) => s.updateProfile);
   const reset = useStore((s) => s.resetAll);
+  const signOutLocal = useStore((s) => s.signOutLocal);
   const signedIn = useStore((s) => s.signedIn);
   const confirmAsync = (title: string, body: string, fn: () => Promise<void>) => { if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${body}`)) void fn(); return; } Alert.alert(title, body, [{ text: '취소', style: 'cancel' }, { text: title, style: 'destructive', onPress: () => void fn() }]); };
   const [showLoc, setShowLoc] = useState(false);
@@ -67,18 +68,18 @@ export default function Settings() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         <Section title="기기 권한 (실제 상태)" action={{ label: '새로고침', onPress: refresh }}>
           <PermRow title="위치 (앱 사용 중)" sub="편지 출발지 · 머리 위 통과 판정" state={perms.location} onRequest={async () => { const r = await requestForegroundLocation(); setPermissions({ location: r }); }} />
-          <PermRow title="위치 (항상 · 백그라운드)" sub="앱을 닫아도 통과 알림을 받으려면 필요 · Expo Go 미지원(dev build)" state={perms.backgroundLocation} onRequest={async () => { const r = await requestBackgroundLocation(); setPermissions({ backgroundLocation: r }); }} />
-          <PermRow title="알림" sub={perms.pushToken ? `푸시 토큰 등록됨 · ${perms.pushToken.slice(0, 22)}…` : '머리 위 통과 · 답장 도착 · 채팅 (Expo Go Android는 로컬 알림만)'} state={perms.notifications} onRequest={async () => { const r = await requestNotificationPermission(); setPermissions({ notifications: r }); const t = await getPushToken(); if (t) { setPermissions({ pushToken: t }); registerPushToken(t).catch(() => {}); } }} />
-          <ListRow title="백그라운드 위치 업데이트" subtitle="2km 이동마다 서버에 10km 격자 위치 전송" right={<Switch value={settings.backgroundLocation} onValueChange={async (v) => { if (v) { const ok = await startBackgroundLocation(); setSettings({ backgroundLocation: ok }); if (!ok) refresh(); } else { await stopBackgroundLocation(); setSettings({ backgroundLocation: false }); } }} trackColor={{ true: colors.blue }} />} />
+          <PermRow title="위치 (항상 · 백그라운드)" sub={settings.devMode ? '앱을 닫아도 통과 알림을 받으려면 필요 · Expo Go 미지원(dev build)' : '앱을 닫아둔 사이에도 머리 위로 편지가 지나가면 알려줘요'} state={perms.backgroundLocation} onRequest={async () => { const r = await requestBackgroundLocation(); setPermissions({ backgroundLocation: r }); }} />
+          <PermRow title="알림" sub={perms.pushToken ? `푸시 토큰 등록됨 · ${perms.pushToken.slice(0, 22)}…` : settings.devMode ? '머리 위 통과 · 답장 도착 · 채팅 (Expo Go Android는 로컬 알림만)' : '머리 위 통과 · 답장 도착 · 채팅을 알려줘요'} state={perms.notifications} onRequest={async () => { const r = await requestNotificationPermission(); setPermissions({ notifications: r }); const t = await getPushToken(); if (t) { setPermissions({ pushToken: t }); registerPushToken(t).catch(() => {}); } }} />
+          <ListRow title="백그라운드 위치 업데이트" subtitle={settings.devMode ? '2km 이동마다 서버에 10km 격자 위치 전송' : '움직일 때만 위치를 갱신해요. 친구에게는 50km 반경으로만 보여요.'} right={<Toggle value={settings.backgroundLocation} onValueChange={async (v) => { if (v) { const ok = await startBackgroundLocation(); setSettings({ backgroundLocation: ok }); if (!ok) refresh(); } else { await stopBackgroundLocation(); setSettings({ backgroundLocation: false }); } }} />} />
         </Section>
 
         <Section title="화면">
-          <ListRow title="테마" subtitle="시스템 · 라이트 · 다크 (인스타그램 다크 팔레트)" right={<Row>{(['system', 'light', 'dark'] as const).map((t) => <Chip key={t} label={t === 'system' ? '시스템' : t === 'light' ? '라이트' : '다크'} small selected={settings.theme === t} onPress={() => setSettings({ theme: t })} />)}</Row>} />
+          <ListRow title="테마" subtitle="시스템 설정을 따르거나 직접 고를 수 있어요" right={<Row>{(['system', 'light', 'dark'] as const).map((t) => <Chip key={t} label={t === 'system' ? '시스템' : t === 'light' ? '라이트' : '다크'} small selected={settings.theme === t} onPress={() => setSettings({ theme: t })} />)}</Row>} />
         </Section>
 
         <Section title="알림 · 햅틱">
-          <ListRow title="앱 내 알림" subtitle="머리 위 통과 · 잡힘 · 답장 · 채팅" right={<Switch value={settings.notifications} onValueChange={(v) => setSettings({ notifications: v })} trackColor={{ true: colors.blue }} />} />
-          <ListRow title="햅틱" subtitle="버튼 · 잡기 진동" right={<Switch value={settings.haptics} onValueChange={(v) => setSettings({ haptics: v })} trackColor={{ true: colors.blue }} />} />
+          <ListRow title="앱 내 알림" subtitle="머리 위 통과 · 잡힘 · 답장 · 채팅" right={<Toggle value={settings.notifications} onValueChange={(v) => setSettings({ notifications: v })} />} />
+          <ListRow title="햅틱" subtitle="버튼 · 잡기 진동" right={<Toggle value={settings.haptics} onValueChange={(v) => setSettings({ haptics: v })} />} />
         </Section>
 
         <Section title="내 위치" action={{ label: showLoc ? '닫기' : '변경', onPress: () => setShowLoc((v) => !v) }}>
@@ -87,13 +88,13 @@ export default function Settings() {
         </Section>
 
         <Section title="계정 · 결제">
-          <ListRow title={signedIn ? `${me.nickname} · ${PROVIDER_LABEL[me.auth?.provider ?? 'google']} 로그인` : '비회원으로 둘러보는 중'} subtitle={signedIn ? (me.auth?.email ?? '가입됨') : '보내기·좋아요·댓글 때 가입 시트가 떠요'} right={signedIn ? <Button title="로그아웃" size="sm" variant="secondary" track="settings:logout" onPress={() => confirmAsync('로그아웃', '이 기기에서 로그아웃해요. 편지와 친구는 계정에 남아요.', async () => { stopSync(); await signOut(); reset(); })} /> : <Button title="가입" size="sm" track="settings:signup" onPress={() => openSignup('send')} />} />
+          <ListRow title={signedIn ? `${me.nickname} · ${PROVIDER_LABEL[me.auth?.provider ?? 'google']} 로그인` : '비회원으로 둘러보는 중'} subtitle={signedIn ? (me.auth?.email ?? '가입됨') : '보내기·좋아요·댓글 때 가입 시트가 떠요'} right={signedIn ? <Button title="로그아웃" size="sm" variant="secondary" track="settings:logout" onPress={() => confirmAsync('로그아웃', '이 기기에서 로그아웃해요. 편지와 친구는 계정에 남아요.', async () => { stopSync(); await signOut(); signOutLocal(); })} /> : <Button title="가입" size="sm" track="settings:signup" onPress={() => openSignup('send')} />} />
           <ListRow title={`플랜: ${me.plan.toUpperCase()}`} subtitle={me.planExpiresAt ? `갱신 ${new Date(me.planExpiresAt).toLocaleDateString('ko-KR')}` : '무료'} right={<Button title="상점" size="sm" variant="secondary" onPress={() => router.push('/store')} />} />
           <ListRow title="결제 제공자" subtitle={purchases.name === 'revenuecat' ? 'RevenueCat (스토어 결제)' : 'Mock (테스트) · dev build + RevenueCat 키 설정 시 실결제'} />
           <ListRow title="백엔드" subtitle={supabaseEnabled ? 'Supabase (Auth · Postgres · Realtime · Edge Functions)' : 'EXPO_PUBLIC_SUPABASE_* 미설정 → 로컬 봇 시뮬레이션'} />
         </Section>
 
-        <Section title="개발자 모드" right={<Switch value={settings.devMode} onValueChange={(v) => setSettings({ devMode: v })} trackColor={{ true: colors.blue }} />}>
+        <Section title="개발자 모드" right={<Toggle value={settings.devMode} onValueChange={(v) => setSettings({ devMode: v })} />}>
           {settings.devMode ? (
             <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
               <T t="small" color={colors.text2}>시뮬 배속 (새 편지부터) · 걷기 5km/h × 배속 = 실제 체감</T>

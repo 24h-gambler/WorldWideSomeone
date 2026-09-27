@@ -5,12 +5,21 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 
+/** 소셜 로그인 브랜드 색 — 각 사의 가이드라인상 고정값이라 팔레트(라이트/다크)와 별개로 둔다. */
+export const brand = {
+  apple: { surface: '#000000', label: '#FFFFFF' },
+  google: { surface: '#FFFFFF', label: '#1F1F1F', border: '#DADCE0', mark: { blue: '#4285F4', green: '#34A853', yellow: '#FBBC05', red: '#EA4335' } },
+  kakao: { surface: '#FEE500', label: '#191919' },
+} as const;
+
 export const palettes = {
   light: {
     scheme: 'light' as const,
     bg: '#FFFFFF', bg2: '#FAFAFA', bg3: '#F2F2F2', line: '#DBDBDB', lineSoft: '#EFEFEF',
-    text: '#262626', text2: '#737373', text3: '#A8A8A8', onDark: '#FFFFFF',
+    text: '#262626', text2: '#737373', text3: '#8E8E8E', onDark: '#FFFFFF',
     blue: '#0095F6', blueSoft: '#E7F3FF', red: '#ED4956', redSoft: '#FDECEE', green: '#2DBE60', greenSoft: '#E6F8ED',
+    // 본문 크기 글자에 쓰는 색(흰 배경 대비 4.5 이상). 채도 높은 위 색은 면·아이콘·큰 글자 전용.
+    blueText: '#0074CC', greenText: '#17833F', redText: '#D32B39', orangeText: '#A65200',
     yellow: '#FFB800', yellowSoft: '#FFF6DB', yellowText: '#8A6D00', purple: '#8134AF', purpleSoft: '#F3E8FF', pink: '#D62976', orange: '#FA7E1E',
     paper: '#FBF4E4', paperLine: '#EEDFC0', paperText: '#2A2418', paperMuted: '#8A7A5A', stampBg: '#F4EAD3', stampLine: '#D9C9A6',
     bubbleMe: ['#5851DB', '#833AB4', '#E1306C'] as readonly string[], bubbleThem: '#EFEFEF',
@@ -21,8 +30,9 @@ export const palettes = {
   dark: {
     scheme: 'dark' as const,
     bg: '#000000', bg2: '#121212', bg3: '#262626', line: '#363636', lineSoft: '#262626',
-    text: '#FAFAFA', text2: '#A8A8A8', text3: '#737373', onDark: '#FFFFFF',
+    text: '#FAFAFA', text2: '#A8A8A8', text3: '#8A8A8A', onDark: '#FFFFFF',
     blue: '#0095F6', blueSoft: '#0B2A44', red: '#ED4956', redSoft: '#3A1A1E', green: '#2DBE60', greenSoft: '#12301C',
+    blueText: '#4DB5FF', greenText: '#56D68B', redText: '#FF7A84', orangeText: '#FFA45C',
     yellow: '#FFB800', yellowSoft: '#3A2F0A', yellowText: '#FFD166', purple: '#B57BFF', purpleSoft: '#2A1A3A', pink: '#E1306C', orange: '#FA7E1E',
     paper: '#2A2418', paperLine: '#3F3626', paperText: '#F3EAD4', paperMuted: '#B8A98A', stampBg: '#3A3120', stampLine: '#6A5A3A',
     bubbleMe: ['#5851DB', '#833AB4', '#E1306C'] as readonly string[], bubbleThem: '#262626',

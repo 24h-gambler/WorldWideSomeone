@@ -49,8 +49,8 @@ export default function Letters() {
     <Screen>
       <Header back={false} title="편지" divider={false} />
       <UnderlineTabs value={tab} onChange={setTab} tabs={[{ key: 'sent', label: '보낸' }, { key: 'inbox', label: pending + incoming.length ? `우편함 ${pending + incoming.length}` : '우편함' }, { key: 'caught', label: '잡은' }, { key: 'sky', label: '하늘 위' }]} />
-      <TrackedScrollView id={`letters-${tab}`} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {msg ? <T t="small" color={c.blue} style={{ padding: spacing.lg, paddingBottom: 0 }}>{msg}</T> : null}
+      <TrackedScrollView id={`letters-${tab}`} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}>
+        {msg ? <T t="small" color={c.blueText} style={{ padding: spacing.lg, paddingBottom: 0 }}>{msg}</T> : null}
         {tab === 'inbox' && incoming.length ? (
           <View style={{ padding: spacing.lg, gap: 12 }}>
             <T t="smallStrong" color={c.text2}>오는 중 · 도착 시간은 알 수 없어요. 지금 어디쯤인지만.</T>
@@ -72,8 +72,8 @@ export default function Letters() {
                     <T t="small">{VEHICLE_MAP[l.vehicle].name} · <T t="smallStrong">{st.speedKmh.toLocaleString()} km/h</T></T>
                     <T t="small">나와 <T t="smallStrong">{formatKm(st.distanceKm)}</T></T>
                   </Row>
-                  <T t="caption" color={c.text3}>{l.kind === 'reply' ? '답장이 오는 중 · 도착하면 프로필을 보고 수락' : '직행 편지가 오는 중'} · 프로필은 도착 후 열려요</T>
-                  {l.boost !== 'instant' ? <Row>{l.boost !== 'fast' ? <Button title={`4배 빠르게 · ${fast} SC`} size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => doBoost(l.id, 'fast')} track="letters:boost:fast" /> : null}<Button title={`1분 안에 · ${inst} SC`} size="sm" variant="gradient" style={{ flex: 1 }} onPress={() => doBoost(l.id, 'instant')} track="letters:boost:instant" /></Row> : <T t="caption" color={c.blue}>⚡ 가속 중</T>}
+                  <T t="caption" color={c.text2}>{l.kind === 'reply' ? '답장이 오는 중 · 도착하면 프로필을 보고 수락' : '직행 편지가 오는 중'} · 프로필은 도착 후 열려요</T>
+                  {l.boost !== 'instant' ? <Row>{l.boost !== 'fast' ? <Button title={`4배 빠르게 · ${fast} SC`} size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => doBoost(l.id, 'fast')} track="letters:boost:fast" /> : null}<Button title={`1분 안에 · ${inst} SC`} size="sm" variant="gradient" style={{ flex: 1 }} onPress={() => doBoost(l.id, 'instant')} track="letters:boost:instant" /></Row> : <T t="caption" color={c.blueText}>⚡ 가속 중</T>}
                 </View>
               );
             })}

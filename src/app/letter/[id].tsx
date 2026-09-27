@@ -88,7 +88,7 @@ export default function LetterScreen() {
         )}
         {sunk ? (
           <View style={[styles.box, { backgroundColor: c.redSoft, borderColor: c.red, marginHorizontal: spacing.lg, marginTop: spacing.lg }]}>
-            <T t="bodyStrong" color={c.red}>🌊 침수됐어요</T>
+            <T t="bodyStrong" color={c.redText}>🌊 침수됐어요</T>
             <T t="small" color={c.text2}>{formatDuration((letter.sunkUntil ?? now) - now)} 뒤 저절로 떠오르거나, 주인이 지금 건져낼 수 있어요.</T>
             {mine ? <Button title={`지금 건져내기 · ${OCEAN_RESCUE_COINS} SC`} size="sm" icon="anchor" track="letter:rescue" onPress={() => { const r = rescue(letter.id); if (r === 'nofunds') { warn(); setShareMsg('코인이 부족해요'); setTimeout(() => setShareMsg(null), 2000); } else success(); }} /> : null}
           </View>
@@ -136,10 +136,14 @@ export default function LetterScreen() {
               <Row><Button title="수락하고 채팅 시작" icon="check" style={{ flex: 1 }} track="letter:approve" onPress={() => { approve(letter.id); success(); if (otherId) router.replace(`/chat/${otherId}`); }} /><Button title="거절" variant="ghost" track="letter:decline" onPress={() => { decline(letter.id); router.back(); }} /></Row>
             </View>
           ) : null}
-          {(caughtByMe || (toMe && letter.kind === 'letter' && letter.status === 'delivered')) && !isFriend && !myReply ? (
-            <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">✉️ 답장을 보내 친구가 되어보세요</T><T t="small" color={c.text2}>답장은 발신자에게 직행해요. 상대가 수락하면 친구 · 그때부터 실시간 채팅.</T><Button title="답장 편지 쓰기" icon="edit-3" track="letter:reply" onPress={() => gate('reply', () => router.push({ pathname: '/compose', params: { replyTo: letter.id } } as any))} /></View>
+          {(caughtByMe || (toMe && letter.kind === 'letter' && letter.status === 'delivered')) && !isFriend && (!myReply || myReply.status === 'declined') ? (
+            <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
+              <T t="bodyStrong">{myReply ? '✉️ 다시 답장해볼 수 있어요' : '✉️ 답장을 보내 친구가 되어보세요'}</T>
+              <T t="small" color={c.text2}>{myReply ? '상대가 이번에는 수락하지 않았어요. 한 번 더 보내도 되고, 다른 편지를 날려도 돼요. 사용한 코인은 돌려주지 않아요.' : '답장은 발신자에게 직행해요. 상대가 수락하면 친구 · 그때부터 실시간 채팅.'}</T>
+              <Button title={myReply ? '다시 답장 쓰기' : '답장 편지 쓰기'} icon="edit-3" track="letter:reply" onPress={() => gate('reply', () => router.push({ pathname: '/compose', params: { replyTo: letter.id } } as any))} />
+            </View>
           ) : null}
-          {myReply ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">{myReply.status === 'flying' ? '✈️ 답장이 가는 중' : myReply.status === 'delivered' ? '📬 답장 도착 · 상대 수락 대기' : myReply.status === 'approved' ? '✅ 상대가 수락 · 친구' : '🙅 상대가 수락하지 않았어요'}</T><Row><Button title="답장 보기" size="sm" variant="secondary" onPress={() => router.push(`/letter/${myReply.id}`)} />{isFriend && otherId ? <Button title="채팅" size="sm" onPress={() => router.push(`/chat/${otherId}`)} /> : null}</Row></View> : null}
+          {myReply && myReply.status !== 'declined' ? <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}><T t="bodyStrong">{myReply.status === 'flying' ? '✈️ 답장이 가는 중' : myReply.status === 'delivered' ? '📬 답장 도착 · 상대 수락 대기' : '✅ 상대가 수락 · 친구'}</T><Row><Button title="답장 보기" size="sm" variant="secondary" onPress={() => router.push(`/letter/${myReply.id}`)} />{isFriend && otherId ? <Button title="채팅" size="sm" onPress={() => router.push(`/chat/${otherId}`)} /> : null}</Row></View> : null}
           {mine && letter.status === 'caught' && other ? (
             <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
               <Row gap={10}><Avatar anonymous={!otherShown} emoji={other.avatar} size={40} ring="ig" /><View style={{ flex: 1 }}><T t="bodyStrong">{displayName(rev, other.id)} · {other.location.city}</T><T t="small" color={c.text2}>{other.field} · {other.job} · 내 편지를 잡았어요</T></View></Row>
@@ -155,7 +159,7 @@ export default function LetterScreen() {
         <Section title="여정">
           <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
             {letter.events.map((e, i) => (
-              <Row key={i} style={{ alignItems: 'flex-start' }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === letter.events.length - 1 ? c.blue : c.line, marginTop: 6 }} /><View style={{ flex: 1 }}><T t="small">{EVENT_LABEL[e.type] ?? e.type}{e.place ? ` · ${e.place}` : ''}</T><T t="caption" color={c.text3}>{new Date(e.at).toLocaleTimeString('ko-KR')}</T></View></Row>
+              <Row key={i} style={{ alignItems: 'flex-start' }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === letter.events.length - 1 ? c.blue : c.line, marginTop: 6 }} /><View style={{ flex: 1 }}><T t="small">{EVENT_LABEL[e.type] ?? e.type}{e.place ? ` · ${e.place}` : ''}</T><T t="caption" color={c.text2}>{new Date(e.at).toLocaleTimeString('ko-KR')}</T></View></Row>
             ))}
           </View>
         </Section>

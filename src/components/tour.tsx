@@ -39,11 +39,11 @@ export function Tour({ onCompose }: { onCompose: () => void }) {
       <Animated.View style={[styles.card, shadow.float, { backgroundColor: c.bg, top, opacity: fade, transform: [{ translateY: slide }] }]}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Row gap={8}><View style={[styles.ic, { backgroundColor: c.blueSoft }]}><Icon name={step.icon} size={18} color={c.blue} /></View><T t="bodyStrong">{step.title}</T></Row>
-          <T t="caption" color={c.text3}>{i + 1}/{STEPS.length}</T>
+          <T t="caption" color={c.text2}>{i + 1}/{STEPS.length}</T>
         </Row>
         <T t="small" color={c.text2} style={{ marginTop: 8 }}>{step.body}</T>
         <Row style={{ marginTop: 14, justifyContent: 'space-between' }}>
-          <Pressable onPress={() => finish('skip')} hitSlop={8} testID="btn:tour:skip"><T t="small" color={c.text3}>건너뛰기</T></Pressable>
+          <Pressable onPress={() => finish('skip')} hitSlop={8} testID="btn:tour:skip"><T t="small" color={c.text2}>건너뛰기</T></Pressable>
           <Row gap={6}>
             {STEPS.map((s, k) => <View key={s.key} style={{ width: k === i ? 14 : 6, height: 6, borderRadius: 3, backgroundColor: k === i ? c.blue : c.line }} />)}
           </Row>

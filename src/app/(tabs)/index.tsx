@@ -10,10 +10,11 @@ import { PostcardThumb } from '@/components/postcard-thumb';
 import { VEHICLE_MAP, bestVehicle } from '@/data/vehicles';
 import { OCEAN_RESCUE_COINS } from '@/data/plans';
 import { formatDuration, formatKm, fuzz50km } from '@/engine/geo';
+import { withJosa } from '@/engine/korean';
 import { useNow } from '@/hooks/use-now';
 import { ME_ID, displayName, getUser, incomingStatus, progressOf, selectUnread, useStore } from '@/store';
 import { Tour } from '@/components/tour';
-import { radius, shadow, spacing, useColors } from '@/theme';
+import { gradients, radius, shadow, spacing, useColors } from '@/theme';
 import { tap } from '@/engine/haptics';
 
 export default function Home() {
@@ -32,6 +33,8 @@ export default function Home() {
   const rescue = useStore((s) => s.rescueLetter);
   const settings = useStore((s) => s.settings);
   const tourDone = useStore((s) => s.tourDone);
+  const seenStoryIds = useStore((s) => s.seenStoryIds);
+  const markStorySeen = useStore((s) => s.markStorySeen);
   const unread = useStore(selectUnread);
   const allPassbys = useStore((s) => s.passbys);
   const passbys = useMemo(() => allPassbys.filter((p) => !p.resolved && p.expiresAt > now), [allPassbys, now]);
@@ -61,10 +64,17 @@ export default function Home() {
           <View><Avatar emoji={me.avatar} size={56} ring="gray" /><View style={[styles.plus, { backgroundColor: c.blue, borderColor: c.bg }]}><Icon name="plus" size={12} color="#fff" /></View></View>
         </StoryItem>
         {stories.map((s) => {
-          const seen = s.latest.authorId === ME_ID;
+          const mine = s.latest.authorId === ME_ID;
+          const seen = mine || seenStoryIds.includes(s.latest.id);   // 본 스토리는 회색 링(인스타 규칙)
+          const ring = seen ? [c.line, c.line] : [...gradients.ig];
           return (
-            <StoryItem key={s.country} label={seen ? '내 나라' : '어딘가'} sub={`${formatKm(s.latest.distanceKm)}${s.count > 1 ? ` · ${s.count}` : ''}`} onPress={() => router.push(`/post/${s.latest.id}`)}>
-              <LinearGradient colors={['#FEDA75', '#FA7E1E', '#D62976', '#962FBF', '#4F5BD5']} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={{ width: 65, height: 65, borderRadius: 33, alignItems: 'center', justifyContent: 'center' }}>
+            <StoryItem
+              key={s.country}
+              label={mine ? '내 나라' : VEHICLE_MAP[s.latest.vehicle].name}
+              sub={`${formatKm(s.latest.distanceKm)}${s.count > 1 ? ` · ${s.count}` : ''}`}
+              onPress={() => { markStorySeen(s.latest.id); router.push(`/post/${s.latest.id}`); }}
+            >
+              <LinearGradient colors={ring as any} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={{ width: 65, height: 65, borderRadius: 33, alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: 59, height: 59, borderRadius: 30, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {s.latest.imageUri ? <Image source={{ uri: s.latest.imageUri }} style={{ width: 55, height: 55, borderRadius: 28 }} /> : <PostcardThumb seed={s.latest.id} width={55} height={55} radius={28} />}
                 </View>
@@ -86,8 +96,8 @@ export default function Home() {
             <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: c.pink, borderRadius: 2 }} />
             <VehicleIcon id={passbyLetter.vehicle} size={42} bubble />
             <View style={{ flex: 1 }}>
-              <T t="bodyStrong">{VEHICLE_MAP[passbyLetter.vehicle].name}이(가) 머리 위를 지나가요!</T>
-              <T t="small" color={c.text2}>{passbyLetter.origin.city}에서 출발 · {formatDuration(passby.expiresAt - now)} 남음 · 잡기 · 엿보기 · 끌어오기</T>
+              <T t="bodyStrong" numberOfLines={1}>{withJosa(VEHICLE_MAP[passbyLetter.vehicle].name, '이/가')} 머리 위를 지나가요!</T>
+              <T t="small" color={c.text2} numberOfLines={1}>{passbyLetter.origin.city}에서 출발 · {formatDuration(passby.expiresAt - now)} 남음</T>
             </View>
             <Button title="보기" size="sm" onPress={() => router.push(`/catch/${passbyLetter.id}`)} />
           </Pressable>
@@ -99,7 +109,7 @@ export default function Home() {
               <Row gap={10}>
                 <VehicleIcon id={focus.vehicle} size={42} bubble snail={!!focus.penalty && now < focus.penalty.until} sunk={focus.status === 'sunk'} />
                 <View>
-                  <T t="bodyStrong">{focus.origin.city} <Icon name="arrow-right" size={12} color={c.text3} /> {focus.senderId === ME_ID || focus.recipientId === ME_ID || focus.pulledBy === ME_ID ? focus.destination.city : '어딘가'}</T>
+                  <T t="bodyStrong">{focus.origin.city} <Icon name="arrow-right" size={12} color={c.text2} /> {focus.senderId === ME_ID || focus.recipientId === ME_ID || focus.pulledBy === ME_ID ? focus.destination.city : '어딘가'}</T>
                   <T t="small" color={c.text2}>{focus.senderId === ME_ID ? '내 편지' : focus.recipientId === ME_ID ? '내게 오는 편지' : focus.pulledBy === ME_ID ? '내게 오는 편지 · 끌어옴' : displayName({ me, friendIds, revealedIds }, focus.senderId)} · {VEHICLE_MAP[focus.vehicle].name} · {formatKm(focus.distanceKm)}{focus.shield ? ' · 🛡️' : ''}{focus.redirects ? ` · 경로변경 ${focus.redirects}` : ''}{focus.pulls ? ' · 🧲' : ''}</T>
                 </View>
               </Row>
@@ -108,10 +118,10 @@ export default function Home() {
             <View style={{ marginTop: 10, gap: 4 }}>
               <ProgressBar value={progressOf(focus, now)} color={focus.status === 'sunk' ? c.red : focus.senderId === ME_ID || focus.recipientId === ME_ID ? c.pink : VEHICLE_MAP[focus.vehicle].color} />
               <Row style={{ justifyContent: 'space-between' }}>
-                <T t="caption" color={c.text3}>{focus.status === 'sunk' ? `🌊 침수 · ${formatDuration((focus.sunkUntil ?? now) - now)} 뒤 떠오름` : focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(focus, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · ${focus.senderId === ME_ID ? `남은 ${formatKm(Math.max(0, focus.distanceKm * (1 - progressOf(focus, now))))}` : `나와 ${formatKm(incomingStatus(focus, me.location, now, settings.timeScale).distanceKm)}`}`}</T>
+                <T t="caption" color={c.text2}>{focus.status === 'sunk' ? `🌊 침수 · ${formatDuration((focus.sunkUntil ?? now) - now)} 뒤 떠오름` : focus.status === 'landed' ? '착륙 · 집어갈 사람을 기다려요' : `${incomingStatus(focus, me.location, now, settings.timeScale).speedKmh.toLocaleString()} km/h · ${focus.senderId === ME_ID ? `남은 ${formatKm(Math.max(0, focus.distanceKm * (1 - progressOf(focus, now))))}` : `나와 ${formatKm(incomingStatus(focus, me.location, now, settings.timeScale).distanceKm)}`}`}</T>
                 <Row gap={12}>
-                  {focus.status === 'sunk' && focus.senderId === ME_ID ? <Pressable onPress={() => { tap(); rescue(focus.id); }}><T t="smallStrong" color={c.blue}>🛟 건져내기 {OCEAN_RESCUE_COINS} SC</T></Pressable> : null}
-                  <Pressable onPress={() => { tap(); router.push(`/letter/${focus.id}`); }}><T t="smallStrong" color={c.blue}>자세히</T></Pressable>
+                  {focus.status === 'sunk' && focus.senderId === ME_ID ? <Pressable onPress={() => { tap(); rescue(focus.id); }}><T t="smallStrong" color={c.blueText}>🛟 건져내기 {OCEAN_RESCUE_COINS} SC</T></Pressable> : null}
+                  <Pressable onPress={() => { tap(); router.push(`/letter/${focus.id}`); }}><T t="smallStrong" color={c.blueText}>자세히</T></Pressable>
                 </Row>
               </Row>
             </View>
@@ -122,7 +132,11 @@ export default function Home() {
       <View style={[styles.cta, { backgroundColor: c.bg, borderTopColor: c.line }]}>
         <Row gap={10}>
           <VehicleIcon id={best} size={44} bubble />
-          <View style={{ flex: 1 }}><Button title="편지 쓰기" size="lg" full onPress={() => router.push('/compose')} /></View>
+          <View style={{ flex: 1, gap: 6 }}>
+            {/* 아이콘만 있으면 무엇인지 알 수 없다 → 지금 붙는 배달원을 글자로 */}
+            <T t="caption" color={c.text2} numberOfLines={1}>지금 배달원 · {VEHICLE_MAP[best].name} {VEHICLE_MAP[best].speedKmh.toLocaleString()} km/h</T>
+            <Button title="편지 쓰기" size="lg" full onPress={() => router.push('/compose')} />
+          </View>
         </Row>
       </View>
       {!tourDone ? <Tour onCompose={() => router.push('/compose')} /> : null}

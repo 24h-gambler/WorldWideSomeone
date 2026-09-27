@@ -33,7 +33,7 @@ export function LetterCard({ letter, now }: { letter: Letter; now: number }) {
         <VehicleIcon id={letter.vehicle} size={46} bubble snail={snail} sunk={sunk} ring={mine ? c.pink : undefined} />
         <View style={{ flex: 1, gap: 3 }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <T t="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>{letter.origin.city} <Icon name="arrow-right" size={12} color={c.text3} /> {mine || toMe || letter.caughtBy === ME_ID ? letter.destination.city : '어딘가'}</T>
+            <T t="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>{letter.origin.city} <Icon name="arrow-right" size={12} color={c.text2} /> {mine || toMe || letter.caughtBy === ME_ID ? letter.destination.city : '어딘가'}</T>
             <Pill label={st.label} color={st.bg} textColor={st.color} icon={<ItemIcon id={st.icon} size={12} />} />
           </Row>
           <T t="small" color={c.text2}>{who} · {v.name} · {formatKm(letter.distanceKm)} · {kindLabel(letter)}{letter.shield ? ' · 🛡️' : ''}{letter.redirects ? ` · 경로변경 ${letter.redirects}` : ''}{letter.pulls ? ' · 🧲' : ''}</T>
@@ -42,11 +42,11 @@ export function LetterCard({ letter, now }: { letter: Letter; now: number }) {
             <View style={{ gap: 4, marginTop: 4 }}>
               <ProgressBar value={p} color={sunk ? c.red : mine || toMe ? c.pink : v.color} />
               <Row style={{ justifyContent: 'space-between' }}>
-                <T t="caption" color={c.text3}>{Math.round(p * 100)}%{snail ? ' · 🐌 느려짐' : ''}{sunk ? ' · 🌊 정지' : ''}</T>
-                <T t="caption" color={c.text3}>{sunk ? `${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : `${v.speedKmh.toLocaleString()} km/h · 남은 ${formatKm(Math.max(0, letter.distanceKm * (1 - p)))}`}</T>
+                <T t="caption" color={c.text2}>{Math.round(p * 100)}%{snail ? ' · 🐌 느려짐' : ''}{sunk ? ' · 🌊 정지' : ''}</T>
+                <T t="caption" color={c.text2}>{sunk ? `${formatDuration((letter.sunkUntil ?? now) - now)} 뒤 떠오름` : `${v.speedKmh.toLocaleString()} km/h · 남은 ${formatKm(Math.max(0, letter.distanceKm * (1 - p)))}`}</T>
               </Row>
             </View>
-          ) : <T t="caption" color={c.text3}>{letter.status === 'caught' ? `${letter.catchPlace}에서 ${timeAgo(letter.caughtAt ?? now, now)} 잡힘` : timeAgo(letter.events[letter.events.length - 1]?.at ?? letter.departedAt, now)}</T>}
+          ) : <T t="caption" color={c.text2}>{letter.status === 'caught' ? `${letter.catchPlace}에서 ${timeAgo(letter.caughtAt ?? now, now)} 잡힘` : timeAgo(letter.events[letter.events.length - 1]?.at ?? letter.departedAt, now)}</T>}
         </View>
       </Row>
     </Pressable>

@@ -11,6 +11,7 @@ import type { AppNotification, Auth, AuthProvider, Chat, Gender, Inventory, LatL
 import { BOT_COMMENTS, BOT_GREETINGS, BOT_LETTERS, BOT_POSTS, BOT_REPLIES, BOT_REPLIES_LETTER, WEATHERS, makeBots } from '@/data/bots';
 import { SNAIL, VEHICLES, VEHICLE_MAP, bestVehicle, vehicleUnlocked } from '@/data/vehicles';
 import { AVATARS } from '@/data/profile';
+import { withJosa } from '@/engine/korean';
 import { COIN_REWARDS, DAILY_FREE_COIN_CAP, ITEM_MAP, OCEAN_RESCUE_COINS, OCEAN_SINK_MS, PACK_MAP, PLAN_MAP, REPLY_BOOST, SHIELD_PER_FRIENDS, discounted, rentalCoins, type BoostTier, type ItemId, type PackId } from '@/data/plans';
 import { bearingDeg, describePlace, destinationPoint, distanceKm, fuzzToGrid, randomLandPoint } from '@/engine/geo';
 import { pushLocal } from '@/engine/notify';
@@ -58,6 +59,10 @@ export type ProfileInput = { nickname: string; avatar: string; bio: string; fiel
 
 export type State = {
   onboarded: boolean; signedIn: boolean; tourDone: boolean; deviceId: string;
+  /** 서버(Supabase) 모드에서 첫 데이터를 받아오는 중인지 — 목록 자리를 스켈레톤으로 채운다 */
+  remoteLoading: boolean;
+  /** 이미 열어본 스토리(엽서) id — 링 색으로 안 본 것과 구분한다 */
+  seenStoryIds: string[];
   me: User; letters: Letter[]; friendIds: string[]; revealedIds: string[]; chats: Chat[]; posts: Post[];
   notifications: AppNotification[]; passbys: Passby[]; scheduled: ScheduledEvent[]; settings: Settings; lastTick: number;
   focusLetterId: string | null; focusPoint: LatLng | null; permissions: Permissions; backend: 'local' | 'supabase';
@@ -66,6 +71,8 @@ export type State = {
   signUp: (provider: AuthProvider, profile: ProfileInput, email?: string) => void; // 가입 게이트에서 호출
   setTourDone: () => void;
   updateProfile: (patch: Partial<User>) => void; setLocation: (p: Place) => void; setSettings: (patch: Partial<Settings>) => void;
+  markStorySeen: (postId: string) => void;
+  signOutLocal: () => void;
   setFocusLetter: (id: string | null) => void; setFocusPoint: (p: LatLng | null) => void; setPermissions: (patch: Partial<Permissions>) => void; setBackend: (b: 'local' | 'supabase') => void;
 
   sendLetter: (input: ComposeInput) => Letter | { error: string };
@@ -159,7 +166,7 @@ const grant = (inv: Inventory, g: Partial<Record<keyof Inventory, number>>): Inv
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
-      onboarded: false, signedIn: false, tourDone: false, deviceId: uid(),
+      onboarded: false, signedIn: false, tourDone: false, deviceId: uid(), remoteLoading: false, seenStoryIds: [],
       me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [],
       settings: DEFAULT_SETTINGS, lastTick: Date.now(), focusLetterId: null, focusPoint: null, permissions: { location: 'undetermined', backgroundLocation: 'undetermined', notifications: 'undetermined' }, backend: 'local',
 
@@ -195,6 +202,7 @@ export const useStore = create<State>()(
       updateProfile: (patch) => set((s) => ({ me: { ...s.me, ...patch } })),
       setLocation: (p) => { set((s) => ({ me: { ...s.me, location: p } })); bridge.setLocation?.(p); },
       setSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
+      markStorySeen: (postId: string) => set((s) => (s.seenStoryIds.includes(postId) ? s : { seenStoryIds: [postId, ...s.seenStoryIds].slice(0, 300) })),
       setFocusLetter: (id) => set({ focusLetterId: id, focusPoint: null }),
       setFocusPoint: (p) => set({ focusPoint: p, focusLetterId: null }),
       setPermissions: (patch) => set((s) => ({ permissions: { ...s.permissions, ...patch } })),
@@ -571,7 +579,7 @@ export const useStore = create<State>()(
             const v = VEHICLE_MAP[l.vehicle];
             // 빠른 배달원은 지나가자마자 착륙한다 → 창은 착륙 시각까지(최소 15초). 착륙 후엔 잡기만 되고 장난은 'gone'
             passbys = [{ id: uid(), letterId: l.id, at: now, expiresAt: Math.max(now + 15_000, Math.min(now + catchWindowMs(l.vehicle), l.arrivesAt)), canCatch }, ...passbys];
-            const title = `${v.name}이(가) 머리 위를 지나가요!`;
+            const title = `${withJosa(v.name, '이/가')} 머리 위를 지나가요!`;
             const body = canCatch ? `${l.origin.city}에서 출발한 편지. 잡거나, 엿보거나, 끌어오세요` : '조건이 맞는 사람만 잡을 수 있어요 (엿보기·경로 변경은 가능)';
             nf(notif('passby', title, body, `/catch/${l.id}`));
             pushes.push({ title, body, route: `/catch/${l.id}` });
@@ -733,7 +741,17 @@ export const useStore = create<State>()(
         if (!bot) return;
         set({ scheduled: [...s.scheduled, { id: uid(), at: Date.now() + 1000, type: 'bot_reply', payload: { botId: bot.id } }] });
       },
-      resetAll: () => set({ onboarded: false, signedIn: false, tourDone: false, me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [], settings: DEFAULT_SETTINGS, focusLetterId: null, focusPoint: null, lastTick: Date.now() }),
+      /** 로그아웃 — 이 기기에서 내 데이터만 지운다. 위치·테마·투어 완료는 유지해 처음 화면으로 되돌아가지 않는다. */
+      signOutLocal: () => set((s) => ({
+        signedIn: false,
+        me: { ...DEFAULT_ME, location: s.me.location, lastActiveAt: Date.now() },
+        letters: s.letters.filter((l) => l.senderId !== ME_ID && l.recipientId !== ME_ID && l.caughtBy !== ME_ID),
+        posts: s.posts.filter((p) => p.authorId !== ME_ID),
+        friendIds: [], revealedIds: [], chats: [], notifications: [], passbys: [], seenStoryIds: [],
+        scheduled: s.scheduled.filter((e) => e.type === 'bot_send' || e.type === 'bot_post'),
+        focusLetterId: null, focusPoint: null, remoteLoading: false,
+      })),
+      resetAll: () => set({ onboarded: false, signedIn: false, tourDone: false, remoteLoading: false, seenStoryIds: [], me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [], settings: DEFAULT_SETTINGS, focusLetterId: null, focusPoint: null, lastTick: Date.now() }),
     }),
     { name: 'wws-v4', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => { const { focusLetterId, focusPoint, permissions, backend, ...rest } = s as any; return rest; } },
   ),
