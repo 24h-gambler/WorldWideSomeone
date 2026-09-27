@@ -39,7 +39,7 @@ export default function Profile() {
           <T t="bodyStrong">{signedIn ? me.nickname : '비회원'}</T>
           <T t="body">{me.bio || '한 줄 소개를 적어보세요'}</T>
           <T t="small" color={c.text2}>📍 {me.location.city}, {me.location.country} · 커뮤니티엔 ??? · 비행 {formatKm(me.stats.distanceKm)} · ❤️ {me.stats.likes}</T>
-          <Row style={{ flexWrap: 'wrap', marginTop: 4 }} gap={4}><Pill label={me.field} /><Pill label={genderLabel(me.gender)} /><Pill label={me.job} />{me.hobbies.map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blue} />)}</Row>
+          <Row style={{ flexWrap: 'wrap', marginTop: 4 }} gap={4}><Pill label={me.field} /><Pill label={genderLabel(me.gender)} /><Pill label={me.job} />{me.hobbies.map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blueText} />)}</Row>
         </View>
         <Row style={{ paddingHorizontal: spacing.lg, marginTop: 12 }}>
           {signedIn ? <Button title="프로필 편집" size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => router.push('/profile-edit')} track="profile:edit" /> : <Button title="가입하고 편지 보내기" size="sm" style={{ flex: 1 }} onPress={() => openSignup('send', () => router.push('/compose'))} track="profile:signup" />}

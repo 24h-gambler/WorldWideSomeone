@@ -115,11 +115,11 @@ export default function Community() {
                 <Pressable key={b.id} onPress={() => { tap(); router.push(`/user/${b.id}`); }} style={[styles.cell, { borderColor: c.line, backgroundColor: c.bg }]}>
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Avatar anonymous={!shown} emoji={b.avatar} size={44} ring={b.plan === 'pro' ? 'ig' : 'none'} />
-                    <Pill label={`${pct}%`} color={pct >= 60 ? c.greenSoft : pct >= 35 ? c.yellowSoft : c.bg3} textColor={pct >= 60 ? c.green : pct >= 35 ? c.yellowText : c.text2} icon="📡" />
+                    <Pill label={`${pct}%`} color={pct >= 60 ? c.greenSoft : pct >= 35 ? c.yellowSoft : c.bg3} textColor={pct >= 60 ? c.greenText : pct >= 35 ? c.yellowText : c.text2} icon="📡" />
                   </Row>
                   <T t="bodyStrong" style={{ marginTop: 8 }}>{displayName(rev, b.id)} {PLAN_MAP[b.plan].badge ?? ''}</T>
                   <T t="caption" color={c.text2}>{formatKm(distanceKm(me.location, b.location))} 떨어짐</T>
-                  <View style={styles.tags}><Pill label={b.field} /><Pill label={b.job} />{b.hobbies.slice(0, 2).map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blue} />)}</View>
+                  <View style={styles.tags}><Pill label={b.field} /><Pill label={b.job} />{b.hobbies.slice(0, 2).map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blueText} />)}</View>
                   <T t="caption" color={c.text2} style={{ marginTop: 6 }}>받은 편지 {b.stats.received} · 친구 {botFriendCount(b)} · {timeAgo(b.lastActiveAt)} 활동</T>
                   <Row style={{ marginTop: 8 }} gap={6}>
                     <Button title={isFriend ? '채팅' : '편지'} size="sm" variant={isFriend ? 'secondary' : 'primary'} style={{ flex: 1 }} onPress={() => (isFriend ? router.push(`/chat/${b.id}`) : router.push({ pathname: '/compose', params: { toId: b.id, field: b.field, job: b.job } } as any))} />

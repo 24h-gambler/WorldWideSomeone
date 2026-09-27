@@ -50,7 +50,7 @@ export function LocationPicker({ value, onChange, letters = [], compact, points 
         </View>
         <Button title={locating ? '찾는 중' : '내 위치'} size="sm" variant="secondary" icon="crosshair" onPress={useMyLocation} loading={locating} />
       </View>
-      {err ? <T t="small" color={colors.red}>{err}</T> : null}
+      {err ? <T t="small" color={colors.redText}>{err}</T> : null}
       <Row style={[styles.search]}>
         <Icon name="search" size={16} color={colors.text3} />
         <TextInput value={q} onChangeText={setQ} placeholder="도시 검색" placeholderTextColor={colors.text3} style={[styles.input, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} />

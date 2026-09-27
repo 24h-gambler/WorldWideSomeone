@@ -64,7 +64,7 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Header title="설정" right={<Pill label={backend === 'supabase' ? 'Supabase 연결' : '로컬 시뮬'} color={backend === 'supabase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'supabase' ? colors.green : colors.yellowText} />} />
+      <Header title="설정" right={<Pill label={backend === 'supabase' ? 'Supabase 연결' : '로컬 시뮬'} color={backend === 'supabase' ? colors.greenSoft : colors.yellowSoft} textColor={backend === 'supabase' ? colors.greenText : colors.yellowText} />} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         <Section title="기기 권한 (실제 상태)" action={{ label: '새로고침', onPress: refresh }}>
           <PermRow title="위치 (앱 사용 중)" sub="편지 출발지 · 머리 위 통과 판정" state={perms.location} onRequest={async () => { const r = await requestForegroundLocation(); setPermissions({ location: r }); }} />

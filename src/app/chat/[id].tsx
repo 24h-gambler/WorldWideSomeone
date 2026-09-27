@@ -88,7 +88,7 @@ export default function ChatScreen() {
           <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
             <View style={[styles.inputWrap, { borderColor: colors.line }]}>
               <TextInput value={text} onChangeText={setText} placeholder="메시지 보내기…" placeholderTextColor={colors.text3} style={[styles.input, { color: colors.text }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null]} onSubmitEditing={onSend} returnKeyType="send" />
-              {text.trim() ? <Pressable onPress={onSend} hitSlop={8}><T t="bodyStrong" color={colors.blue}>보내기</T></Pressable> : <Row gap={12}><Icon name="mic" size={20} /><Icon name="image" size={20} /></Row>}
+              {text.trim() ? <Pressable onPress={onSend} hitSlop={8} testID="btn:chat:send"><T t="bodyStrong" color={colors.blueText}>보내기</T></Pressable> : null}
             </View>
           </View>
         </KeyboardAvoidingView>

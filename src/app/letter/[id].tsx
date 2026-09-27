@@ -99,7 +99,7 @@ export default function LetterScreen() {
           <View ref={paperRef} collapsable={false} style={{ backgroundColor: c.bg, borderRadius: 16 }}>
             {canRead ? (
               <Paper>
-                <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}><View><T t="caption" color={c.paperMuted}>FROM {letter.origin.city.toUpperCase()}</T><T t="caption" color={c.paperMuted}>{new Date(letter.departedAt).toLocaleString('ko-KR')}</T></View><Stamp flag={stamp?.flag ?? '📮'} label={letter.stamp} /></Row>
+                <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}><View><T t="caption" color={c.paperMuted}>FROM {letter.origin.city.toUpperCase()}</T><T t="caption" color={c.paperMuted}>{new Date(letter.departedAt).toLocaleString('ko-KR', { dateStyle: 'long', timeStyle: 'short' })}</T></View><Stamp flag={stamp?.flag ?? '📮'} label={letter.stamp} /></Row>
                 <T style={{ color: c.paperText, fontSize: 17, lineHeight: 28, marginTop: spacing.md }}>{letter.text}</T>
                 {letter.imageUri ? <Image source={{ uri: letter.imageUri }} style={{ width: '100%', height: 200, borderRadius: 8, marginTop: spacing.md }} /> : null}
                 <Row style={{ justifyContent: 'space-between', marginTop: spacing.md }}><Row gap={6}><VehicleIcon id={letter.vehicle} size={26} bubble /><T t="caption" color={c.paperMuted}>{v.name} · {formatKm(letter.distanceKm)}</T></Row><T t="caption" color={c.paperMuted}>— {mine ? me.nickname : otherShown ? other?.nickname : '???'}</T></Row>
@@ -159,7 +159,7 @@ export default function LetterScreen() {
         <Section title="여정">
           <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
             {letter.events.map((e, i) => (
-              <Row key={i} style={{ alignItems: 'flex-start' }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === letter.events.length - 1 ? c.blue : c.line, marginTop: 6 }} /><View style={{ flex: 1 }}><T t="small">{EVENT_LABEL[e.type] ?? e.type}{e.place ? ` · ${e.place}` : ''}</T><T t="caption" color={c.text2}>{new Date(e.at).toLocaleTimeString('ko-KR')}</T></View></Row>
+              <Row key={i} style={{ alignItems: 'flex-start' }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === letter.events.length - 1 ? c.blue : c.line, marginTop: 6 }} /><View style={{ flex: 1 }}><T t="small">{EVENT_LABEL[e.type] ?? e.type}{e.place ? ` · ${e.place}` : ''}</T><T t="caption" color={c.text2}>{new Date(e.at).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })}</T></View></Row>
             ))}
           </View>
         </Section>

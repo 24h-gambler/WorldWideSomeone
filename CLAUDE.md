@@ -54,7 +54,7 @@ npm install
 npm run typecheck && npm run typecheck:functions     # 앱 · Edge Function 공통 코어
 npx expo start                                       # Expo Go (.env.local 없으면 로컬 봇 시뮬)
 npm run export:web && npx serve dist -l 8081 -s      # 웹 빌드 서빙 (터미널 1)
-BASE=http://localhost:8081 CHROMIUM_PATH=/opt/pw-browsers/chromium npm run shots && npm run report   # 32단계 자동 검증 (터미널 2)
+BASE=http://localhost:8081 CHROMIUM_PATH=/opt/pw-browsers/chromium npm run shots && npm run report   # 33단계 자동 검증 (터미널 2)
 ```
 검증 스크립트는 사용자 관점 시나리오라서 화면 문구를 바꾸면 `scripts/screenshots.mjs` 도 같이 고친다. 결과는 `docs/VERIFICATION.md` 로 재생성.
 
@@ -67,6 +67,6 @@ BASE=http://localhost:8081 CHROMIUM_PATH=/opt/pw-browsers/chromium npm run shots
 - `supabase/migrations/0001_schema.sql` 스키마·RLS. `supabase/functions/*` Edge Functions(Deno). 규칙 상수는 `_shared/core.ts` 의 `RULES` — 클라이언트 `plans.ts` 와 값이 같아야 한다.
 
 ## 6. 작업 습관
-- 기능을 바꾸면: 타입체크 → 웹 export → 시나리오 주행(32/32) → `docs/VERIFICATION.md` 재생성 → 커밋(`Co-Authored-By` 줄 유지) → 푸시.
+- 기능을 바꾸면: 타입체크 → 웹 export → 시나리오 주행(33/33) → `docs/VERIFICATION.md` 재생성 → 커밋(`Co-Authored-By` 줄 유지) → 푸시.
 - 커밋 메시지·코드에 모델 이름을 쓰지 않는다. 키는 커밋하지 않는다.
 - 사용자 보고는 한국어, 항목별로 짧게.

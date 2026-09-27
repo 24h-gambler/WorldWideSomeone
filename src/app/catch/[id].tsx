@@ -84,7 +84,7 @@ export default function Catch() {
     { key: 'reroute', icon: 'compass' as ItemId, label: '경로 바꾸기', sub: `경유지 ${plan.maxWaypoints}개`, onPress: () => setMode('reroute') },
     { key: 'snail', icon: 'snail' as ItemId, label: '달팽이', sub: '5분 느리게', onPress: doSnail },
     { key: 'sunk', icon: 'wave' as ItemId, label: '침수', sub: '몇 시간 정지', onPress: () => doRedirect('sunk') },
-    { key: 'space', icon: 'rocket' as ItemId, label: '우주로', sub: '안녕', onPress: () => doRedirect('space') },
+    { key: 'space', icon: 'rocket' as ItemId, label: '우주로', sub: '영영 안 와요', onPress: () => doRedirect('space') },
   ];
 
   return (
@@ -96,7 +96,7 @@ export default function Catch() {
           <View style={{ marginTop: -70, alignItems: 'center', justifyContent: 'center', width: R * 2 + 16, height: R * 2 + 16 }}>
             <Svg width={R * 2 + 16} height={R * 2 + 16} style={{ position: 'absolute' }}><Circle cx={R + 8} cy={R + 8} r={R} stroke={c.line} strokeWidth={6} fill="none" opacity={0.5} /><Circle cx={R + 8} cy={R + 8} r={R} stroke={frac > 0.3 ? c.blue : c.red} strokeWidth={6} fill="none" strokeDasharray={`${C}`} strokeDashoffset={C * (1 - frac)} strokeLinecap="round" transform={`rotate(-90 ${R + 8} ${R + 8})`} /></Svg>
             <Animated.View style={{ transform: [{ translateY: wobble.interpolate({ inputRange: [0, 1], outputRange: [-6, 6] }) }, { rotate: wobble.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '6deg'] }) }] }}><VehicleIcon id={letter.vehicle} size={100} bubble snail={!!letter.penalty && now < letter.penalty.until} /></Animated.View>
-            <View style={[styles.timer, { backgroundColor: c.bg, borderColor: c.line }]}><T t="bodyStrong" color={frac > 0.3 ? c.text : c.redText}>{Math.ceil(remain / 1000)}s</T></View>
+            <View style={[styles.timer, { backgroundColor: c.bg, borderColor: c.line }]}><T t="bodyStrong" color={frac > 0.3 ? c.text : c.redText}>{Math.ceil(remain / 1000)}초</T></View>
           </View>
           {letter.shield ? <Pill label="방어권 장착 · 장난이 튕겨나가요" icon={<ItemIcon id="shield" size={12} />} color={c.bubble} /> : v.trait ? <Pill label={v.trait} color={c.bubble} /> : null}
         </LinearGradient>
@@ -111,7 +111,7 @@ export default function Catch() {
 
           {mode === 'actions' ? (<>
             <Button title={active && passby?.canCatch ? '잡기' : active ? '조건이 맞지 않아요' : '지나갔어요'} size="lg" full icon="download" disabled={!active || !passby?.canCatch} onPress={doCatch} />
-            <T t="caption" color={c.text2} style={{ textAlign: 'center' }}>엿보기·끌어오기는 결제/플랜 한도 · 장난은 발신자의 방어권에 막힐 수 있어요</T>
+            <T t="caption" color={c.text2} style={{ textAlign: 'center' }}>장난은 발신자의 방어권에 막힐 수 있어요</T>
             <View style={styles.grid}>
               {ACTIONS.map((a) => (
                 <Pressable key={a.key} disabled={!active || a.disabled} onPress={a.onPress} style={({ pressed }) => [styles.action, { borderColor: c.line }, (!active || a.disabled) && { opacity: 0.4 }, pressed && { backgroundColor: c.bg3 }, (a.key === 'peek' || a.key === 'pull') && { borderColor: c.purple, backgroundColor: c.purpleSoft }]}>

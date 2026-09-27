@@ -72,7 +72,7 @@ export default function Letters() {
                     <T t="small">{VEHICLE_MAP[l.vehicle].name} · <T t="smallStrong">{st.speedKmh.toLocaleString()} km/h</T></T>
                     <T t="small">나와 <T t="smallStrong">{formatKm(st.distanceKm)}</T></T>
                   </Row>
-                  <T t="caption" color={c.text2}>{l.kind === 'reply' ? '답장이 오는 중 · 도착하면 프로필을 보고 수락' : '직행 편지가 오는 중'} · 프로필은 도착 후 열려요</T>
+                  <T t="caption" color={c.text2} numberOfLines={1}>{l.kind === 'reply' ? '도착하면 프로필을 보고 수락해요' : '직행 편지 · 도착하면 열려요'}</T>
                   {l.boost !== 'instant' ? <Row>{l.boost !== 'fast' ? <Button title={`4배 빠르게 · ${fast} SC`} size="sm" variant="secondary" style={{ flex: 1 }} onPress={() => doBoost(l.id, 'fast')} track="letters:boost:fast" /> : null}<Button title={`1분 안에 · ${inst} SC`} size="sm" variant="gradient" style={{ flex: 1 }} onPress={() => doBoost(l.id, 'instant')} track="letters:boost:instant" /></Row> : <T t="caption" color={c.blueText}>⚡ 가속 중</T>}
                 </View>
               );

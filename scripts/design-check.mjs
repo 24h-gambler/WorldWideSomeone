@@ -89,7 +89,8 @@ const L = cols(lightSrc), D = cols(darkSrc);
     const r = rel(f);
     if (r.endsWith('vehicle-art.tsx') || r.endsWith('item-art.tsx') || r.includes('/globe/')) continue;
     const t = fs.readFileSync(f, 'utf8');
-    for (const m of t.matchAll(/<T\b[^>]*?color=\{[^}]*?\bc\.(blue|red|green|orange)\b[^}]*?\}/g)) bad.push(`${r}:${m[1]}`);
+    for (const m of t.matchAll(/<T\b[^>]*?color=\{[^}]*?\b(?:c|colors)\.(blue|red|green|orange)\b[^}]*?\}/g)) bad.push(`${r}:${m[1]}`);
+    for (const m of t.matchAll(/textColor=\{[^}]*?\b(?:c|colors)\.(blue|red|green|orange)\b[^}]*?\}/g)) bad.push(`${r}:textColor ${m[1]}`);
   }
   if (!bad.length) ok('D6', '글자색은 *Text 토큰', '<T>에 원색 직접 사용 없음');
   else fail('D6', '글자색은 *Text 토큰', bad.slice(0, 8).join(', '));

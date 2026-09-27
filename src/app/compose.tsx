@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LocationPicker } from '@/components/location-picker';
 import { Button, Chip, Header, Icon, Paper, Pill, Row, Screen, Stamp, T, Toggle } from '@/components/ui';
 import { VehicleIcon } from '@/components/vehicle-icon';
+import { ItemIcon } from '@/components/item-art';
 import { Globe } from '@/components/globe/Globe';
 import { FIELDS, GENDERS, HOBBIES, JOBS } from '@/data/profile';
 import { FAMILIES, FAMILY_LABEL, VEHICLES, VEHICLE_MAP, bestVehicle, vehicleUnlocked, type Family } from '@/data/vehicles';
@@ -117,7 +118,7 @@ export default function Compose() {
   );
   const ShieldBox = (
     <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
-      <Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">🛡️ 방어권 {vehicleObj.builtInShield ? '(내장)' : me.inventory.shield > 0 ? `(보유 ${me.inventory.shield})` : '(없음)'}</T>{vehicleObj.builtInShield ? <Pill label="내장" color={c.greenSoft} textColor={c.green} /> : me.inventory.shield > 0 ? <Toggle value={useShield} onValueChange={setUseShield} /> : <Button title="얻기" size="sm" variant="gradient" onPress={() => router.push('/store')} />}</Row>
+      <Row style={{ justifyContent: 'space-between' }}><Row gap={6}><ItemIcon id="shield" size={18} /><T t="bodyStrong">방어권 {vehicleObj.builtInShield ? '(내장)' : me.inventory.shield > 0 ? `(보유 ${me.inventory.shield})` : '(없음)'}</T></Row>{vehicleObj.builtInShield ? <Pill label="내장" color={c.greenSoft} textColor={c.greenText} /> : me.inventory.shield > 0 ? <Toggle value={useShield} onValueChange={setUseShield} /> : <Button title="얻기" size="sm" variant="gradient" onPress={() => router.push('/store')} />}</Row>
       <T t="small" color={c.text2}>경로 변경 · 끌어오기 · 달팽이 · 침수 · 우주 장난을 1회 튕겨내요. 친구 5명마다 1개 또는 상점.</T>
     </View>
   );
@@ -126,7 +127,7 @@ export default function Compose() {
     <Screen>
       <Header title={isReply ? '답장 편지' : '새 편지'} subtitle={stepTitles[step]} left={<Pressable hitSlop={10} onPress={() => (step > 0 ? setStep(step - 1) : router.back())}><T t="body">{step > 0 ? '이전' : '취소'}</T></Pressable>} right={<T t="small" color={c.text2}>{step + 1}/3</T>} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 150 }} keyboardShouldPersistTaps="handled">
           {error ? <View style={[styles.error, { backgroundColor: c.redSoft }]}><Icon name="alert-circle" size={16} color={c.red} /><T t="small" color={c.redText} style={{ flex: 1 }}>{error}</T><Button title="플랜" size="sm" variant="ghost" onPress={() => router.push('/store')} /></View> : null}
           {step === 0 && (
             <View style={{ gap: spacing.md }}>
@@ -162,7 +163,7 @@ export default function Compose() {
               {!isReply && !isDirect ? ShieldBox : null}
               {!isReply && !isDirect ? (<>
                 <View style={[styles.box, { backgroundColor: c.bg2, borderColor: c.lineSoft }]}>
-                  <Row style={{ justifyContent: 'space-between' }}><T t="bodyStrong">🖼️ 커뮤니티에 엽서로 공개</T><Toggle value={isPublic} onValueChange={setIsPublic} /></Row>
+                  <Row style={{ justifyContent: 'space-between' }}><Row gap={6}><ItemIcon id="mail" size={18} /><T t="bodyStrong">커뮤니티에 엽서로 공개</T></Row><Toggle value={isPublic} onValueChange={setIsPublic} /></Row>
                   <T t="small" color={c.text2}>피드에 ???로 올라가요(거리만 공개). 좋아요·댓글을 받으면 코인.</T>
                   {isPublic ? <Row style={{ justifyContent: 'space-between', marginTop: 6 }}><T t="small">홈 스토리에 내 나라 대표로 올리기</T><Toggle value={shareToStory} onValueChange={setShareToStory} /></Row> : null}
                 </View>

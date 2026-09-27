@@ -180,7 +180,9 @@ await step('31', '트래킹 · 화면/버튼/스크롤/게이트/가입 이벤�
 
 // ── 9. 계정 수명주기: 로그아웃 → 비회원 → 재가입 ────
 await step('33', '로그아웃 → 비회원으로 돌아감 → 게이트 재등장 → 재가입까지 정상', async () => {
-  await go('/settings'); await page.getByText('로그아웃', { exact: true }).first().click(); await page.waitForTimeout(1200);
+  await go('/settings');
+  page.once('dialog', (d) => d.accept());   // 웹에서는 window.confirm 으로 한 번 더 묻는다
+  await page.getByText('로그아웃', { exact: true }).first().click(); await page.waitForTimeout(1500);
   const s1 = await state(); if (s1.signedIn) throw new Error('logout did not clear session');
   if (s1.letters.length || s1.friendIds.length) throw new Error('logout left personal data on device');
   await go('/'); await page.waitForTimeout(1200); await shot('33-after-logout');

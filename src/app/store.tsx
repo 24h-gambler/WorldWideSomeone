@@ -59,7 +59,7 @@ export default function Store() {
               <View key={p.id} style={[styles.pack, { borderColor: p.tag ? c.blue : c.line, backgroundColor: c.bg }]}>
                 <ItemIcon id={p.coins >= 2000 ? 'coins' : 'coin'} size={34} />
                 <View style={{ flex: 1 }}>
-                  <Row gap={6}><T t="bodyStrong">{p.coins.toLocaleString('ko-KR')} SC</T>{p.bonusPct ? <Pill label={`+${p.bonusPct}%`} color={c.greenSoft} textColor={c.green} /> : null}{p.tag ? <Pill label={p.tag} color={c.blueSoft} textColor={c.blue} /> : null}</Row>
+                  <Row gap={6}><T t="bodyStrong">{p.coins.toLocaleString('ko-KR')} SC</T>{p.bonusPct ? <Pill label={`+${p.bonusPct}%`} color={c.greenSoft} textColor={c.greenText} /> : null}{p.tag ? <Pill label={p.tag} color={c.blueSoft} textColor={c.blueText} /> : null}</Row>
                   <T t="caption" color={c.text2}>SC당 ₩{(p.priceKrw / p.coins).toFixed(1)}</T>
                 </View>
                 <Button title={p.priceLabel} size="sm" loading={busy === p.id} onPress={() => buyPack(p.id)} track={`store:pack:${p.id}`} />
@@ -90,7 +90,7 @@ export default function Store() {
                 <View style={{ padding: spacing.lg, gap: 8, minHeight: 320 }}>
                   <Row style={{ justifyContent: 'space-between' }}><T t="h2" color={hi ? '#fff' : c.text}>{p.badge ?? ''} {p.name}</T>{current ? <Pill label="이용 중" color={hi ? 'rgba(255,255,255,0.25)' : c.bg3} textColor={hi ? '#fff' : c.text} /> : null}</Row>
                   <T t="hero" color={hi ? '#fff' : c.text}>{p.priceLabel}</T>
-                  {p.monthlyCoins ? <Pill label={`매월 ${p.monthlyCoins.toLocaleString('ko-KR')} SC`} color={hi ? 'rgba(255,255,255,0.25)' : c.blueSoft} textColor={hi ? '#fff' : c.blue} /> : null}
+                  {p.monthlyCoins ? <Pill label={`매월 ${p.monthlyCoins.toLocaleString('ko-KR')} SC`} color={hi ? 'rgba(255,255,255,0.25)' : c.blueSoft} textColor={hi ? c.onDark : c.blueText} /> : null}
                   {p.perks.map((k) => <Row key={k} gap={6} style={{ alignItems: 'flex-start' }}><Icon name="check" size={14} color={hi ? '#fff' : c.green} /><T t="small" color={hi ? '#fff' : c.text} style={{ flex: 1 }}>{k}</T></Row>)}
                   <View style={{ flex: 1 }} />
                   {p.id === 'free' ? <Button title="기본" variant="secondary" disabled /> : <Button title={current ? '이용 중' : `${p.name} 시작`} variant={hi ? 'secondary' : 'primary'} loading={busy === p.id} disabled={current} onPress={() => subscribe(p.id)} track={`store:plan:${p.id}`} />}

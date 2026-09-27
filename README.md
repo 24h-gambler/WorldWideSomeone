@@ -54,7 +54,7 @@ BASE=http://localhost:8081 CHROMIUM_PATH=/opt/pw-browsers/chromium npm run shots
 ### 4시간 자동화 (BE + FE + LiveLike + 디자인)
 ```bash
 npm run check:4h        # 전체 (스모크 6단계)
-npm run check:4h:full   # 전체 (32단계 + visual 회귀)
+npm run check:4h:full   # 전체 (33단계 + visual 회귀)
 npm run check:design    # 디자인 정적만
 ```
 ### 폰 화면 주행 (Maestro · 매일 + 수동)
@@ -75,5 +75,5 @@ src/data/           vehicles(배달원) · plans(요금제·상품·한도) · c
 src/theme/          라이트/다크 팔레트 · ThemeProvider · useColors/useStyles
 supabase/           migrations(스키마·RLS·트리거) · functions(tick-world · push-dispatch · send-letter · catch · redirect · rescue · approve-reply · boost-reply · set-location · track-events · purchase-webhook …) · tests/rls.sql
 eas.json · metro.config.js
-scripts/            screenshots(시나리오 자동 주행 32단계) · verification-report · setup-supabase.sh · make-icons
+scripts/            screenshots(시나리오 자동 주행 33단계) · verification-report · setup-supabase.sh · make-icons
 ```
