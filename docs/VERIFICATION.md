@@ -1,7 +1,7 @@
 # 검증 리포트 (사용자 관점 · 단계별)
 
-- 실행: 2026-09-14T06:40:30.812Z · 웹 빌드를 390×844(iPhone 14) 뷰포트에서 Playwright 로 자동 주행 · 로컬 시뮬 모드(봇 60명)
-- 결과: **32/32 통과** · 콘솔 오류 0건
+- 실행: 2026-09-27T04:47:59.738Z · 웹 빌드를 390×844(iPhone 14) 뷰포트에서 Playwright 로 자동 주행 · 로컬 시뮬 모드(봇 60명)
+- 결과: **32/33 통과** · 콘솔 오류 0건
 - 재실행: `npm run export:web && npx serve dist -l 8081 -s` → `BASE=http://localhost:8081 CHROMIUM_PATH=... npm run shots && npm run report`
 
 ## 1. 첫 진입 · 비회원 · 투어
@@ -80,7 +80,10 @@
 |---|---|---|---|
 | 26 | 플랜(플러스) 테스트 결제 → 매월 SC 지급 · 한도 표시 | ✅ | [26-store-plus](screenshots/26-store-plus.png) |
 | 27 | 배달원 대여(SC)로 잠긴 여객기 1회 사용 | ✅ | [27-compose-rental](screenshots/27-compose-rental.png) |
-| 28 | 플러스 · 엿보기 → 끌어오기(내 위치로) | ✅ | [28-catch-peeked-plus](screenshots/28-catch-peeked-plus.png) · [28-home-pulled](screenshots/28-home-pulled.png) |
+| 28 | 플러스 · 엿보기 → 끌어오기(내 위치로) | ❌ locator.waitFor: Timeout 8000ms exceeded.
+Call log:
+[2m  - waiting for getByText('내게 오는 편지').first() to be visible[22m
+ | [28-FAIL](screenshots/28-FAIL.png) · [28-catch-peeked-plus](screenshots/28-catch-peeked-plus.png) |
 | 29 | 침수 → 몇 시간 정지 → 지구 표시 | ✅ | [29-catch-sunk](screenshots/29-catch-sunk.png) · [29b-home-sunk](screenshots/29b-home-sunk.png) |
 
 ## 8. 다크 모드 · 트래킹
@@ -91,6 +94,14 @@
 |---|---|---|---|
 | 30 | 다크 모드 · 홈/커뮤니티/편지/상점/잡기 | ✅ | [30-dark-home](screenshots/30-dark-home.png) · [30b-dark-community](screenshots/30b-dark-community.png) · [30c-dark-letters](screenshots/30c-dark-letters.png) · [30d-dark-store](screenshots/30d-dark-store.png) · [30e-dark-catch](screenshots/30e-dark-catch.png) |
 | 31 | 트래킹 · 화면/버튼/스크롤/게이트/가입 이벤트가 비회원 시점부터 기록됨 | ✅ |  |
+
+## 9. 계정 수명주기 (로그아웃 → 재가입)
+
+> 사용자 입장: 로그아웃하면 이 기기에서 비회원으로 돌아가고 개인 데이터가 남지 않는다. 다시 보내기를 누르면 가입 시트가 뜨고, 재가입하면 그대로 이어서 보낸다.
+
+| # | 검증 항목 | 결과 | 증거 |
+|---|---|---|---|
+| 33 | 로그아웃 → 비회원으로 돌아감 → 게이트 재등장 → 재가입까지 정상 | ✅ | [33-after-logout](screenshots/33-after-logout.png) · [33b-gate-again](screenshots/33b-gate-again.png) · [33c-home-after-resignup](screenshots/33c-home-after-resignup.png) |
 
 ## 9. 실기기에서만 검증 가능한 항목 (체크리스트)
 

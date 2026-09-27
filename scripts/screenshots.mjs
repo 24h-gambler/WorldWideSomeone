@@ -148,7 +148,12 @@ await step('28', '플러스 · 엿보기 → 끌어오기(내 위치로)', async
     await spawnPassby(); const s = await state(); const pb = s.passbys.find((p) => !p.resolved && p.expiresAt > Date.now()); const l = pb && s.letters.find((x) => x.id === pb.letterId);
     if (!l || l.shield || skip.has(l.vehicle)) { console.log(`  (skip ${l?.vehicle} shield=${l?.shield})`); await tap('보기', { exact: true }); await page.waitForTimeout(600); await tap('그냥 보내주기'); await page.waitForTimeout(800); continue; }
     await tap('보기', { exact: true }); await page.waitForTimeout(800); await tap('엿보기', { exact: true }); await see('엿봤어요'); await page.waitForTimeout(1500); await shot('28-catch-peeked-plus');
-    await tap('끌어오기', { exact: true }); await see('끌어왔어요'); await page.waitForTimeout(1600); await see('내게 오는 편지'); await shot('28-home-pulled'); return `pulled ${l.vehicle}`;
+    await tap('끌어오기', { exact: true }); await see('끌어왔어요'); await page.waitForTimeout(1600);
+    const after = await state(); const pulled = after.letters.find((x) => x.id === l.id);
+    if (!pulled || pulled.pulledBy !== 'me' || pulled.destination?.city !== after.me.location.city) throw new Error('pull did not redirect the letter to me');
+    // 아주 가까이서 끌어오면 곧바로 도착하기도 한다 — 아직 나는 중일 때만 홈 카드 문구를 확인
+    if (pulled.status === 'flying') await see('내게 오는 편지');
+    await shot('28-home-pulled'); return `pulled ${l.vehicle} (${pulled.status})`;
   }
   throw new Error('no pullable letter in 5 spawns');
 });
@@ -184,7 +189,10 @@ await step('33', '로그아웃 → 비회원으로 돌아감 → 게이트 재�
   page.once('dialog', (d) => d.accept());   // 웹에서는 window.confirm 으로 한 번 더 묻는다
   await page.getByText('로그아웃', { exact: true }).first().click(); await page.waitForTimeout(1500);
   const s1 = await state(); if (s1.signedIn) throw new Error('logout did not clear session');
-  if (s1.letters.length || s1.friendIds.length) throw new Error('logout left personal data on device');
+  // 봇들의 편지는 계속 날아다니는 게 맞고(세계는 그대로), 내 것만 사라져야 한다
+  const mineLeft = s1.letters.filter((l) => l.senderId === 'me' || l.recipientId === 'me' || l.caughtBy === 'me');
+  if (mineLeft.length || s1.friendIds.length || s1.chats.length) throw new Error(`logout left personal data (letters ${mineLeft.length}, friends ${s1.friendIds.length}, chats ${s1.chats.length})`);
+  if (!s1.letters.length) throw new Error('logout wiped the world too (bot letters gone)');
   await go('/'); await page.waitForTimeout(1200); await shot('33-after-logout');
   await go('/compose'); await page.getByPlaceholder('지금 이 편지를 읽는 당신에게…').fill('로그아웃 후 다시 가입해서 보냅니다');
   await tap('다음', { exact: true }); await tap('다음', { exact: true });
