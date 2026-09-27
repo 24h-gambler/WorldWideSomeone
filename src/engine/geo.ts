@@ -130,7 +130,7 @@ export function fuzzToGrid(p: LatLng, km: number): LatLng {
 export const fuzz50km = (p: LatLng) => fuzzToGrid(p, 50);
 
 export function formatKm(km: number): string {
-  if (km >= 10000) return `${(km / 1000).toFixed(1)}만 km`.replace('만 km', '천 km');
+  if (km >= 10000) return `${(km / 10000).toFixed(1)}만 km`;   // 19,400 → 1.9만 km (19.4천 km 는 한국어에서 안 쓴다)
   if (km >= 1000) return `${Math.round(km).toLocaleString('ko-KR')} km`;
   return `${Math.round(km)} km`;
 }

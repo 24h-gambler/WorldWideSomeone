@@ -71,7 +71,8 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', disab
 }
 export function IconButton({ name, onPress, badge, size = 24, color, label, track }: { name: FeatherName; onPress?: () => void; badge?: number; size?: number; color?: string; label?: string; track?: string }) {
   return (
-    <Pressable hitSlop={8} testID={`icon:${track ?? label ?? name}`} accessibilityLabel={label} accessibilityRole="button" onPress={() => { tap(); trackTap(track ?? `icon:${label ?? name}`); onPress?.(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+    // 배지가 있으면 그만큼 자리를 만들어 준다 (안 그러면 배지가 헤더 밖으로 삐져나가 가로 스크롤이 생긴다)
+    <Pressable hitSlop={8} testID={`icon:${track ?? label ?? name}`} accessibilityLabel={label} accessibilityRole="button" onPress={() => { tap(); trackTap(track ?? `icon:${label ?? name}`); onPress?.(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingTop: badge ? 6 : 0, paddingRight: badge ? 8 : 0 })}>
       <Icon name={name} size={size} color={color} />
       {badge ? <Badge count={badge} /> : null}
     </Pressable>
@@ -202,7 +203,7 @@ export function Toggle({ value, onValueChange, label, track: trackId }: { value:
 export function Badge({ count, color }: { count: number; color?: string }) {
   const c = useColors();
   if (!count) return null;
-  return <View style={{ position: 'absolute', top: -6, right: -8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: color ?? c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: c.bg }}><T style={{ color: '#fff', fontSize: 11, lineHeight: 13, fontWeight: '700' }}>{count > 99 ? '99+' : count}</T></View>;
+  return <View style={{ position: 'absolute', top: 0, right: 0, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: color ?? c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: c.bg }}><T style={{ color: c.onDark, fontSize: 11, lineHeight: 13, fontWeight: '700' }}>{count > 99 ? '99+' : count}</T></View>;
 }
 export function Row({ children, style, gap = spacing.sm }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; gap?: number }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap }, style]}>{children}</View>;
