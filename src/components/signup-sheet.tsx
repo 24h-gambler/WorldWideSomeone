@@ -13,8 +13,9 @@ import { brand, radius, shadow, spacing, useColors } from '@/theme';
 import type { AuthProvider } from '@/types';
 import Svg, { Path } from 'react-native-svg';
 
-/** 애플 로그인 노출: iOS 는 심사 가이드 4.8 상 필수, 웹도 지원. 안드로이드는 구글·카카오만. */
-const APPLE_OK = Platform.OS === 'ios' || Platform.OS === 'web';
+/** 애플 로그인 노출: iOS 는 심사 가이드 4.8 상 필수. 모든 플랫폼에 노출한다. */
+// Apple 로그인은 모든 플랫폼에서 노출 — iOS 는 네이티브 시트, Android·웹은 Supabase OAuth 웹 흐름
+const APPLE_OK = true;
 const AppleMark = () => (
   <Svg width={16} height={19} viewBox="0 0 16 19"><Path fill={brand.apple.label} d="M13.2 10.1c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7C5.1 5.4 3.8 6.2 3.1 7.5c-1.4 2.4-.4 6 1 8 .7 1 1.5 2.1 2.5 2 1-.1 1.4-.6 2.6-.6s1.6.6 2.6.6c1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2.1-.8-2.1-3.1zM11.3 3.9c.5-.6.9-1.5.8-2.4-.8 0-1.8.5-2.4 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.8-.5 2.4-1.2z"/></Svg>
 );
