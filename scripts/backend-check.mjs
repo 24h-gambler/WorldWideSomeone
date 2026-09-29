@@ -1,5 +1,5 @@
 /**
- * WWS 백엔드 생존 확인 (BE) — Supabase + Edge Functions 13개.
+ * WWS 백엔드 생존 확인 (BE) — Supabase + Edge Functions 14개.
  * 무의존(node fetch). 실행: node scripts/backend-check.mjs [--json]
  * Secrets 없으면 SKIPPED(로컬 시뮬)로 exit 0 — CI에서는 secrets를 넣으면 실제 검사.
  *   SUPABASE_URL / EXPO_PUBLIC_SUPABASE_URL
@@ -8,7 +8,7 @@
 const FUNCTIONS = [
   'tick-world', 'push-dispatch', 'send-letter', 'catch-letter', 'redirect-letter',
   'rescue-letter', 'approve-reply', 'boost-reply', 'set-location', 'track-events',
-  'purchase-webhook', 'publish-post', 'register-push',
+  'purchase-webhook', 'rc-grant', 'publish-post', 'register-push',
 ];
 
 const URL = (process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');

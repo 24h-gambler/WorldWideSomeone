@@ -6,8 +6,8 @@ REF="${1:?usage: setup-supabase.sh <project-ref>}"
 command -v supabase >/dev/null || { echo "npm i -g supabase 먼저"; exit 1; }
 supabase link --project-ref "$REF"
 supabase db push                                   # migrations/0001_schema.sql
-supabase functions deploy tick-world push-dispatch send-letter catch-letter redirect-letter rescue-letter approve-reply boost-reply set-location register-push track-events purchase-webhook publish-post
-echo "REVENUECAT_WEBHOOK_SECRET 를 설정하세요: supabase secrets set REVENUECAT_WEBHOOK_SECRET=..."
+supabase functions deploy tick-world push-dispatch send-letter catch-letter redirect-letter rescue-letter approve-reply boost-reply set-location register-push track-events purchase-webhook rc-grant publish-post
+echo "결제 비밀을 설정하세요: supabase secrets set REVENUECAT_WEBHOOK_SECRET=... RC_SECRET_KEY=sk_... (RevenueCat 비밀 API 키 · rc-grant 용)"
 URL="https://${REF}.functions.supabase.co"
 SR="$(supabase projects api-keys --project-ref "$REF" -o json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(x=>x.name==="service_role");console.log(k.api_key)})')"
 # 스케줄 등록 (pg_cron + pg_net)
