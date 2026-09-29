@@ -25,7 +25,7 @@ Expo(React Native) 앱. 편지를 배달원(43종)이 지구 위로 실어 나�
 | **Kakao Developers** 앱 | 카카오 로그인 | developers.kakao.com → 앱 생성 → 카카오 로그인 활성화 · Redirect URI 위와 동일 · REST API 키/Client Secret 을 Supabase Auth → Providers → Kakao 에 입력 · 동의항목: 닉네임·프로필 이미지·이메일 | 사용자 |
 | **Firebase** (2id.kimdan) | Android 푸시(FCM V1)만 | console.firebase.google.com → 프로젝트 → 서비스 계정 → 비공개 키(json) → `eas credentials` 에 업로드. Firestore/Functions 는 쓰지 않는다 | 사용자 |
 | **Expo / EAS** | 빌드 · 푸시 토큰 | `eas login` · `app.json` 의 `extra.eas.projectId` · iOS APNs 키는 EAS 가 생성 | 사용자(로그인) → Claude(빌드 명령) |
-| **RevenueCat** | 코인 팩·플랜 결제 | 앱 생성 → 스토어 상품 `wws_sc_300/800/2000/5500/12000`, `wws_plus_monthly`, `wws_pro_monthly` → 키를 `.env.local` 의 `EXPO_PUBLIC_RC_IOS_KEY` / `EXPO_PUBLIC_RC_ANDROID_KEY` → 웹훅 URL `https://ppyuaezzdndvphsindug.functions.supabase.co/purchase-webhook`, Authorization 헤더 값 = `REVENUECAT_WEBHOOK_SECRET` | 사용자 |
+| **RevenueCat** | 코인 팩·플랜 결제 | 앱 생성 → 스토어 상품 `wws_sc_300/800/2000/5500/12000`, `wws_plus_monthly`, `wws_pro_monthly` → 키를 `.env.local` 의 `EXPO_PUBLIC_RC_IOS_KEY` / `EXPO_PUBLIC_RC_ANDROID_KEY` → 웹훅 URL `https://ppyuaezzdndvphsindug.functions.supabase.co/purchase-webhook`, Authorization 헤더 값 = `REVENUECAT_WEBHOOK_SECRET` · **비밀 API 키(sk_…)를 `supabase secrets set RC_SECRET_KEY=`** (앱이 부르는 `rc-grant` 가 서버에서 지급 확정) · Codemagic 그룹 `wws_public` 에도 `EXPO_PUBLIC_RC_*` | 사용자 |
 | App Store Connect / Google Play Console | 스토어 등록 · 인앱 상품 | `docs/LAUNCH.md` 절차 | 사용자 |
 
 `.env.local` 형식(`.env.example` 참고):

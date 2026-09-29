@@ -2,7 +2,7 @@
 #
 # 콘솔 준비물 (Personal account)
 #   - 환경변수 그룹 wws_public : EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY
-#     (선택) EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY
+#     EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY (RevenueCat public 키 — 없으면 프로덕션 빌드의 상점은 "결제 준비 중"으로 잠긴다)
 #   - Android keystore reference : pushers_upload (같은 개발자 계정의 업로드 키 재사용 — 전용 키로 바꾸려면 여기만 교체)
 #   - iOS : App Store Connect 연동 codemagic_asc · 프로파일 wws_appstore (com.worldwidesomeone.app)
 #
@@ -26,7 +26,7 @@ workflows:
         - $HOME/.gradle/caches
     scripts:
       - name: Install JS deps
-        script: npm ci --no-audit --no-fund
+        script: npm install --no-audit --no-fund   # package-lock 과 package.json 불일치(새 의존성)여도 빌드가 멈추지 않게
       - name: Typecheck (report only)
         script: npx tsc --noEmit || echo "⚠️ 타입 오류가 있습니다 — 위 로그 확인 (빌드는 계속)"
       - name: Build number → app.json
@@ -84,7 +84,7 @@ workflows:
       cocoapods: default
     scripts:
       - name: Install JS deps
-        script: npm ci --no-audit --no-fund
+        script: npm install --no-audit --no-fund   # package-lock 과 package.json 불일치(새 의존성)여도 빌드가 멈추지 않게
       - name: Build number → app.json
         script: |
           node -e '
