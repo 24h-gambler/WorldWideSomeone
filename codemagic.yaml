@@ -1,0 +1,112 @@
+# Codemagic CI — WorldWideSomeone (Expo · com.worldwidesomeone.app)
+#
+# 콘솔 준비물 (Personal account)
+#   - 환경변수 그룹 wws_public : EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY
+#     (선택) EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY
+#   - Android keystore reference : pushers_upload (같은 개발자 계정의 업로드 키 재사용 — 전용 키로 바꾸려면 여기만 교체)
+#   - iOS : App Store Connect 연동 codemagic_asc · 프로파일 wws_appstore (com.worldwidesomeone.app)
+#
+# ios/ · android/ 는 저장소에 없다 → 빌드마다 expo prebuild 로 만든다 (app.json 이 정본).
+# 빌드 번호: versionCode / CFBundleVersion = 10 + BUILD_NUMBER (단조 증가)
+
+workflows:
+  android-release:
+    name: WWS Android (AAB)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      groups:
+        - wws_public
+      android_signing:
+        - pushers_upload
+      node: 22
+      java: 17
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Install JS deps
+        script: npm ci --no-audit --no-fund
+      - name: Build number → app.json
+        script: |
+          node -e '
+            const fs=require("fs"); const j=JSON.parse(fs.readFileSync("app.json","utf8"));
+            const n=10+Number(process.env.BUILD_NUMBER||0);
+            j.expo.android.versionCode=n; j.expo.ios.buildNumber=String(n);
+            fs.writeFileSync("app.json",JSON.stringify(j,null,2)); console.log("versionCode="+n);'
+      - name: Expo prebuild (android)
+        script: npx expo prebuild --platform android --clean --no-install
+      - name: Release signing
+        script: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("android/app/build.gradle")
+          s = p.read_text()
+          rel = """signingConfigs {
+                  release {
+                      storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+                      storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("CM_KEY_ALIAS")
+                      keyPassword System.getenv("CM_KEY_PASSWORD")
+                  }
+          """
+          if 'CM_KEYSTORE_PATH' not in s:
+              s = s.replace("signingConfigs {", rel, 1)
+          s, n = re.subn(r"(release\s*\{[^{}]*?)signingConfig\s+signingConfigs\.debug", r"\1signingConfig signingConfigs.release", s, count=1)
+          assert 'signingConfigs.release' in s, "release signingConfig 교체 실패"
+          p.write_text(s)
+          print("release signing wired")
+          PY
+      - name: Build AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+
+  ios-release:
+    name: WWS iOS (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 75
+    integrations:
+      app_store_connect: codemagic_asc
+    environment:
+      groups:
+        - wws_public
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.worldwidesomeone.app
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install JS deps
+        script: npm ci --no-audit --no-fund
+      - name: Build number → app.json
+        script: |
+          node -e '
+            const fs=require("fs"); const j=JSON.parse(fs.readFileSync("app.json","utf8"));
+            const n=10+Number(process.env.BUILD_NUMBER||0);
+            j.expo.android.versionCode=n; j.expo.ios.buildNumber=String(n);
+            j.expo.ios.config=Object.assign({},j.expo.ios.config,{usesNonExemptEncryption:false});
+            fs.writeFileSync("app.json",JSON.stringify(j,null,2)); console.log("buildNumber="+n);'
+      - name: Expo prebuild (ios)
+        script: npx expo prebuild --platform ios --clean
+      - name: Pods
+        script: cd ios && pod install
+      - name: Signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          echo "workspace=$WS scheme=$SCHEME"
+          xcode-project build-ipa --workspace "$WS" --scheme "$SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
