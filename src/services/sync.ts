@@ -6,6 +6,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, supabaseEnabled } from './supabase';
 import { registerRemote, useStore } from '@/store';
 import type { Letter, Post } from '@/types';
+import type { ReportInput } from '@/store';
 import { configureAnalytics, flush, type AnalyticsEvent } from './analytics';
 import type { LatLng } from '@/types';
 
@@ -56,8 +57,12 @@ export async function loadMine(uid: string) {
     const rooms = await Promise.all(chats.map(async (c: any) => { const other = c.members.find((m: string) => m !== uid); const { data: msgs } = await supabase!.from('messages').select('*').eq('chat_id', c.id).order('at').limit(200); return { id: other, otherId: other, since: new Date(c.since).getTime(), lastReadAt: Date.now(), messages: (msgs ?? []).map((m: any) => ({ id: m.id, senderId: m.sender_id === uid ? 'me' : m.sender_id, text: m.text, at: new Date(m.at).getTime() })) }; }));
     patch.chats = rooms;
   }
+  const { data: blocks } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', uid);
+  const blocked: string[] = blocks ? blocks.map((b: any) => b.blocked_id) : st.blockedIds ?? [];
+  patch.blockedIds = blocked;
   const { data: posts } = await supabase.from('posts_public').select('*').order('at', { ascending: false }).limit(90);
-  if (posts) patch.posts = posts.map((p: any) => toPost(p, st.me.location));
+  if (posts) patch.posts = posts.filter((p: any) => !blocked.includes(p.author_id)).map((p: any) => toPost(p, st.me.location));
+  if (Array.isArray(patch.chats)) patch.chats = (patch.chats as any[]).filter((c) => !blocked.includes(c.otherId));
   useStore.setState(patch as any);
 }
 
@@ -77,6 +82,8 @@ export async function startSync(): Promise<void> {
     likePost: (id, on) => { void remote.likePost(id, on).catch(() => {}); },
     comment: (id, text) => { void remote.comment(id, text).catch(() => {}); },
     setLocation: (p) => { void syncMyLocation(p); },
+    block: (userId, on) => { void remote.block(userId, on).catch(() => {}); },
+    report: (r) => { void remote.report(r).catch(() => {}); },
   });
   // 트래킹 싱크: 배치를 track-events 로
   configureAnalytics({ deviceId: st.deviceId, userId: uid ?? undefined, guest: !uid, sink: async (events: AnalyticsEvent[]) => { try { await call('track-events', { events }); return true; } catch { return false; } } });
@@ -89,7 +96,7 @@ export async function startSync(): Promise<void> {
   channel = supabase.channel(`user:${uid}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, (p) => { const n = p.new as any; useStore.setState((s) => ({ notifications: [{ id: n.id, type: n.type, title: n.title, body: n.body, at: new Date(n.at).getTime(), read: false, route: n.route ?? undefined }, ...s.notifications] })); })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'passbys', filter: `user_id=eq.${uid}` }, async (p) => { const b = p.new as any; if (!useStore.getState().letters.some((l) => l.id === b.letter_id)) { const { data: row } = await supabase!.from('letters_public').select('*').eq('id', b.letter_id).maybeSingle(); if (row) useStore.setState((s) => ({ letters: [toLetter({ ...row, text: '', participants: [] }), ...s.letters] })); } useStore.setState((s) => ({ passbys: [{ id: b.id, letterId: b.letter_id, at: new Date(b.at).getTime(), expiresAt: new Date(b.expires_at).getTime(), canCatch: b.can_catch }, ...s.passbys] })); })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => { const m = p.new as any; const other = m.sender_id; if (other === uid) return; useStore.setState((s) => ({ chats: s.chats.some((c) => c.otherId === other) ? s.chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, { id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }] } : c)) : [{ id: other, otherId: other, messages: [{ id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }], lastReadAt: 0, since: Date.now() }, ...s.chats] })); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => { const m = p.new as any; const other = m.sender_id; if (other === uid || (useStore.getState().blockedIds ?? []).includes(other)) return; useStore.setState((s) => ({ chats: s.chats.some((c) => c.otherId === other) ? s.chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, { id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }] } : c)) : [{ id: other, otherId: other, messages: [{ id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }], lastReadAt: 0, since: Date.now() }, ...s.chats] })); })
     .subscribe();
 }
 export function stopSync() { channel?.unsubscribe(); channel = null; void flush(); }
@@ -119,4 +126,17 @@ export const remote = {
   sendMessage: async (otherId: string, text: string) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; const id = uid < otherId ? `${uid}_${otherId}` : `${otherId}_${uid}`; await supabase.from('messages').insert({ chat_id: id, sender_id: uid, text }); },
   likePost: async (postId: string, on: boolean) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; if (on) await supabase.from('post_likes').upsert({ post_id: postId, user_id: uid }); else await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', uid); },
   comment: async (postId: string, text: string) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; await supabase.from('comments').insert({ post_id: postId, author_id: uid, text }); },
+  /** 차단 — 서버 blocks 에 기록(상대 메시지 차단은 RLS 가 강제) */
+  block: async (userId: string, on: boolean) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; if (on) await supabase.from('blocks').upsert({ blocker_id: uid, blocked_id: userId }); else await supabase.from('blocks').delete().eq('blocker_id', uid).eq('blocked_id', userId); },
+  /** 신고 — reports 에 쌓이고 운영자가 24시간 안에 검토 */
+  report: async (r: ReportInput) => { if (!supabase) return; const uid = await ensureSession(); if (!uid) return; await supabase.from('reports').insert({ reporter_id: uid, target_user_id: isUuid(r.targetUserId) ? r.targetUserId : null, target_ref: r.targetUserId, kind: r.kind, target_id: r.targetId ?? null, reason: r.reason, note: r.note ?? null }); },
 };
+const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
+/** 계정 삭제 — 서버 RPC delete_my_account 가 내 계정과 콘텐츠를 지운다(결제 기록만 법정 보관). 로컬 모드·비회원은 곧바로 true. */
+export async function deleteAccount(): Promise<boolean> {
+  if (!supabase) return true;
+  const uid = await ensureSession(); if (!uid) return true;
+  const { error } = await supabase.rpc('delete_my_account');
+  return !error;
+}
