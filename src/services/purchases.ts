@@ -35,7 +35,7 @@ export interface PurchaseProvider {
 }
 
 /** RevenueCat 공개 SDK 키 (앱에 들어가라고 만든 키). 비밀 키 sk_ 는 서버 rc-grant 에만 */
-const RC_PUBLIC = { ios: '', android: 'goog_ZNCHPVvlDHVdCpsOFHxOncjssaX' };
+const RC_PUBLIC = { ios: 'appl_CUWzyrLYmFobaEbTcSxUinNZcle', android: 'goog_ZNCHPVvlDHVdCpsOFHxOncjssaX' };
 
 const PLAN_RANK: Record<PlanId, number> = { free: 0, plus: 1, pro: 2 };
 const baseId = (id: string) => id.split(':')[0]; // Google 구독: "productId:basePlanId"
