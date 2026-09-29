@@ -15,6 +15,7 @@ import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
 import { spacing, useColors } from '@/theme';
 import type { User } from '@/types';
 import { tap } from '@/engine/haptics';
+import { useSafety } from '@/components/safety-sheet';
 
 export function contactPct(u: User, meLoc: { lat: number; lng: number }) {
   const active = Math.max(0, 1 - (Date.now() - u.lastActiveAt) / (3 * 86_400_000));
@@ -30,7 +31,10 @@ export default function Community() {
   const me = useStore((s) => s.me);
   const friendIds = useStore((s) => s.friendIds);
   const revealedIds = useStore((s) => s.revealedIds);
-  const posts = useStore((s) => s.posts);
+  const allPosts = useStore((s) => s.posts);
+  const blockedIds = useStore((s) => s.blockedIds);
+  const posts = useMemo(() => (blockedIds?.length ? allPosts.filter((p) => !blockedIds.includes(p.authorId)) : allPosts), [allPosts, blockedIds]);
+  const safety = useSafety();
   const remoteLoading = useStore((s) => s.remoteLoading);
   const letters = useStore((s) => s.letters);
   const likePost = useStore((s) => s.likePost);
@@ -42,7 +46,7 @@ export default function Community() {
   const directPrice = ITEM_MAP.direct1;
   const gate = useGate();
 
-  const people = useMemo(() => BOTS.filter((b) => (!field || b.field === field) && (!hobby || b.hobbies.includes(hobby))).map((b) => ({ b, pct: contactPct(b, me.location) })).sort((x, y) => y.pct - x.pct), [field, hobby, me.location]);
+  const people = useMemo(() => BOTS.filter((b) => !(blockedIds ?? []).includes(b.id) && (!field || b.field === field) && (!hobby || b.hobbies.includes(hobby))).map((b) => ({ b, pct: contactPct(b, me.location) })).sort((x, y) => y.pct - x.pct), [field, hobby, me.location, blockedIds]);
   const ranking = useMemo(() => { const rows = BOTS.map((b) => ({ u: b, friends: botFriendCount(b), caught: b.stats.caught, km: b.stats.distanceKm })); rows.push({ u: me, friends: friendIds.length, caught: me.stats.caught, km: me.stats.distanceKm }); return rows.sort((a, b) => b.friends - a.friends || b.caught - a.caught); }, [me, friendIds.length]);
   const sky = letters.filter((l) => l.status === 'flying' && l.senderId !== ME_ID).slice(0, 12);
   const rev = { me, friendIds, revealedIds };
@@ -77,7 +81,7 @@ export default function Community() {
                     </View>
                   </Row>
                 </Pressable>
-                {mine ? <Chip label={p.shareToStory ? '스토리 공유 중' : '스토리에 올리기'} small selected={p.shareToStory} onPress={() => setPostStory(p.id, !p.shareToStory)} /> : null}
+                {mine ? <Chip label={p.shareToStory ? '스토리 공유 중' : '스토리에 올리기'} small selected={p.shareToStory} onPress={() => setPostStory(p.id, !p.shareToStory)} /> : <IconButton name="more-horizontal" size={20} label="신고·차단" track="feed:safety" onPress={() => safety.open({ userId: p.authorId, kind: 'post', targetId: p.id, label: '엽서' })} />}
               </Row>
               <Pressable onPress={() => { tap(); router.push(`/post/${p.id}`); }}>
                 {p.imageUri ? <Image source={{ uri: p.imageUri }} style={{ width: '100%', aspectRatio: 4 / 3 }} /> : <View style={{ marginHorizontal: spacing.lg, borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}><PostcardThumb seed={p.id} width={width - spacing.lg * 2} height={Math.round((width - spacing.lg * 2) * 0.5)} /></View>}
@@ -148,6 +152,7 @@ export default function Community() {
           </View>
         )}
       </ScrollView>
+      {safety.sheet}
     </Screen>
   );
 }

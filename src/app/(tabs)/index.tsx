@@ -24,7 +24,9 @@ export default function Home() {
   const now = useNow(2);
   const me = useStore((s) => s.me);
   const letters = useStore((s) => s.letters);
-  const posts = useStore((s) => s.posts);
+  const allPosts = useStore((s) => s.posts);
+  const blockedIds = useStore((s) => s.blockedIds);
+  const posts = useMemo(() => (blockedIds?.length ? allPosts.filter((p) => !blockedIds.includes(p.authorId)) : allPosts), [allPosts, blockedIds]);
   const friendIds = useStore((s) => s.friendIds);
   const revealedIds = useStore((s) => s.revealedIds);
   const focusLetterId = useStore((s) => s.focusLetterId);
