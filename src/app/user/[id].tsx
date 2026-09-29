@@ -5,14 +5,15 @@ import React from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { Avatar, Button, Header, Pill, Row, Screen, T, TrackedScrollView } from '@/components/ui';
+import { Avatar, Button, Header, IconButton, Pill, Row, Screen, T, TrackedScrollView } from '@/components/ui';
+import { useSafety } from '@/components/safety-sheet';
 import { ItemIcon } from '@/components/item-art';
 import { ITEM_MAP, PLAN_MAP } from '@/data/plans';
 import { botFriendCount } from '@/data/bots';
 import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
 import { contactPct } from '@/app/(tabs)/community';
 import { useGate } from '@/hooks/use-gate';
-import { displayName, getUser, isRevealed, useStore } from '@/store';
+import { NO_IDS, displayName, getUser, isRevealed, useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 
 export default function UserScreen() {
@@ -25,11 +26,14 @@ export default function UserScreen() {
   const posts = useStore((s) => s.posts);
   const letters = useStore((s) => s.letters);
   const gate = useGate();
+  const safety = useSafety();
+  const blockedIds = (useStore((s) => s.blockedIds) ?? NO_IDS);
   const u = getUser({ me }, id ?? '');
   if (!u) return <Screen><Header title="사용자" /><T style={{ padding: spacing.lg }}>사용자를 찾을 수 없어요</T></Screen>;
   const rev = { me, friendIds, revealedIds };
   const shown = isRevealed(rev, u.id);
   const isFriend = friendIds.includes(u.id);
+  const blocked = blockedIds.includes(u.id);
   const pct = contactPct(u, me.location);
   const plan = PLAN_MAP[me.plan];
   const monthLeft = Math.max(0, plan.monthlyDirect - (me.quota.month === new Date().toISOString().slice(0, 7) ? me.quota.direct : 0));
@@ -41,7 +45,7 @@ export default function UserScreen() {
 
   return (
     <Screen>
-      <Header title={displayName(rev, u.id)} />
+      <Header title={displayName(rev, u.id)} right={u.id !== me.id && u.id !== 'me' ? <IconButton name="more-horizontal" label="신고·차단" track="user:safety" onPress={() => safety.open({ userId: u.id, kind: 'user', label: displayName(rev, u.id) })} /> : undefined} />
       <TrackedScrollView id="user" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <Row style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: 20 }}>
           <Avatar anonymous={!shown} emoji={u.avatar} size={84} ring="ig" />
@@ -55,11 +59,18 @@ export default function UserScreen() {
           <Row style={{ flexWrap: 'wrap', marginTop: 4 }} gap={4}><Pill label={u.field} /><Pill label={u.gender === 'private' ? '비공개' : u.gender === 'female' ? '여성' : u.gender === 'male' ? '남성' : '기타'} /><Pill label={u.job} />{u.hobbies.map((h) => <Pill key={h} label={h} color={c.blueSoft} textColor={c.blueText} />)}</Row>
           <Row style={{ marginTop: 6 }}><Pill label={`컨택 가능성 ${pct}%`} color={pct >= 60 ? c.greenSoft : c.yellowSoft} textColor={pct >= 60 ? c.greenText : c.yellowText} icon="📡" /><T t="caption" color={c.text2}>{timeAgo(u.lastActiveAt)} 활동</T></Row>
         </View>
-        <Row style={{ paddingHorizontal: spacing.lg, marginTop: 14 }}>
+        {blocked ? (
+          <View style={{ marginHorizontal: spacing.lg, marginTop: 14, padding: spacing.md, borderRadius: 12, backgroundColor: c.redSoft, gap: 8 }}>
+            <T t="bodyStrong">차단한 사용자예요</T>
+            <T t="small" color={c.text2}>서로 채팅할 수 없고 이 사람의 편지·엽서·댓글이 보이지 않아요.</T>
+            <Button title="차단 해제" size="sm" variant="secondary" onPress={() => safety.open({ userId: u.id, kind: 'user', label: displayName(rev, u.id) })} track="user:unblock" />
+          </View>
+        ) : null}
+        {!blocked ? <Row style={{ paddingHorizontal: spacing.lg, marginTop: 14 }}>
           {isFriend ? <Button title="채팅" style={{ flex: 1 }} icon="message-circle" onPress={() => router.push(`/chat/${u.id}`)} track="user:chat" /> : null}
           <Button title="편지 보내기" variant={isFriend ? 'secondary' : 'primary'} style={{ flex: 1 }} icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: u.id, field: u.field, job: u.job } } as any)} track="user:letter" />
-        </Row>
-        {!isFriend ? (
+        </Row> : null}
+        {!isFriend && !blocked ? (
           <View style={{ marginHorizontal: spacing.lg, marginTop: 10, padding: spacing.md, borderRadius: 12, backgroundColor: c.bg2, borderWidth: 1, borderColor: c.lineSoft, gap: 8 }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Row gap={8} style={{ flex: 1 }}><ItemIcon id="bolt" size={22} /><View style={{ flex: 1 }}><T t="bodyStrong">직행 편지</T><T t="caption" color={c.text2}>이 사람에게 무조건 도착 · 통과·장난 없음 · 답장은 상대의 마음(환불 없음)</T></View></Row>
@@ -77,6 +88,7 @@ export default function UserScreen() {
           ))}
         </View>
       </TrackedScrollView>
+      {safety.sheet}
     </Screen>
   );
 }
