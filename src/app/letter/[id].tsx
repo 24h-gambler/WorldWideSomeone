@@ -19,6 +19,7 @@ import { useNow } from '@/hooks/use-now';
 import { ME_ID, displayName, getUser, incomingStatus, isRevealed, progressOf, useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 import { success, warn } from '@/engine/haptics';
+import { useSafety } from '@/components/safety-sheet';
 
 export default function LetterScreen() {
   const router = useRouter();
@@ -42,8 +43,9 @@ export default function LetterScreen() {
   const anim = useRef(new Animated.Value(reveal ? 0 : 1)).current;
   const paperRef = useRef<View>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const safety = useSafety();
   useEffect(() => { if (reveal) Animated.spring(anim, { toValue: 1, friction: 6, tension: 60, useNativeDriver: Platform.OS !== 'web' }).start(); }, [reveal, anim]);
-  if (!letter) return <Screen><Header title="편지" /><T style={{ padding: spacing.lg }} color={c.text2}>편지를 찾을 수 없어요</T></Screen>;
+  if (!letter) return <Screen><Header title="편지" /><T style={{ padding: spacing.lg }} color={c.text2}>편지를 찾을 수 없어요</T>{safety.sheet}</Screen>;
 
   const v = VEHICLE_MAP[letter.vehicle];
   const st = statusLabel(c)[letter.status];
@@ -75,7 +77,7 @@ export default function LetterScreen() {
 
   return (
     <Screen>
-      <Header title={`${letter.origin.city} → ${mine || toMe || caughtByMe ? letter.destination.city : '어딘가'}`} subtitle={`${v.name} · ${formatKm(letter.distanceKm)} · ${kindLabel(letter)}`} right={<><Pill label={st.label} color={st.bg} textColor={st.color} icon={<ItemIcon id={st.icon} size={12} />} />{canRead ? <IconButton name="share" label="공유" onPress={share} /> : null}</>} />
+      <Header title={`${letter.origin.city} → ${mine || toMe || caughtByMe ? letter.destination.city : '어딘가'}`} subtitle={`${v.name} · ${formatKm(letter.distanceKm)} · ${kindLabel(letter)}`} right={<><Pill label={st.label} color={st.bg} textColor={st.color} icon={<ItemIcon id={st.icon} size={12} />} />{canRead ? <IconButton name="share" label="공유" onPress={share} /> : null}{!mine && canRead ? <IconButton name="more-horizontal" label="신고·차단" track="letter:safety" onPress={() => safety.open({ userId: letter.senderId, kind: 'letter', targetId: letter.id, label: '편지' })} /> : null}</>} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         {(letter.status === 'flying' || letter.status === 'landed' || sunk) && (
           <LinearGradient colors={[...c.sky] as any} style={{ alignItems: 'center', paddingBottom: 12 }}>
@@ -164,6 +166,7 @@ export default function LetterScreen() {
           </View>
         </Section>
       </ScrollView>
+      {safety.sheet}
     </Screen>
   );
 }
