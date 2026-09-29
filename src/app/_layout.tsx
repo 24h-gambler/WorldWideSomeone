@@ -45,7 +45,7 @@ export default function RootLayout() {
     const st = useStore.getState();
     configureAnalytics({ deviceId: st.deviceId, userId: st.signedIn ? st.me.id : undefined, guest: !st.signedIn });
   }, [hydrated]);
-  useEffect(() => { setAnalyticsUser(signedIn ? 'me' : undefined, !signedIn); if (hydrated && signedIn && supabaseEnabled) startSync().catch(() => {}); }, [signedIn, hydrated]);
+  useEffect(() => { setAnalyticsUser(signedIn ? 'me' : undefined, !signedIn); if (hydrated && signedIn && supabaseEnabled) startSync().then(() => purchases.init()).catch(() => {}); }, [signedIn, hydrated]);
   useEffect(() => { if (hydrated && pathname) trackScreen(pathname); }, [hydrated, pathname]);
 
   // 1초 게임 틱 (로컬 모드: 봇 세계 / Supabase 모드: 도착·통과 로컬 보조 판정)
@@ -66,7 +66,7 @@ export default function RootLayout() {
       const token = await getPushToken();
       if (token) { setPermissions({ pushToken: token }); registerPushToken(token).catch(() => {}); }
       if (supabaseEnabled) await startSync().catch(() => {});
-      await purchases.init(useStore.getState().me.id).catch(() => {});
+      await purchases.init().catch(() => {}); // 로그인 상태면 스토어 계정 연결 + 서버(rc-grant) 지급 확정
     })();
     return subscribeNotificationTaps((route) => router.push(route as any));
   }, [hydrated, onboarded, setPermissions, router]);
