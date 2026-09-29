@@ -27,6 +27,8 @@ workflows:
     scripts:
       - name: Install JS deps
         script: npm ci --no-audit --no-fund
+      - name: Typecheck (report only)
+        script: npx tsc --noEmit || echo "⚠️ 타입 오류가 있습니다 — 위 로그 확인 (빌드는 계속)"
       - name: Build number → app.json
         script: |
           node -e '
