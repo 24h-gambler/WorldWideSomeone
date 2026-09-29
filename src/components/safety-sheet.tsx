@@ -76,7 +76,7 @@ export function SafetySheet({ target, onClose, onBlocked }: { target: SafetyTarg
                 <Icon name="check-circle" size={40} color={c.green} />
                 <T t="title" style={{ textAlign: 'center' }}>{blockedNow ? '차단했어요' : '신고가 접수됐어요'}</T>
                 <T t="body" color={c.text2} style={{ textAlign: 'center' }}>{blockedNow ? '이제 이 사람의 편지·엽서·댓글이 보이지 않고 채팅도 막혀요. 설정 → 차단한 사용자에서 언제든 해제할 수 있어요.' : '운영팀이 24시간 안에 검토하고, 정책 위반이면 콘텐츠 삭제·이용 제한을 해요.'}</T>
-                {!blockedNow && !isBlocked ? <Button title="이 사용자도 차단하기" variant="secondary" icon="slash" onPress={doBlock} full testID="safety:block-after-report" /> : null}
+                {!blockedNow && !isBlocked ? <Button title="이 사용자도 차단하기" variant="secondary" icon="slash" onPress={doBlock} full track="safety:block-after-report" /> : null}
                 <Button title="확인" onPress={close} full />
               </View>
             )}
