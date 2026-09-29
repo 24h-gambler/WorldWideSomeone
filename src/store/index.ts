@@ -102,6 +102,8 @@ export type State = {
   sendMessage: (otherId: string, text: string) => boolean; markChatRead: (otherId: string) => void; markNotificationsRead: () => void;
   likePost: (postId: string) => void; commentPost: (postId: string, text: string) => void; publishPost: (letterId: string, shareToStory: boolean) => void; setPostStory: (postId: string, on: boolean) => void;
   buyItem: (itemId: ItemId) => boolean; applyPack: (packId: PackId) => void; setPlan: (plan: PlanId, expiresAt?: number) => void;
+  /** 서버(rc-grant)가 확정한 지갑 — 스토어 실결제에서는 이것만이 정답(로컬 가산 없음) */
+  applyServerWallet: (w: { coins: number; plan: PlanId; planExpiresAt?: number | null; inventory?: Partial<Inventory> }) => void;
   tick: (now: number) => void; devFastForward: (ms: number) => void; devSpawnPassby: () => void; devSpawnReply: () => void; resetAll: () => void;
 };
 
@@ -530,6 +532,10 @@ export const useStore = create<State>()(
         if (!p) return;
         set({ me: { ...s.me, coins: s.me.coins + p.coins }, notifications: [notif('reward', `${p.coins.toLocaleString('ko-KR')} SC 충전 완료`, p.bonusPct ? `보너스 ${p.bonusPct}% 포함` : '썸원코인이 채워졌어요'), ...s.notifications] });
         track('purchase', { pack: packId, krw: p.priceKrw, coins: p.coins });
+      },
+      applyServerWallet: (w) => {
+        const s = get();
+        set({ me: { ...s.me, coins: w.coins, plan: w.plan, planExpiresAt: w.planExpiresAt ?? undefined, inventory: w.inventory ? { ...s.me.inventory, ...w.inventory } : s.me.inventory } });
       },
       setPlan: (plan, expiresAt) => {
         const s = get();
