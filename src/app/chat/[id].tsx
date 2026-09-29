@@ -9,6 +9,7 @@ import { distanceKm, formatKm, timeAgo } from '@/engine/geo';
 import { ME_ID, displayName, getUser, isRevealed, useStore } from '@/store';
 import { fontFamily, radius, spacing, useColors } from '@/theme';
 import { remote } from '@/services/sync';
+import { useSafety } from '@/components/safety-sheet';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function ChatScreen() {
   const send = useStore((s) => s.sendMessage);
   const markRead = useStore((s) => s.markChatRead);
   const [text, setText] = useState('');
+  const safety = useSafety();
   const scroll = useRef<ScrollView>(null);
   const other = id ? getUser({ me }, id) : undefined;
   const isFriend = !!id && friendIds.includes(id);
@@ -49,7 +51,7 @@ export default function ChatScreen() {
         left={<Row gap={8}><Pressable hitSlop={10} onPress={() => (router.canGoBack() ? router.back() : router.replace('/friends'))}><Icon name="chevron-left" size={28} /></Pressable><Avatar anonymous={!isRevealedUser} emoji={other.avatar} size={36} /></Row>}
         title={displayName({ me, friendIds, revealedIds }, other.id)}
         subtitle={`${other.location.city} · ${formatKm(distanceKm(me.location, other.location))} · ${isFriend ? '친구 · 실시간' : '아직 친구가 아니에요'}`}
-        right={<><IconButton name="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /><IconButton name="info" onPress={() => router.push(`/user/${other.id}`)} /></>}
+        right={<><IconButton name="send" onPress={() => router.push({ pathname: '/compose', params: { toId: other.id } } as any)} /><IconButton name="info" onPress={() => router.push(`/user/${other.id}`)} /><IconButton name="more-horizontal" label="신고·차단" track="chat:safety" onPress={() => safety.open({ userId: other.id, kind: 'user', label: other.nickname })} /></>}
       />
       {!isFriend ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: 12 }}>
@@ -78,7 +80,7 @@ export default function ChatScreen() {
                   {mine ? (
                     <LinearGradient colors={[...colors.bubbleMe] as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, { borderBottomRightRadius: 4 }]}><T color="#fff">{m.text}</T></LinearGradient>
                   ) : (
-                    <View style={[styles.bubble, { backgroundColor: colors.bubbleThem, borderBottomLeftRadius: 4 }]}><T>{m.text}</T></View>
+                    <Pressable onLongPress={() => safety.open({ userId: other.id, kind: 'message', targetId: m.id, label: '메시지' })} delayLongPress={350} style={[styles.bubble, { backgroundColor: colors.bubbleThem, borderBottomLeftRadius: 4 }]}><T>{m.text}</T></Pressable>
                   )}
                 </View>
               );
@@ -93,6 +95,7 @@ export default function ChatScreen() {
           </View>
         </KeyboardAvoidingView>
       )}
+      {safety.sheet}
     </Screen>
   );
 }
