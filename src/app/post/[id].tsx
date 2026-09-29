@@ -10,9 +10,10 @@ import { VehicleIcon } from '@/components/vehicle-icon';
 import { findCity } from '@/data/cities';
 import { VEHICLE_MAP } from '@/data/vehicles';
 import { formatKm, timeAgo } from '@/engine/geo';
-import { BOTS, ME_ID, displayName, isRevealed, useStore } from '@/store';
+import { BOTS, ME_ID, NO_IDS, displayName, isRevealed, useStore } from '@/store';
 import { fontFamily, spacing, useColors } from '@/theme';
 import { tap } from '@/engine/haptics';
+import { useSafety } from '@/components/safety-sheet';
 
 /** 엽서 상세 — 여기서 '그때' 국가가 공개된다. 댓글 가능. */
 export default function PostScreen() {
@@ -28,8 +29,10 @@ export default function PostScreen() {
   const likePost = useStore((s) => s.likePost);
   const commentPost = useStore((s) => s.commentPost);
   const gate = useGate();
+  const safety = useSafety();
+  const blockedIds = (useStore((s) => s.blockedIds) ?? NO_IDS);
   const [text, setText] = useState('');
-  if (!post) return <Screen><Header title="엽서" /><T style={{ padding: spacing.lg }}>엽서를 찾을 수 없어요</T></Screen>;
+  if (!post) return <Screen><Header title="엽서" /><T style={{ padding: spacing.lg }}>엽서를 찾을 수 없어요</T>{safety.sheet}</Screen>;
   const rev = { me, friendIds, revealedIds };
   const mine = post.authorId === ME_ID;
   const author = mine ? me : BOTS.find((b) => b.id === post.authorId);
@@ -37,7 +40,7 @@ export default function PostScreen() {
   const shown = isRevealed(rev, post.authorId);
   return (
     <Screen>
-      <Header title="엽서" subtitle={`${city?.flag ?? '🌍'} ${post.country} · ${post.city} · ${formatKm(post.distanceKm)}`} right={<IconButton name="send" onPress={() => (mine ? router.push('/compose') : router.push({ pathname: '/compose', params: { toId: post.authorId } } as any))} />} />
+      <Header title="엽서" subtitle={`${city?.flag ?? '🌍'} ${post.country} · ${post.city} · ${formatKm(post.distanceKm)}`} right={<><IconButton name="send" onPress={() => (mine ? router.push('/compose') : router.push({ pathname: '/compose', params: { toId: post.authorId } } as any))} />{!mine ? <IconButton name="more-horizontal" label="신고·차단" track="post:safety" onPress={() => safety.open({ userId: post.authorId, kind: 'post', targetId: post.id, label: '엽서' })} /> : null}</>} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
           <Row style={{ padding: spacing.lg, justifyContent: 'space-between' }}>
@@ -67,12 +70,15 @@ export default function PostScreen() {
             <Row gap={6}><VehicleIcon id={post.vehicle} size={26} bubble /><T t="caption" color={c.text2}>{VEHICLE_MAP[post.vehicle].name} 배달</T></Row>
           </Row>
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, gap: 10 }}>
-            <T t="h2">댓글 {post.comments.length}</T>
-            {post.comments.map((cm) => (
-              <Row key={cm.id} style={{ alignItems: 'flex-start' }} gap={10}>
+            <T t="h2">댓글 {post.comments.filter((cm) => !blockedIds.includes(cm.authorId)).length}</T>
+            {post.comments.filter((cm) => !blockedIds.includes(cm.authorId)).map((cm) => (
+              <Pressable key={cm.id} disabled={cm.authorId === ME_ID} onLongPress={() => safety.open({ userId: cm.authorId, kind: 'comment', targetId: cm.id, label: '댓글' })} delayLongPress={350}>
+              <Row style={{ alignItems: 'flex-start' }} gap={10}>
                 <Avatar anonymous={!isRevealed(rev, cm.authorId)} emoji={cm.authorId === ME_ID ? me.avatar : BOTS.find((b) => b.id === cm.authorId)?.avatar} size={30} />
                 <View style={{ flex: 1 }}><T t="small"><T t="smallStrong">{displayName(rev, cm.authorId)}</T>  {cm.text}</T><T t="caption" color={c.text2}>{timeAgo(cm.at)}</T></View>
+                {cm.authorId !== ME_ID ? <IconButton name="more-horizontal" size={16} color={c.text3} label="댓글 신고" onPress={() => safety.open({ userId: cm.authorId, kind: 'comment', targetId: cm.id, label: '댓글' })} /> : null}
               </Row>
+              </Pressable>
             ))}
             {!mine ? <Button title="이 사람에게 편지 보내기" variant="secondary" size="sm" icon="send" onPress={() => router.push({ pathname: '/compose', params: { toId: post.authorId } } as any)} /> : null}
           </View>
@@ -83,6 +89,7 @@ export default function PostScreen() {
           <Pressable disabled={!text.trim()} testID="btn:post:comment" onPress={() => { tap(); gate('comment', () => { commentPost(post.id, text); setText(''); }); }}><T t="bodyStrong" color={text.trim() ? c.blueText : c.text3}>게시</T></Pressable>
         </Row>
       </KeyboardAvoidingView>
+      {safety.sheet}
     </Screen>
   );
 }
