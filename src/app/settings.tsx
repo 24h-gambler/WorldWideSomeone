@@ -5,11 +5,11 @@ import Constants from 'expo-constants';
 
 import { LocationPicker } from '@/components/location-picker';
 import { Button, Chip, Header, Icon, ListRow, Pill, Row, Screen, Section, T, Toggle } from '@/components/ui';
-import { useStore } from '@/store';
+import { NO_IDS, getUser, useStore } from '@/store';
 import { spacing, useColors } from '@/theme';
 import { getLocationPermission, requestBackgroundLocation, requestForegroundLocation, startBackgroundLocation, stopBackgroundLocation } from '@/services/location';
 import { getNotificationPermission, getPushToken, requestNotificationPermission } from '@/services/push';
-import { pushProfile, registerPushToken, stopSync } from '@/services/sync';
+import { deleteAccount, pushProfile, registerPushToken, stopSync } from '@/services/sync';
 import { signOut } from '@/services/auth';
 import { openSignup } from '@/components/signup-sheet';
 import { supabaseEnabled } from '@/services/supabase';
@@ -43,6 +43,9 @@ export default function Settings() {
   const reset = useStore((s) => s.resetAll);
   const signOutLocal = useStore((s) => s.signOutLocal);
   const signedIn = useStore((s) => s.signedIn);
+  const blockedIds = (useStore((s) => s.blockedIds) ?? NO_IDS);
+  const unblockUser = useStore((s) => s.unblockUser);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
   const confirmAsync = (title: string, body: string, fn: () => Promise<void>) => { if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${body}`)) void fn(); return; } Alert.alert(title, body, [{ text: '취소', style: 'cancel' }, { text: title, style: 'destructive', onPress: () => void fn() }]); };
   const [showLoc, setShowLoc] = useState(false);
 
@@ -94,6 +97,15 @@ export default function Settings() {
           <ListRow title="백엔드" subtitle={supabaseEnabled ? 'Supabase (Auth · Postgres · Realtime · Edge Functions)' : 'EXPO_PUBLIC_SUPABASE_* 미설정 → 로컬 봇 시뮬레이션'} />
         </Section>
 
+        <Section title="안전 · 신고">
+          <T t="small" color={colors.text2} style={{ paddingHorizontal: spacing.lg, marginBottom: 6 }}>편지·엽서·댓글·채팅의 ⋯ 버튼(메시지는 길게 누르기)으로 신고하거나 차단할 수 있어요. 신고는 24시간 안에 검토해요.</T>
+          {blockedIds.length === 0 ? <ListRow title="차단한 사용자 없음" subtitle="차단하면 서로 채팅할 수 없고 그 사람의 콘텐츠가 보이지 않아요" /> : blockedIds.map((id) => {
+            const u = getUser({ me }, id);
+            return <ListRow key={id} title={u?.nickname || '차단한 사용자'} subtitle={u ? `${u.location.city} · ${u.field}` : id.slice(0, 8)} right={<Button title="차단 해제" size="sm" variant="secondary" track="settings:unblock" onPress={() => unblockUser(id)} />} />;
+          })}
+          <ListRow title="안전 문의 · 긴급 신고" subtitle="contact@worldwidesomething.com" onPress={() => Linking.openURL('mailto:contact@worldwidesomething.com?subject=WorldWideSomeone%20%EC%8B%A0%EA%B3%A0')} right={<Icon name="mail" size={18} color={colors.text2} />} />
+        </Section>
+
         <Section title="개발자 모드" right={<Toggle value={settings.devMode} onValueChange={(v) => setSettings({ devMode: v })} />}>
           {settings.devMode ? (
             <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
@@ -114,7 +126,8 @@ export default function Settings() {
         </Section>
 
         <Section title="데이터">
-          {signedIn ? <ListRow title="계정 삭제" subtitle="편지·친구·엽서·코인이 모두 지워져요 (되돌릴 수 없음)" right={<Button title="삭제" size="sm" variant="danger" track="settings:delete-account" onPress={() => confirmAsync('계정 삭제', '정말 삭제할까요? 모든 데이터가 지워지고 되돌릴 수 없어요.', async () => { stopSync(); await signOut(); reset(); })} />} /> : null}
+          {signedIn ? <ListRow title="계정 삭제" subtitle="편지·친구·엽서·코인이 모두 지워져요 (되돌릴 수 없음)" right={<Button title="삭제" size="sm" variant="danger" track="settings:delete-account" onPress={() => confirmAsync('계정 삭제', '정말 삭제할까요? 계정과 편지·친구·엽서·댓글·채팅·코인이 서버에서 지워지고 되돌릴 수 없어요. (결제 기록만 법령에 따라 5년 보관)', async () => { setDeleteErr(null); const ok = await deleteAccount(); if (!ok) { setDeleteErr('서버 삭제에 실패했어요. 잠시 후 다시 시도하거나 contact@worldwidesomething.com 으로 요청해 주세요.'); return; } stopSync(); await signOut(); reset(); })} />} /> : null}
+          {deleteErr ? <T t="small" color={colors.red} style={{ paddingHorizontal: spacing.lg }}>{deleteErr}</T> : null}
           <View style={{ paddingHorizontal: spacing.lg }}><Button title="모든 데이터 초기화" variant="danger" onPress={confirmReset} /></View>
         </Section>
         <T t="caption" color={colors.text3} style={{ textAlign: 'center', marginTop: spacing.xl }}>WorldWideSomeone {Constants.expoConfig?.version ?? ''} · {Platform.OS} · {Constants.appOwnership ?? 'standalone'}</T>
