@@ -25,9 +25,18 @@ export type RemoteBridge = Partial<{
   rescue: (letterId: string) => void; approveReply: (letterId: string, accept: boolean) => void; boostReply: (letterId: string, tier: BoostTier) => void;
   publishPost: (letterId: string, shareToStory: boolean) => void; likePost: (postId: string, on: boolean) => void; comment: (postId: string, text: string) => void;
   setLocation: (p: Place) => void;
+  block: (userId: string, on: boolean) => void; report: (r: ReportInput) => void;
 }>;
 let bridge: RemoteBridge = {};
 export const registerRemote = (b: RemoteBridge) => { bridge = b; };
+
+/** 신고 — 사용자·편지·엽서·댓글·채팅 메시지 무엇이든 */
+export type ReportKind = 'user' | 'letter' | 'post' | 'comment' | 'message';
+export type ReportReason = 'spam' | 'harassment' | 'sexual' | 'violence' | 'scam' | 'underage' | 'other';
+export type ReportInput = { targetUserId: string; kind: ReportKind; targetId?: string; reason: ReportReason; note?: string };
+
+/** 빈 id 목록(셀렉터 기본값 — 매 렌더 새 배열을 만들지 않게) */
+export const NO_IDS: string[] = [];
 
 export const BOTS: User[] = makeBots();
 const BOT_BY_ID: Record<string, User> = Object.fromEntries(BOTS.map((b) => [b.id, b]));
@@ -64,6 +73,8 @@ export type State = {
   /** 이미 열어본 스토리(엽서) id — 링 색으로 안 본 것과 구분한다 */
   seenStoryIds: string[];
   me: User; letters: Letter[]; friendIds: string[]; revealedIds: string[]; chats: Chat[]; posts: Post[];
+  /** 내가 차단한 사용자 — 이들의 편지·엽서·댓글·채팅은 보이지 않고 채팅도 막힌다 */
+  blockedIds: string[];
   notifications: AppNotification[]; passbys: Passby[]; scheduled: ScheduledEvent[]; settings: Settings; lastTick: number;
   focusLetterId: string | null; focusPoint: LatLng | null; permissions: Permissions; backend: 'local' | 'supabase';
 
@@ -87,6 +98,7 @@ export type State = {
   dismissPassby: (id: string) => void;
   approveReply: (letterId: string) => void;   // 도착한 답장 수락 → 친구 + 채팅
   declineLetter: (letterId: string) => void;
+  blockUser: (userId: string) => void; unblockUser: (userId: string) => void; reportContent: (r: ReportInput) => void;
   sendMessage: (otherId: string, text: string) => boolean; markChatRead: (otherId: string) => void; markNotificationsRead: () => void;
   likePost: (postId: string) => void; commentPost: (postId: string, text: string) => void; publishPost: (letterId: string, shareToStory: boolean) => void; setPostStory: (postId: string, on: boolean) => void;
   buyItem: (itemId: ItemId) => boolean; applyPack: (packId: PackId) => void; setPlan: (plan: PlanId, expiresAt?: number) => void;
@@ -167,7 +179,7 @@ export const useStore = create<State>()(
   persist(
     (set, get) => ({
       onboarded: false, signedIn: false, tourDone: false, deviceId: uid(), remoteLoading: false, seenStoryIds: [],
-      me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [],
+      me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], blockedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [],
       settings: DEFAULT_SETTINGS, lastTick: Date.now(), focusLetterId: null, focusPoint: null, permissions: { location: 'undetermined', backgroundLocation: 'undetermined', notifications: 'undetermined' }, backend: 'local',
 
       enterAsGuest: (location) => {
@@ -452,9 +464,26 @@ export const useStore = create<State>()(
       },
       declineLetter: (letterId) => { set((s) => ({ letters: s.letters.map((x) => (x.id === letterId ? { ...x, status: 'declined', events: [...x.events, { type: 'declined', at: Date.now(), by: ME_ID }] } : x)) })); track('reply_decline'); bridge.approveReply?.(letterId, false); },
 
+      blockUser: (userId) => {
+        if (!userId || userId === ME_ID) return;
+        set((s) => ({
+          blockedIds: s.blockedIds.includes(userId) ? s.blockedIds : [...s.blockedIds, userId],
+          friendIds: s.friendIds.filter((x) => x !== userId),
+          chats: s.chats.filter((c) => c.otherId !== userId),
+          posts: s.posts.filter((p) => p.authorId !== userId).map((p) => ({ ...p, comments: p.comments.filter((cm) => cm.authorId !== userId) })),
+          letters: s.letters.filter((l) => !(l.senderId === userId && l.recipientId === ME_ID && (l.status === 'flying' || l.status === 'delivered'))),
+          passbys: s.passbys.filter((b) => s.letters.find((l) => l.id === b.letterId)?.senderId !== userId),
+          scheduled: s.scheduled.filter((e) => (e.payload as any)?.botId !== userId),
+        }));
+        track('user_block');
+        bridge.block?.(userId, true);
+      },
+      unblockUser: (userId) => { set((s) => ({ blockedIds: s.blockedIds.filter((x) => x !== userId) })); track('user_unblock'); bridge.block?.(userId, false); },
+      reportContent: (r) => { track('report', { kind: r.kind, reason: r.reason }); bridge.report?.(r); },
+
       sendMessage: (otherId, text) => {
         const s = get();
-        if (!s.friendIds.includes(otherId)) return false;
+        if (!s.friendIds.includes(otherId) || s.blockedIds.includes(otherId)) return false;
         const chat = s.chats.find((c) => c.otherId === otherId) ?? { id: otherId, otherId, messages: [], lastReadAt: Date.now(), since: Date.now() };
         const updated: Chat = { ...chat, messages: [...chat.messages, { id: uid(), senderId: ME_ID, text, at: Date.now() }], lastReadAt: Date.now() };
         const chats = s.chats.some((c) => c.otherId === otherId) ? s.chats.map((c) => (c.otherId === otherId ? updated : c)) : [updated, ...s.chats];
@@ -521,6 +550,9 @@ export const useStore = create<State>()(
         let changed = me !== s.me;
         const pushes: { title: string; body: string; route?: string }[] = [];
         const nf = (n: AppNotification) => { notifications = [n, ...notifications]; };
+        const blocked = s.blockedIds ?? [];
+        const okBots = BOTS.filter((b) => !blocked.includes(b.id));
+        const pickOk = () => pick(okBots.length ? okBots : BOTS);
 
         // 0) trail 기록 · 침수 복귀
         letters = letters.map((l) => {
@@ -598,11 +630,11 @@ export const useStore = create<State>()(
             switch (e.type) {
               case 'bot_send': {
                 const active = letters.filter((l) => inSky(l) && l.senderId !== ME_ID).length;
-                if (active < 16) letters = [makeBotLetter(pick(BOTS), Math.random() < 0.45 ? me.location : null, s.settings.timeScale), ...letters];
+                if (active < 16) letters = [makeBotLetter(pickOk(), Math.random() < 0.45 ? me.location : null, s.settings.timeScale), ...letters];
                 scheduled.push({ id: uid(), at: now + rand(25_000, 60_000), type: 'bot_send', payload: {} });
                 break;
               }
-              case 'bot_post': { posts = [makeBotPost(pick(BOTS), me.location), ...posts].slice(0, 90); scheduled.push({ id: uid(), at: now + rand(90_000, 240_000), type: 'bot_post', payload: {} }); break; }
+              case 'bot_post': { posts = [makeBotPost(pickOk(), me.location), ...posts].slice(0, 90); scheduled.push({ id: uid(), at: now + rand(90_000, 240_000), type: 'bot_post', payload: {} }); break; }
               case 'bot_like': {
                 const post = posts.find((p) => p.id === e.payload.postId);
                 if (post) {
@@ -616,7 +648,8 @@ export const useStore = create<State>()(
               case 'bot_comment': {
                 const post = posts.find((p) => p.id === e.payload.postId);
                 if (post) {
-                  const bot = BOT_BY_ID[e.payload.botId] ?? pick(BOTS);
+                  const bot = BOT_BY_ID[e.payload.botId] ?? pickOk();
+                  if (blocked.includes(bot.id)) break;
                   posts = posts.map((p) => (p.id === post.id ? { ...p, comments: [...p.comments, { id: uid(), authorId: bot.id, text: pick(BOT_COMMENTS), at: now }] } : p));
                   if (post.authorId === ME_ID) nf(notif('comment', '💬 내 엽서에 댓글이 달렸어요', post.text.slice(0, 40), `/post/${post.id}`));
                 }
@@ -625,6 +658,7 @@ export const useStore = create<State>()(
               case 'bot_catch': {
                 const l = letters.find((x) => x.id === e.payload.letterId);
                 const bot = BOT_BY_ID[e.payload.botId];
+                if (bot && blocked.includes(bot.id)) break;
                 if (!l || !bot || (l.status !== 'landed' && l.status !== 'flying')) break;
                 letters = letters.map((x) => (x.id === l.id ? { ...x, status: 'caught', caughtBy: bot.id, caughtAt: now, catchPlace: bot.location.city, events: [...x.events, { type: 'caught', at: now, by: bot.id, place: bot.location.city }] } : x));
                 nf(notif('caught', `🎉 ${bot.location.city}에서 누군가 내 편지를 잡았어요`, '답장이 오면 프로필을 보고 수락해보세요', `/letter/${l.id}`));
@@ -636,7 +670,7 @@ export const useStore = create<State>()(
               case 'bot_reply': {
                 // 봇이 답장 — 봇의 배달원은 봇의 해금 수준(느릴 수 있음). 받는 나는 코인으로 가속할 수 있다.
                 const bot = BOT_BY_ID[e.payload.botId];
-                if (!bot || friendIds.includes(bot.id)) break;
+                if (!bot || friendIds.includes(bot.id) || blocked.includes(bot.id)) break;
                 if (e.payload.direct && Math.random() < 0.2) { nf(notif('system', `😶 ${bot.nickname} 님은 아직 답장이 없어요`, '직행 편지는 도착까지만 보장돼요', `/letter/${e.payload.letterId}`)); break; }
                 const vehicle = replyVehicleFor(bot);
                 const fl = planFlight(bot.location, me.location, [], vehicle, s.settings.timeScale);
@@ -663,7 +697,7 @@ export const useStore = create<State>()(
               }
               case 'bot_chat': {
                 const bot = BOT_BY_ID[e.payload.botId];
-                if (!bot) break;
+                if (!bot || blocked.includes(bot.id)) break;
                 const reply = { id: uid(), senderId: bot.id, text: fill(pick(BOT_REPLIES), bot), at: now };
                 chats = chats.map((c) => (c.otherId === bot.id ? { ...c, messages: [...c.messages, reply] } : c));
                 nf(notif('chat', `💬 ${bot.nickname}`, reply.text, `/chat/${bot.id}`));
@@ -747,11 +781,11 @@ export const useStore = create<State>()(
         me: { ...DEFAULT_ME, location: s.me.location, lastActiveAt: Date.now() },
         letters: s.letters.filter((l) => l.senderId !== ME_ID && l.recipientId !== ME_ID && l.caughtBy !== ME_ID),
         posts: s.posts.filter((p) => p.authorId !== ME_ID),
-        friendIds: [], revealedIds: [], chats: [], notifications: [], passbys: [], seenStoryIds: [],
+        friendIds: [], revealedIds: [], blockedIds: [], chats: [], notifications: [], passbys: [], seenStoryIds: [],
         scheduled: s.scheduled.filter((e) => e.type === 'bot_send' || e.type === 'bot_post'),
         focusLetterId: null, focusPoint: null, remoteLoading: false,
       })),
-      resetAll: () => set({ onboarded: false, signedIn: false, tourDone: false, remoteLoading: false, seenStoryIds: [], me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [], settings: DEFAULT_SETTINGS, focusLetterId: null, focusPoint: null, lastTick: Date.now() }),
+      resetAll: () => set({ onboarded: false, signedIn: false, tourDone: false, remoteLoading: false, seenStoryIds: [], me: DEFAULT_ME, letters: [], friendIds: [], revealedIds: [], blockedIds: [], chats: [], posts: [], notifications: [], passbys: [], scheduled: [], settings: DEFAULT_SETTINGS, focusLetterId: null, focusPoint: null, lastTick: Date.now() }),
     }),
     { name: 'wws-v4', storage: createJSONStorage(() => AsyncStorage), partialize: (s) => { const { focusLetterId, focusPoint, permissions, backend, ...rest } = s as any; return rest; } },
   ),
