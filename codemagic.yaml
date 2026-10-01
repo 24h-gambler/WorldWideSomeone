@@ -1,7 +1,7 @@
 # Codemagic CI — WorldWideSomeone (Expo · com.worldwidesomeone.app)
 #
 # 콘솔 준비물 (Personal account)
-#   - 환경변수 그룹 wws_public : EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY
+#   - 서버 주소는 아래 vars(EXPO_PUBLIC_API_URL/KEY, Cloudflare wws-api). 그룹 wws_public 의 옛 SUPABASE 값은 쓰지 않는다
 #     EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY (RevenueCat public 키 — 없으면 프로덕션 빌드의 상점은 "결제 준비 중"으로 잠긴다)
 #   - Android keystore reference : pushers_upload (같은 개발자 계정의 업로드 키 재사용 — 전용 키로 바꾸려면 여기만 교체)
 #   - iOS : App Store Connect 연동 codemagic_asc · 프로파일 wws_appstore (com.worldwidesomeone.app)
@@ -17,6 +17,10 @@ workflows:
     environment:
       groups:
         - wws_public
+      vars:
+        # 서버: Cloudflare (wws-api). 공개 값이라 여기 둔다 — 그룹의 옛 SUPABASE 값보다 우선
+        EXPO_PUBLIC_API_URL: https://wws-api.beff-data.workers.dev
+        EXPO_PUBLIC_API_KEY: wws_publishable_cf
       android_signing:
         - pushers_upload
       node: 22
@@ -76,6 +80,10 @@ workflows:
     environment:
       groups:
         - wws_public
+      vars:
+        # 서버: Cloudflare (wws-api). 공개 값이라 여기 둔다 — 그룹의 옛 SUPABASE 값보다 우선
+        EXPO_PUBLIC_API_URL: https://wws-api.beff-data.workers.dev
+        EXPO_PUBLIC_API_KEY: wws_publishable_cf
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.worldwidesomeone.app
