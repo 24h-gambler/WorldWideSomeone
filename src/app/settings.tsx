@@ -94,7 +94,7 @@ export default function Settings() {
           <ListRow title={signedIn ? `${me.nickname} · ${PROVIDER_LABEL[me.auth?.provider ?? 'google']} 로그인` : '비회원으로 둘러보는 중'} subtitle={signedIn ? (me.auth?.email ?? '가입됨') : '보내기·좋아요·댓글 때 가입 시트가 떠요'} right={signedIn ? <Button title="로그아웃" size="sm" variant="secondary" track="settings:logout" onPress={() => confirmAsync('로그아웃', '이 기기에서 로그아웃해요. 편지와 친구는 계정에 남아요.', async () => { stopSync(); await signOut(); signOutLocal(); })} /> : <Button title="가입" size="sm" track="settings:signup" onPress={() => openSignup('send')} />} />
           <ListRow title={`플랜: ${me.plan.toUpperCase()}`} subtitle={me.planExpiresAt ? `갱신 ${new Date(me.planExpiresAt).toLocaleDateString('ko-KR')}` : '무료'} right={<Button title="상점" size="sm" variant="secondary" onPress={() => router.push('/store')} />} />
           <ListRow title="결제 제공자" subtitle={purchases.name === 'revenuecat' ? 'App Store / Google Play (RevenueCat)' : purchases.name === 'unavailable' ? '결제 준비 중이에요' : '테스트 결제 (웹·개발 빌드)'} />
-          <ListRow title="백엔드" subtitle={supabaseEnabled ? 'Supabase (Auth · Postgres · Realtime · Edge Functions)' : 'EXPO_PUBLIC_SUPABASE_* 미설정 → 로컬 봇 시뮬레이션'} />
+          <ListRow title="백엔드" subtitle={supabaseEnabled ? 'Cloudflare (Auth · D1 · Workers)' : '서버 주소 미설정 → 로컬 봇 시뮬레이션'} />
         </Section>
 
         <Section title="안전 · 신고">
