@@ -5,8 +5,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// 서버는 Cloudflare 워커(wws-api) — Supabase 와 같은 경로(/auth/v1 · /rest/v1 · /functions/v1)를 낸다
+const url = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
+const anon = process.env.EXPO_PUBLIC_API_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 export const supabaseEnabled = !!(url && anon);
 
 export const supabase: SupabaseClient | null = supabaseEnabled

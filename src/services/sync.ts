@@ -2,7 +2,7 @@
  * Supabase 동기화 — 내 편지/답장·통과·알림·채팅을 구독하고, 게임 액션은 Edge Function 을 호출한다.
  * 환경변수가 없으면 아무것도 하지 않는다(로컬 봇 시뮬).
  */
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { AppState, type NativeEventSubscription } from 'react-native';
 import { supabase, supabaseEnabled } from './supabase';
 import { registerRemote, useStore } from '@/store';
 import type { Letter, Post } from '@/types';
@@ -10,7 +10,12 @@ import type { ReportInput } from '@/store';
 import { configureAnalytics, flush, type AnalyticsEvent } from './analytics';
 import type { LatLng } from '@/types';
 
-let channel: RealtimeChannel | null = null;
+/** 실시간 대체: 앱이 앞에 있을 때 몇 초마다 서버 inbox 를 읽는다 (Cloudflare 서버 · postgres_changes 없음) */
+const POLL_MS = 6000;
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
+let appStateSub: NativeEventSubscription | null = null;
+let pollSince: string | null = null;
+let polling = false;
 
 export async function ensureSession(): Promise<string | null> {
   if (!supabase) return null;
@@ -92,14 +97,48 @@ export async function startSync(): Promise<void> {
   useStore.setState({ remoteLoading: true });
   await loadMine(uid).catch(() => {});
   useStore.setState({ remoteLoading: false });
-  channel?.unsubscribe();
-  channel = supabase.channel(`user:${uid}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, (p) => { const n = p.new as any; useStore.setState((s) => ({ notifications: [{ id: n.id, type: n.type, title: n.title, body: n.body, at: new Date(n.at).getTime(), read: false, route: n.route ?? undefined }, ...s.notifications] })); })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'passbys', filter: `user_id=eq.${uid}` }, async (p) => { const b = p.new as any; if (!useStore.getState().letters.some((l) => l.id === b.letter_id)) { const { data: row } = await supabase!.from('letters_public').select('*').eq('id', b.letter_id).maybeSingle(); if (row) useStore.setState((s) => ({ letters: [toLetter({ ...row, text: '', participants: [] }), ...s.letters] })); } useStore.setState((s) => ({ passbys: [{ id: b.id, letterId: b.letter_id, at: new Date(b.at).getTime(), expiresAt: new Date(b.expires_at).getTime(), canCatch: b.can_catch }, ...s.passbys] })); })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => { const m = p.new as any; const other = m.sender_id; if (other === uid || (useStore.getState().blockedIds ?? []).includes(other)) return; useStore.setState((s) => ({ chats: s.chats.some((c) => c.otherId === other) ? s.chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, { id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }] } : c)) : [{ id: other, otherId: other, messages: [{ id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() }], lastReadAt: 0, since: Date.now() }, ...s.chats] })); })
-    .subscribe();
+  stopPolling();
+  pollSince = new Date().toISOString();
+  const tick = async () => {
+    pollTimer = null;
+    if (AppState.currentState === 'active') await pollInbox(uid).catch(() => {});
+    if (appStateSub && !pollTimer) pollTimer = setTimeout(tick, POLL_MS);
+  };
+  appStateSub = AppState.addEventListener('change', (st) => { if (st === 'active' && appStateSub && pollTimer) { clearTimeout(pollTimer); pollTimer = null; void tick(); } });
+  pollTimer = setTimeout(tick, POLL_MS);
 }
-export function stopSync() { channel?.unsubscribe(); channel = null; void flush(); }
+function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; appStateSub?.remove(); appStateSub = null; }
+export function stopSync() { stopPolling(); void flush(); }
+
+/** 새 알림 · 통과 · 채팅 메시지를 받아 store 에 합친다 (id 로 중복 제거 — 서버는 겹쳐서 돌려준다) */
+async function pollInbox(uid: string) {
+  if (!supabase || polling) return;
+  polling = true;
+  try {
+    const r = await call<{ now: string; notifications: any[]; passbys: any[]; letters: any[]; messages: any[] }>('inbox', { since: pollSince });
+    pollSince = r.now;
+    const blocked = useStore.getState().blockedIds ?? [];
+    useStore.setState((s) => {
+      const notiIds = new Set(s.notifications.map((n) => n.id));
+      const newNoti = r.notifications.filter((n) => !notiIds.has(n.id)).reverse().map((n) => ({ id: n.id, type: n.type, title: n.title, body: n.body, at: new Date(n.at).getTime(), read: !!n.read, route: n.route ?? undefined }));
+      const letterIds = new Set(s.letters.map((l) => l.id));
+      const newLetters = r.letters.filter((l) => !letterIds.has(l.id)).map((l) => toLetter({ ...l, text: '', participants: [] }));
+      const pbIds = new Set(s.passbys.map((b) => b.id));
+      const newPb = r.passbys.filter((b) => !pbIds.has(b.id)).reverse().map((b) => ({ id: b.id, letterId: b.letter_id, at: new Date(b.at).getTime(), expiresAt: new Date(b.expires_at).getTime(), canCatch: !!b.can_catch }));
+      let chats = s.chats;
+      for (const m of r.messages) {
+        const other = m.sender_id;
+        if (other === uid || blocked.includes(other)) continue;
+        const msg = { id: m.id, senderId: other, text: m.text, at: new Date(m.at).getTime() };
+        const room = chats.find((c) => c.otherId === other);
+        if (room && room.messages.some((x) => x.id === m.id)) continue;
+        chats = room ? chats.map((c) => (c.otherId === other ? { ...c, messages: [...c.messages, msg] } : c)) : [{ id: other, otherId: other, messages: [msg], lastReadAt: 0, since: Date.now() }, ...chats];
+      }
+      if (!newNoti.length && !newLetters.length && !newPb.length && chats === s.chats) return {};
+      return { notifications: [...newNoti, ...s.notifications], letters: [...newLetters, ...s.letters], passbys: [...newPb, ...s.passbys], chats };
+    });
+  } finally { polling = false; }
+}
 
 export async function pushProfile() {
   if (!supabase) return;
