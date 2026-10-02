@@ -39,7 +39,7 @@ export const ITEMS: Item[] = [
 export const ITEM_MAP = Object.fromEntries(ITEMS.map((i) => [i.id, i])) as Record<ItemId, Item>;
 
 /** 코인 팩 — 원화는 여기(결제 화면)에서만. 많이 살수록 SC 단가가 내려간다. 마진 계산은 ECONOMY.md */
-export type PackId = 'sc300' | 'sc800' | 'sc2000' | 'sc5500' | 'sc12000';
+export type PackId = 'sc300' | 'sc800' | 'sc2000' | 'sc5500' | 'sc12000' | 'sc19000';
 export type CoinPack = { id: PackId; storeId: string; coins: number; bonusPct: number; priceKrw: number; priceLabel: string; tag?: string };
 export const COIN_PACKS: CoinPack[] = [
   { id: 'sc300', storeId: 'wws_sc_300', coins: 300, bonusPct: 0, priceKrw: 3900, priceLabel: '₩3,900' },
@@ -47,6 +47,7 @@ export const COIN_PACKS: CoinPack[] = [
   { id: 'sc2000', storeId: 'wws_sc_2000', coins: 2000, bonusPct: 30, priceKrw: 19900, priceLabel: '₩19,900', tag: '인기' },
   { id: 'sc5500', storeId: 'wws_sc_5500', coins: 5500, bonusPct: 46, priceKrw: 49000, priceLabel: '₩49,000', tag: '최고 가성비' },
   { id: 'sc12000', storeId: 'wws_sc_12000', coins: 12000, bonusPct: 58, priceKrw: 99000, priceLabel: '₩99,000' },
+  { id: 'sc19000', storeId: 'wws_sc_19000', coins: 19000, bonusPct: 66, priceKrw: 149000, priceLabel: '₩149,000', tag: '최대 혜택' },
 ];
 export const PACK_MAP = Object.fromEntries(COIN_PACKS.map((p) => [p.id, p])) as Record<PackId, CoinPack>;
 
